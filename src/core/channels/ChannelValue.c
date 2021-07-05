@@ -15,6 +15,58 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
+McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType type) {
+    a->numDims = numDims;
+    a->dims = (size_t *) mcx_calloc(sizeof(size_t), numDims);
+    if (!a->dims) {
+        return RETURN_ERROR;
+    }
+    memcpy(a->dims, dims, sizeof(size_t) * numDims);
+
+    a->type = type;
+    a->data = (void *) mcx_calloc(ChannelValueTypeSize(type), array_num_elements(a));
+    if (!a->data) {
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+int array_dims_match(array * a, array * b) {
+    size_t i = 0;
+
+    if (a->numDims != b->numDims) {
+        return 0;
+    }
+    if (a->dims == NULL || b->dims == NULL) {
+        return 0;
+    }
+
+    for (i = 0; i < a->numDims; i++) {
+        if (a->dims[i] != b->dims[i]) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+size_t array_num_elements(array * a) {
+    size_t i = 0;
+    size_t n = 1;
+
+    if (a->numDims == 0) {
+        return 0;
+    }
+
+    for (i = 0; i < a->numDims; i++) {
+        n *= a->dims[i];
+    }
+
+    return n;
+}
+
 void ChannelValueInit(ChannelValue * value, ChannelType type) {
     value->type = type;
     ChannelValueDataInit(&value->value, type);
@@ -33,6 +85,15 @@ void ChannelValueDataDestructor(ChannelValueData * data, ChannelType type) {
         }
     } else if (type == CHANNEL_BINARY_REFERENCE) {
         // do not free references to binary, they are not owned by the ChannelValueData
+    } else if (type == CHANNEL_ARRAY) {
+        if (data->a.dims) {
+            mcx_free(data->a.dims);
+            data->a.dims = NULL;
+        }
+        if (data->a.data) {
+            mcx_free(data->a.data);
+            data->a.data = NULL;
+        }
     }
 }
 
@@ -111,6 +172,9 @@ char * ChannelValueToString(ChannelValue * value) {
             }
         }
         break;
+    case CHANNEL_ARRAY:
+        mcx_log(LOG_ERROR, "TODO: ChannelValueToString unimplemented for CHANNEL_ARRAY");
+        return NULL;
     default:
         return NULL;
     }
@@ -184,6 +248,9 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
             }
         }
         break;
+    case CHANNEL_ARRAY:
+        mcx_log(LOG_ERROR, "TODO: ChannelValueToString unimplemented for CHANNEL_ARRAY");
+        return RETURN_ERROR;
     default:
         mcx_log(LOG_DEBUG, "Port value to string: Unknown type");
         return RETURN_ERROR;
@@ -226,6 +293,11 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType type) {
         case CHANNEL_BINARY_REFERENCE:
             data->b.len = 0;
             data->b.data = NULL;
+            break;
+        case CHANNEL_ARRAY:
+            data->a.numDims = 0;
+            data->a.dims = NULL;
+            data->a.data = NULL;
             break;
         case CHANNEL_UNKNOWN:
         default:
@@ -275,6 +347,28 @@ McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType 
             data->b.data = ((binary_string *) reference)->data;
         }
         break;
+    case CHANNEL_ARRAY:
+        if (NULL != reference) {
+            array * a = (array *) reference;
+
+            // The first call to SetFromReference fixes the dimensions
+            if (!data->a.numDims && a->numDims) {
+                if (RETURN_OK != array_init(&data->a, a->numDims, a->dims, a->type)) {
+                    return RETURN_ERROR;
+                }
+            }
+
+            // Arrays do not support multiplexing (yet)
+            if (!array_dims_match(&data->a, a)) {
+                return RETURN_ERROR;
+            }
+
+            if (a->data == NULL || data->a.data == NULL) {
+                return RETURN_ERROR;
+            }
+
+            memcpy(data->a.data, a->data, ChannelValueTypeSize(a->type) * array_num_elements(a));
+        }
     case CHANNEL_UNKNOWN:
     default:
         break;
@@ -343,6 +437,29 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
             ((binary_string *) reference)->data = value->value.b.data;
         }
         break;
+    case CHANNEL_ARRAY:
+        if (NULL != reference) {
+            array * a = (array *) reference;
+
+            // First Set fixes the dimensions
+            if (value->value.a.numDims && !a->numDims) {
+                if (RETURN_OK != array_init(a, value->value.a.numDims, value->value.a.dims, value->value.a.type)) {
+                    return RETURN_ERROR;
+                }
+            }
+
+            // Arrays do not support multiplexing (yet)
+            if (!array_dims_match(a, &value->value.a)) {
+                return RETURN_ERROR;
+            }
+
+            if (value->value.a.data == NULL || a->data == NULL) {
+                return RETURN_ERROR;
+            }
+
+            memcpy(a->data, value->value.a.data, ChannelValueTypeSize(a->type) * array_num_elements(a));
+        }
+        break;
     case CHANNEL_UNKNOWN:
     default:
         break;
@@ -350,6 +467,8 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
 
     return RETURN_OK;
 }
+
+// TODO: invalid size should be (-1)
 #ifdef __cplusplus
 size_t ChannelValueTypeSize(ChannelType type) {
     switch (type) {
@@ -361,6 +480,11 @@ size_t ChannelValueTypeSize(ChannelType type) {
         return sizeof(ChannelValueData::i);
     case CHANNEL_STRING:
         return sizeof(ChannelValueData::s);
+    case CHANNEL_BINARY:
+    case CHANNEL_BINARY_REFERENCE:
+        return sizeof(ChannelValueData::b);
+    case CHANNEL_ARRAY:
+        return sizeof(ChannelValueData::a);
     }
     return 0;
 }
@@ -376,6 +500,11 @@ size_t ChannelValueTypeSize(ChannelType type) {
         return sizeof(value.i);
     case CHANNEL_STRING:
         return sizeof(value.s);
+    case CHANNEL_BINARY:
+    case CHANNEL_BINARY_REFERENCE:
+        return sizeof(value.b);
+    case CHANNEL_ARRAY:
+        return sizeof(value.a);
     }
     return 0;
 }
@@ -396,6 +525,8 @@ const char * ChannelTypeToString(ChannelType type) {
     case CHANNEL_BINARY:
     case CHANNEL_BINARY_REFERENCE:
         return "Binary";
+    case CHANNEL_ARRAY:
+        return "Array";
     default:
         return "";
     }
@@ -427,6 +558,10 @@ int ChannelValueLeq(ChannelValue * val1, ChannelValue * val2) {
         return val1->value.d <= val2->value.d;
     case CHANNEL_INTEGER:
         return val1->value.i <= val2->value.i;
+    case CHANNEL_ARRAY:
+        // TODO: val1 <= val1 <=> val1[i,j] <= val2[i,j] \forall i,j?
+        mcx_log(LOG_ERROR, "TODO: ChannelValueLeq unimplemented for CHANNEL_ARRAY");
+        exit(-1);
     default:
         return 0;
     }
@@ -442,6 +577,10 @@ int ChannelValueGeq(ChannelValue * val1, ChannelValue * val2) {
         return val1->value.d >= val2->value.d;
     case CHANNEL_INTEGER:
         return val1->value.i >= val2->value.i;
+    case CHANNEL_ARRAY:
+        // TODO: val1 >= val1 <=> val1[i,j] >= val2[i,j] \forall i,j?
+        mcx_log(LOG_ERROR, "TODO: ChannelValueGeq unimplemented for CHANNEL_ARRAY");
+        exit(-1);
     default:
         return 0;
     }
@@ -460,6 +599,10 @@ int ChannelValueEq(ChannelValue * val1, ChannelValue * val2) {
         return val1->value.i == val2->value.i;
     case CHANNEL_STRING:
         return !strcmp(val1->value.s, val2->value.s);
+    case CHANNEL_ARRAY:
+        // TODO: val1 == val1 <=> val1[i,j] == val2[i,j] \forall i,j?
+        mcx_log(LOG_ERROR, "TODO: ChannelValueEq unimplemented for CHANNEL_ARRAY");
+        exit(-1);
     default:
         return 0;
     }
@@ -479,6 +622,12 @@ McxStatus ChannelValueAddOffset(ChannelValue * val, ChannelValue * offset) {
     case CHANNEL_INTEGER:
         val->value.i += offset->value.i;
         return RETURN_OK;
+    case CHANNEL_ARRAY:
+        // TODO: val matrix, offset matrix
+        //       val matrix, offset scalar
+        // needs check above relaxed
+        mcx_log(LOG_ERROR, "TODO: ChannelValueAddOffset unimplemented for CHANNEL_ARRAY");
+        exit(-1);
     default:
         mcx_log(LOG_ERROR, "Port: Add offset: Type %s not allowed", ChannelTypeToString(ChannelValueType(val)));
         return RETURN_ERROR;
@@ -499,6 +648,12 @@ McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor) {
     case CHANNEL_INTEGER:
         val->value.i *= factor->value.i;
         return RETURN_OK;
+    case CHANNEL_ARRAY:
+        // TODO: val matrix, offset scalar
+        //       val matrix, offset matrix: matrix multiplication?
+        // needs check above relaxed
+        mcx_log(LOG_ERROR, "TODO: ChannelValueScale unimplemented for CHANNEL_ARRAY");
+        exit(-1);
     default:
         mcx_log(LOG_ERROR, "Port: Scale: Type %s not allowed", ChannelTypeToString(ChannelValueType(val)));
         return RETURN_ERROR;
