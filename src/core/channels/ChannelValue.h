@@ -67,9 +67,9 @@ void *      ChannelValueReference(ChannelValue * value);
 
 void ChannelValueDataDestructor(ChannelValueData * data, ChannelType type);
 void ChannelValueDataInit(ChannelValueData * data, ChannelType type);
-void ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference);
+McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference);
 
-void ChannelValueSetFromReference(ChannelValue * value, const void * reference);
+McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
 void ChannelValueSetToReference(ChannelValue * value, void * reference);
 
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);

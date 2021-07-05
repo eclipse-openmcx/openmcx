@@ -299,7 +299,9 @@ Fmu2Value * Fmu2ReadParamValue(ScalarParameterInput * input,
     }
 
     ChannelValueInit(&chVal, input->type);
-    ChannelValueSetFromReference(&chVal, &input->value.value);
+    if (RETURN_OK != ChannelValueSetFromReference(&chVal, &input->value.value)) {
+        return NULL;
+    }
 
     var = fmi2_import_get_variable_by_name(import, input->name);
     if (!var) {
@@ -389,10 +391,16 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
 
             if (input->type == CHANNEL_DOUBLE) {
                 ChannelValueInit(&chVal, CHANNEL_DOUBLE);
-                ChannelValueSetFromReference(&chVal, &((double *)input->values)[index]);
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
+                    retVal = RETURN_ERROR;
+                    goto fmu2_read_array_param_values_for_cleanup;
+                }
             } else { // integer
                 ChannelValueInit(&chVal, CHANNEL_INTEGER);
-                ChannelValueSetFromReference(&chVal, &((int *)input->values)[index]);
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
+                    retVal = RETURN_ERROR;
+                    goto fmu2_read_array_param_values_for_cleanup;
+                }
             }
 
             retVal = val->SetFromChannelValue(val, &chVal);
@@ -818,7 +826,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         char * buffer = NULL;
 
         status = fmi2_import_get_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) &buffer);
-        ChannelValueSetFromReference(chVal, &buffer);
+        if (RETURN_OK != ChannelValueSetFromReference(chVal, &buffer)) {
+            return RETURN_ERROR;
+        }
 
         break;
     }
@@ -839,7 +849,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         binary.len = vs[2];
         binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
 
-        ChannelValueSetFromReference(chVal, &binary);
+        if (RETURN_OK != ChannelValueSetFromReference(chVal, &binary)) {
+            return RETURN_ERROR;
+        }
 
         break;
     }

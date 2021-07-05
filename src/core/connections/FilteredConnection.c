@@ -114,8 +114,8 @@ static ChannelFilter * FilteredConnectionGetFilter(FilteredConnection * connecti
     return connection->data->filter;
 }
 
-static void FilteredConnectionSetResult(FilteredConnection * connection, const void * value) {
-    ChannelValueSetFromReference(&connection->data->store, value);
+static McxStatus FilteredConnectionSetResult(FilteredConnection * connection, const void * value) {
+    return ChannelValueSetFromReference(&connection->data->store, value);
 }
 
 static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInterval * time) {
@@ -136,7 +136,7 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
     }
 }
 
-static void FilteredConnectionUpdateToOutput(Connection * connection, TimeInterval * time) {
+static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeInterval * time) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
 
     ChannelFilter * filter = NULL;
@@ -156,7 +156,9 @@ static void FilteredConnectionUpdateToOutput(Connection * connection, TimeInterv
         double value = 0.0;
 
         value = p->fn(time, p->env);
-        filteredConnection->SetResult(filteredConnection, &value);
+        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, &value)) {
+            return RETURN_ERROR;
+        }
     } else {
         // only filter if time is not negative (negative time means filter disabled)
         if (filteredConnection->GetReadFilter(filteredConnection) && time->startTime >= 0) {
@@ -165,9 +167,13 @@ static void FilteredConnectionUpdateToOutput(Connection * connection, TimeInterv
             filter = filteredConnection->GetReadFilter(filteredConnection);
             value = filter->GetValue(filter, time->startTime);
 
-            filteredConnection->SetResult(filteredConnection, &value);
+            if (RETURN_OK != filteredConnection->SetResult(filteredConnection, &value)) {
+                return RETURN_ERROR;
+            }
         }
     }
+
+    return RETURN_OK;
 }
 
 static McxStatus AddFilter(Connection * connection) {

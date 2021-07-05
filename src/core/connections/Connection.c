@@ -1225,7 +1225,7 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
     // Do nothing
 }
 
-static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
+static McxStatus ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
     Channel * channel = (Channel *) connection->out_;
 
 #ifdef MCX_DEBUG
@@ -1236,13 +1236,17 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
 #endif
 
     if (!connection->useInitialValue_) {
-        ChannelValueSetFromReference(&connection->store_, channel->GetValueReference(channel));
+        if (RETURN_OK != ChannelValueSetFromReference(&connection->store_, channel->GetValueReference(channel))) {
+            return RETURN_ERROR;
+        }
         if (channel->IsDefinedDuringInit(channel)) {
             connection->SetDefinedDuringInit(connection);
         }
     } else {
         connection->SetDefinedDuringInit(connection);
     }
+
+    return RETURN_OK;
 }
 
 static McxStatus ConnectionEnterInitializationMode(Connection * connection) {

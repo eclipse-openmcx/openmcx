@@ -322,7 +322,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         ChannelValueInit(&value, expectedType);
 
         if (scalarPortInput->min.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->min.value);
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->min.value)) {
+                goto cleanup_else_1;
+            }
             info.min = ChannelValueClone(&value);
             if (!info.min) {
                 goto cleanup_else_1;
@@ -330,7 +332,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         }
 
         if (scalarPortInput->max.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->max.value);
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->max.value)) {
+                goto cleanup_else_1;
+            }
             info.max = ChannelValueClone(&value);
             if (!info.max) {
                 goto cleanup_else_1;
@@ -338,7 +342,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         }
 
         if (scalarPortInput->scale.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->scale.value);
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->scale.value)) {
+                goto cleanup_else_1;
+            }
             info.scale = ChannelValueClone(&value);
             if (!info.scale) {
                 goto cleanup_else_1;
@@ -346,7 +352,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         }
 
         if (scalarPortInput->offset.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->offset.value);
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->offset.value)) {
+                goto cleanup_else_1;
+            }
             info.offset = ChannelValueClone(&value);
             if (!info.offset) {
                 goto cleanup_else_1;
@@ -354,7 +362,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         }
 
         if (scalarPortInput->default_.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->default_.value);
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->default_.value)) {
+                goto cleanup_else_1;
+            }
             info.defaultValue = ChannelValueClone(&value);
             if (!info.defaultValue) {
                 goto cleanup_else_1;
@@ -362,7 +372,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         }
 
         if (scalarPortInput->initial.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->initial.value);
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->initial.value)) {
+                goto cleanup_else_1;
+            }
             info.initialValue = ChannelValueClone(&value);
             if (!info.initialValue) {
                 goto cleanup_else_1;

@@ -283,7 +283,9 @@ Fmu1Value * Fmu1ReadParamValue(ScalarParameterInput * input, fmi1_import_t * imp
     }
 
     ChannelValueInit(&chVal, input->type);
-    ChannelValueSetFromReference(&chVal, &input->value.value);
+    if (RETURN_OK != ChannelValueSetFromReference(&chVal, &input->value.value)) {
+        return NULL;
+    }
 
     var = fmi1_import_get_variable_by_name(import, input->name);
     if (!var) {
@@ -381,11 +383,15 @@ static ObjectContainer * Fmu1ReadArrayParamValues(const char * name,
 
             if (input->type == CHANNEL_DOUBLE) {
                 ChannelValueInit(&chVal, CHANNEL_DOUBLE);
-                ChannelValueSetFromReference(&chVal, &((double *)input->values)[index]);
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
+                    return RETURN_ERROR;
+                }
             }
             else { // integer
                 ChannelValueInit(&chVal, CHANNEL_INTEGER);
-                ChannelValueSetFromReference(&chVal, &((int *)input->values)[index]);
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
+                    return RETURN_ERROR;
+                }
             }
 
             retVal = val->SetFromChannelValue(val, &chVal);
@@ -652,7 +658,9 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
         char * buffer = NULL;
 
         status = fmi1_import_get_string(fmu->fmiImport, vr, 1, (fmi1_string_t *)&buffer);
-        ChannelValueSetFromReference(chVal, &buffer);
+        if (RETURN_OK != ChannelValueSetFromReference(chVal, &buffer)) {
+            return RETURN_ERROR;
+        }
         break;
     }
     default:

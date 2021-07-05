@@ -62,7 +62,7 @@ typedef void (* fConnectionSetVoid)(Connection * connection);
 
 typedef void (* fConnectionUpdateFromInput)(Connection * connection, TimeInterval * time);
 
-typedef void (* fConnectionUpdateToOutput)(Connection * connection, TimeInterval * time);
+typedef McxStatus (* fConnectionUpdateToOutput)(Connection * connection, TimeInterval * time);
 
 typedef McxStatus (* fConnectionUpdateInitialValue)(Connection * connection);
 

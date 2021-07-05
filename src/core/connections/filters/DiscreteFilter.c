@@ -18,7 +18,9 @@ static McxStatus DiscreteFilterSetValue(ChannelFilter * filter, double time, Cha
     DiscreteFilter * discreteFilter = (DiscreteFilter *) filter;
 
     if (InCommunicationMode != * filter->state) {
-        ChannelValueSetFromReference(&discreteFilter->lastCouplingStepValue, &value);
+        if (RETURN_OK != ChannelValueSetFromReference(&discreteFilter->lastCouplingStepValue, &value)) {
+            return RETURN_ERROR;
+        }
     }
 
     return RETURN_OK;

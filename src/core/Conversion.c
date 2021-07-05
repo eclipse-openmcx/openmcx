@@ -273,7 +273,9 @@ static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * v
     val = (val + unitConversion->source.offset) * unitConversion->source.factor;
     val = (val / unitConversion->target.factor) - unitConversion->target.offset;
 
-    ChannelValueSetFromReference(value, &val);
+    if (RETURN_OK != ChannelValueSetFromReference(value, &val)) {
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }
