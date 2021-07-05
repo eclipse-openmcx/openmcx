@@ -301,7 +301,7 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
     return RETURN_OK;
 }
 
-void ChannelValueSetToReference(ChannelValue * value, void * reference) {
+McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
     switch (value->type) {
     case CHANNEL_DOUBLE:
         * (double *) reference = value->value.d;
@@ -347,6 +347,8 @@ void ChannelValueSetToReference(ChannelValue * value, void * reference) {
     default:
         break;
     }
+
+    return RETURN_OK;
 }
 #ifdef __cplusplus
 size_t ChannelValueTypeSize(ChannelType type) {

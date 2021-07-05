@@ -70,7 +70,7 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType type);
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference);
 
 McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
-void ChannelValueSetToReference(ChannelValue * value, void * reference);
+McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference);
 
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 
