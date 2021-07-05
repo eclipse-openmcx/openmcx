@@ -156,7 +156,9 @@ static McxStatus ChannelStorageSetValueFromReferenceAt(ChannelStorage * channelS
         ChannelValueInit(&channelStore->values[row * colNum + col], info->type);
     }
 
-    ChannelValueSetFromReference(&channelStore->values[row * colNum + col], reference);
+    if (RETURN_OK != ChannelValueSetFromReference(&channelStore->values[row * colNum + col], reference)) {
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }

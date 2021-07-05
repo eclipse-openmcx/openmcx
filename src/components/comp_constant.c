@@ -38,7 +38,10 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
             if (value->type == CONSTANT_VALUE_SCALAR) {
                 compConstant->values[i] = (ChannelValue *)mcx_calloc(1, sizeof(ChannelValue));
                 ChannelValueInit(compConstant->values[i], value->value.scalar->type);
-                ChannelValueSetFromReference(compConstant->values[i], &value->value.scalar->value);
+                if (RETURN_OK != ChannelValueSetFromReference(compConstant->values[i], &value->value.scalar->value)) {
+                    ComponentLog(comp, LOG_ERROR, "Could not set channel value");
+                    return RETURN_ERROR;
+                }
             } else {
                 size_t j = 0;
                 size_t size = ChannelValueTypeSize(value->value.array->type);
@@ -46,8 +49,11 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
                                                                      sizeof(ChannelValue));
                 for (j = 0; j < value->value.array->numValues; j++) {
                     ChannelValueInit(compConstant->values[i] + j, value->value.array->type);
-                    ChannelValueSetFromReference(compConstant->values[i] + j,
-                                                 (char *)value->value.array->values + j * size);
+                    if (RETURN_OK != ChannelValueSetFromReference(compConstant->values[i] + j,
+                                                                  (char *)value->value.array->values + j * size)) {
+                        ComponentLog(comp, LOG_ERROR, "Could not set channel value");
+                        return RETURN_ERROR;
+                    }
                 }
             }
         }

@@ -208,7 +208,9 @@ static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData 
         break;
     case fmi2_base_type_str: {
         const char * buffer = fmi2_import_get_string_variable_start(fmi2_import_get_variable_as_string(data->data.scalar));
-        ChannelValueSetFromReference(&v->val, &buffer);
+        if (RETURN_OK != ChannelValueSetFromReference(&v->val, &buffer)) {
+            return RETURN_ERROR;
+        }
         break;
     }
     case fmi2_base_type_enum:

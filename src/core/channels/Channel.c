@@ -185,8 +185,12 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         ChannelValueInit(val, ConnectionInfoGetType(connInfo));
 
         /* Update the connection for the current time */
-        conn->UpdateToOutput(conn, time);
-        ChannelValueSetFromReference(val, conn->GetValueReference(conn));
+        if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
+            return RETURN_ERROR;
+        }
+        if (RETURN_OK != ChannelValueSetFromReference(val, conn->GetValueReference(conn))) {
+            return RETURN_ERROR;
+        }
 
         //type
         if (in->data->typeConversion) {
@@ -759,7 +763,9 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                 MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, val);
             }
 #endif // MCX_DEBUG
-            ChannelValueSetFromReference(&channel->value, &val);
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, &val)) {
+                return RETURN_ERROR;
+            }
         } else {
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
@@ -774,7 +780,9 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                 }
             }
 #endif // MCX_DEBUG
-            ChannelValueSetFromReference(&channel->value, channel->internalValue);
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, channel->internalValue)) {
+                return RETURN_ERROR;
+            }
         }
 
         // Apply conversion

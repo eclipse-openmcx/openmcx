@@ -81,37 +81,49 @@ static McxStatus CopyFrom(ScalarPortInput * self, ScalarPortInput * src) {
     self->min.defined = src->min.defined;
     if (self->min.defined) {
         ChannelValueDataInit(&self->min.value, self->type);
-        ChannelValueDataSetFromReference(&self->min.value, self->type, &src->min.value);
+        if (RETURN_OK != ChannelValueDataSetFromReference(&self->min.value, self->type, &src->min.value)) {
+            return RETURN_ERROR;
+        }
     }
 
     self->max.defined = src->max.defined;
     if (self->max.defined) {
         ChannelValueDataInit(&self->max.value, self->type);
-        ChannelValueDataSetFromReference(&self->max.value, self->type, &src->max.value);
+        if (RETURN_OK != ChannelValueDataSetFromReference(&self->max.value, self->type, &src->max.value)) {
+            return RETURN_ERROR;
+        }
     }
 
     self->scale.defined = src->scale.defined;
     if (self->scale.defined) {
         ChannelValueDataInit(&self->scale.value, self->type);
-        ChannelValueDataSetFromReference(&self->scale.value, self->type, &src->scale.value);
+        if (RETURN_OK != ChannelValueDataSetFromReference(&self->scale.value, self->type, &src->scale.value)) {
+            return RETURN_ERROR;
+        }
     }
 
     self->offset.defined = src->offset.defined;
     if (self->offset.defined) {
         ChannelValueDataInit(&self->offset.value, self->type);
-        ChannelValueDataSetFromReference(&self->offset.value, self->type, &src->offset.value);
+        if (RETURN_OK != ChannelValueDataSetFromReference(&self->offset.value, self->type, &src->offset.value)) {
+            return RETURN_ERROR;
+        }
     }
 
     self->default_.defined = src->default_.defined;
     if (self->default_.defined) {
         ChannelValueDataInit(&self->default_.value, self->type);
-        ChannelValueDataSetFromReference(&self->default_.value, self->type, &src->default_.value);
+        if (RETURN_OK != ChannelValueDataSetFromReference(&self->default_.value, self->type, &src->default_.value)) {
+            return RETURN_ERROR;
+        }
     }
 
     self->initial.defined = src->initial.defined;
     if (self->initial.defined) {
         ChannelValueDataInit(&self->initial.value, self->type);
-        ChannelValueDataSetFromReference(&self->initial.value, self->type, &src->initial.value);
+        if (RETURN_OK != ChannelValueDataSetFromReference(&self->initial.value, self->type, &src->initial.value)) {
+            return RETURN_ERROR;
+        }
     }
 
     self->writeResults = src->writeResults;

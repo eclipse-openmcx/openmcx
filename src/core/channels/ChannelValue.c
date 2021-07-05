@@ -233,8 +233,8 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType type) {
     }
 }
 
-void ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference) {
-    if (!reference) { return; }
+McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference) {
+    if (!reference) { return RETURN_OK; } // TODO: change to ERROR
 
     switch (type) {
     case CHANNEL_DOUBLE:
@@ -279,12 +279,12 @@ void ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type,
     default:
         break;
     }
+
+    return RETURN_OK;
 }
 
-void ChannelValueSetFromReference(ChannelValue * value, const void * reference) {
-    if (!reference) { return; }
-
-    ChannelValueDataSetFromReference(&value->value, value->type, reference);
+McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference) {
+    return ChannelValueDataSetFromReference(&value->value, value->type, reference);
 }
 
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
@@ -294,7 +294,9 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
         return RETURN_ERROR;
     }
 
-    ChannelValueSetFromReference(value, ChannelValueReference((ChannelValue *) source));
+    if (RETURN_OK != ChannelValueSetFromReference(value, ChannelValueReference((ChannelValue *) source))) {
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }
@@ -527,7 +529,9 @@ ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType 
         }
 
         ChannelValueInit(array[i], type);
-        ChannelValueSetFromReference(array[i], (char *) values + i*size);
+        if (RETURN_OK != ChannelValueSetFromReference(array[i], (char *) values + i*size)) {
+            return RETURN_ERROR;
+        }
     }
 
     return array;
