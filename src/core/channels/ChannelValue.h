@@ -17,6 +17,18 @@
 extern "C" {
 #endif /* __cplusplus */
 
+// possible types of values that can be put on channels
+typedef enum ChannelType {
+    CHANNEL_UNKNOWN = 0,
+    CHANNEL_DOUBLE = 1,
+    CHANNEL_INTEGER = 2,
+    CHANNEL_BOOL = 3,
+    CHANNEL_STRING = 4,
+    CHANNEL_BINARY = 5,
+    CHANNEL_BINARY_REFERENCE = 6,
+    CHANNEL_ARRAY = 7,
+} ChannelType;
+
 typedef struct {
     double startTime;
     double endTime;
@@ -32,23 +44,24 @@ typedef struct {
     char * data;
 } binary_string;
 
-// possible types of values that can be put on channels
-typedef enum ChannelType {
-    CHANNEL_UNKNOWN = 0,
-    CHANNEL_DOUBLE = 1,
-    CHANNEL_INTEGER = 2,
-    CHANNEL_BOOL = 3,
-    CHANNEL_STRING = 4,
-    CHANNEL_BINARY = 5,
-    CHANNEL_BINARY_REFERENCE = 6,
-} ChannelType;
+typedef struct {
+    size_t numDims;
+    size_t * dims;
+    ChannelType type;
+    void * data;
+} array;
 
+int array_dims_match(array * a, array * b);
+size_t array_num_elements(array * a);
+
+// TODO: change concrete types to McxDouble, McxInteger, etc
 typedef union ChannelValueData {
     /* the order is significant. double needs to be the first entry for union initialization to work */
     double d;
     int i;
     char * s;
     binary_string b;
+    array a;
 } ChannelValueData;
 
 typedef struct ChannelValue {
