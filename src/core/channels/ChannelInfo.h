@@ -73,6 +73,7 @@ int ChannelInfoIsBinary(const ChannelInfo * info);
 
 McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * name,
+                           const char * nameInModel,
                            const char * descr,
                            const char * unit,
                            ChannelType  type,

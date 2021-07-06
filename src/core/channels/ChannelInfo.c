@@ -102,12 +102,17 @@ McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector) {
 
 McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * name,
+                           const char * nameInModel,
                            const char * descr,
                            const char * unit,
                            ChannelType  type,
                            const char * id) {
     if (name && RETURN_OK != ChannelInfoSetName(info, name)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set name", name);
+        return RETURN_ERROR;
+    }
+    if (nameInModel && RETURN_OK != ChannelInfoSetNameInTool(info, nameInModel)) {
+        mcx_log(LOG_DEBUG, "Port %s: Could not set name in tool", name);
         return RETURN_ERROR;
     }
     if (descr && RETURN_OK != ChannelInfoSetDescription(info, descr)) {
