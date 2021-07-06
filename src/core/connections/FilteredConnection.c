@@ -157,6 +157,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
 
         value = p->fn(time, p->env);
         if (RETURN_OK != filteredConnection->SetResult(filteredConnection, &value)) {
+            mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
             return RETURN_ERROR;
         }
     } else {
@@ -168,6 +169,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
             value = filter->GetValue(filter, time->startTime);
 
             if (RETURN_OK != filteredConnection->SetResult(filteredConnection, &value)) {
+                mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
                 return RETURN_ERROR;
             }
         }
