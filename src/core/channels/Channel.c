@@ -182,11 +182,11 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
-            mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection failed", info->GetLogName(info));
+            mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection failed", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
         if (RETURN_OK != ChannelValueSetFromReference(val, conn->GetValueReference(conn))) {
-            mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueSetFromReference failed", info->GetLogName(info));
+            mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueSetFromReference failed", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
 
@@ -199,42 +199,42 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
                 return RETURN_ERROR;
             }
         }
+    }
 
 
-        if (info->type == CHANNEL_DOUBLE) {
-            ChannelValue * val = &channel->value;
-            // unit
-            if (in->data->unitConversion) {
-                Conversion * conversion = (Conversion *) in->data->unitConversion;
-                retVal = conversion->convert(conversion, val);
-                if (RETURN_OK != retVal) {
-                    mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute unit conversion", ChannelInfoGetLogName(info));
-                    return RETURN_ERROR;
-                }
+    // Conversions
+    {
+        ChannelValue * val =  &channel->value;
+
+
+        // unit
+        if (in->data->unitConversion) {
+            Conversion * conversion = (Conversion *) in->data->unitConversion;
+            retVal = conversion->convert(conversion, val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute unit conversion", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
             }
         }
 
-        if (info->type == CHANNEL_DOUBLE || info->type == CHANNEL_INTEGER) {
-            ChannelValue * val = &channel->value;
 
-            // linear
-            if (in->data->linearConversion) {
-                Conversion * conversion = (Conversion *) in->data->linearConversion;
-                retVal = conversion->convert(conversion, val);
-                if (RETURN_OK != retVal) {
-                    mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute linear conversion", ChannelInfoGetLogName(info));
-                    return RETURN_ERROR;
-                }
+        // linear
+        if (in->data->linearConversion) {
+            Conversion * conversion = (Conversion *) in->data->linearConversion;
+            retVal = conversion->convert(conversion, val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute linear conversion", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
             }
+        }
 
-            // range
-            if (in->data->rangeConversion) {
-                Conversion * conversion = (Conversion *) in->data->rangeConversion;
-                retVal = conversion->convert(conversion, val);
-                if (RETURN_OK != retVal) {
-                    mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute range conversion", ChannelInfoGetLogName(info));
-                    return RETURN_ERROR;
-                }
+        // range
+        if (in->data->rangeConversion) {
+            Conversion * conversion = (Conversion *) in->data->rangeConversion;
+            retVal = conversion->convert(conversion, val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute range conversion", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
             }
         }
     }
