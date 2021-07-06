@@ -88,6 +88,8 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference);
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 
 size_t ChannelValueTypeSize(ChannelType type);
+int ChannelTypeMatch(ChannelType a, ChannelType b);
+
 
 ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType type);
 

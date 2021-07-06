@@ -510,6 +510,16 @@ size_t ChannelValueTypeSize(ChannelType type) {
 }
 #endif //__cplusplus
 
+int ChannelTypeMatch(ChannelType a, ChannelType b) {
+    if ((CHANNEL_BINARY == a || CHANNEL_BINARY_REFERENCE == a) &&
+        (CHANNEL_BINARY == b || CHANNEL_BINARY_REFERENCE == b)) {
+        return 1;
+    } else {
+        return a == b;
+    }
+    // TODO: Ignores array dimensions
+}
+
 const char * ChannelTypeToString(ChannelType type) {
     switch (type) {
     case CHANNEL_UNKNOWN:
