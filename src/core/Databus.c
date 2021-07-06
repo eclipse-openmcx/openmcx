@@ -1513,7 +1513,7 @@ static McxStatus DatabusAddLocalChannelInternal(Databus * db,
     }
 
     uniqueName = DatabusGetUniqueChannelName(db, name);
-    retVal = ChannelInfoSetup(&chInfo, uniqueName, NULL, unit, type, id);
+    retVal = ChannelInfoSetup(&chInfo, uniqueName, uniqueName, NULL, unit, type, id);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Ports: Set local-reference: Setting up ChannelInfo for %s failed", ChannelInfoGetName(&chInfo));
         goto cleanup;
