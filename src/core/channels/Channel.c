@@ -242,65 +242,12 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         return RETURN_OK;
     }
 
-
-    switch (info->type) {
-    case CHANNEL_DOUBLE:
-#ifdef MCX_DEBUG
-        if (time->startTime < MCX_DEBUG_LOG_TIME) {
-            MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
-        }
-#endif // MCX_DEBUG
-        * (double *) in->data->reference = * (double *) channel->GetValueReference(channel);
-        break;
-    case CHANNEL_INTEGER:
-        * (int *) in->data->reference = * (int *) channel->GetValueReference(channel);
-        break;
-    case CHANNEL_BOOL:
-        * (int *) in->data->reference = * (int *) channel->GetValueReference(channel);
-        break;
-    case CHANNEL_STRING:
-    {
-        const void * reference = channel->GetValueReference(channel);
-
-        if (NULL != reference && NULL != * (const char * *) reference ) {
-            if (* (char * *) in->data->reference) {
-                mcx_free(* (char * *) in->data->reference);
-            }
-            * (char * *) in->data->reference = (char *) mcx_calloc(strlen(* (const char **) reference) + 1, sizeof(char));
-            if (* (char * *) in->data->reference) {
-                strncpy(* (char * *) in->data->reference, * (const char **)reference, strlen(* (const char **)reference) + 1);
-            }
-        }
-        break;
+    if (time->startTime < MCX_DEBUG_LOG_TIME && info->type == CHANNEL_DOUBLE) {
+        MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
     }
-    case CHANNEL_BINARY:
-    {
-        const void * reference = channel->GetValueReference(channel);
 
-        if (NULL != reference && NULL != ((const binary_string *) reference)->data) {
-            if (((binary_string *) in->data->reference)->data) {
-                mcx_free(((binary_string *) in->data->reference)->data);
-            }
-            ((binary_string *) in->data->reference)->len = ((const binary_string *) reference)->len;
-            ((binary_string *) in->data->reference)->data = (char *) mcx_malloc(((binary_string *) in->data->reference)->len);
-            if (((binary_string *) in->data->reference)->data) {
-                memcpy(((binary_string *) in->data->reference)->data, ((const binary_string *) reference)->data, ((binary_string *) in->data->reference)->len);
-            }
-        }
-        break;
-    }
-    case CHANNEL_BINARY_REFERENCE:
-    {
-        const void * reference = channel->GetValueReference(channel);
-
-        if (NULL != reference && NULL != ((binary_string *) reference)->data) {
-            ((binary_string *) in->data->reference)->len = ((binary_string *) reference)->len;
-            ((binary_string *) in->data->reference)->data = ((binary_string *) reference)->data;
-        }
-        break;
-    }
-    default:
-        break;
+    if (RETURN_OK != ChannelValueDataSetFromReference(in->data->reference, info->type, channel->GetValueReference(channel))) {
+        return RETURN_ERROR;
     }
 
     return RETURN_OK;
