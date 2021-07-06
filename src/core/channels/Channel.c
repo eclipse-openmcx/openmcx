@@ -182,9 +182,11 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
+            mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection failed", info->GetLogName(info));
             return RETURN_ERROR;
         }
         if (RETURN_OK != ChannelValueSetFromReference(val, conn->GetValueReference(conn))) {
+            mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueSetFromReference failed", info->GetLogName(info));
             return RETURN_ERROR;
         }
 
