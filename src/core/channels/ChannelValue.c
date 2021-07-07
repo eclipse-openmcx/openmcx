@@ -670,6 +670,12 @@ McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor) {
     }
 }
 
+void ChannelValueDestroy(ChannelValue ** value) {
+    ChannelValueDestructor(*value);
+    mcx_free(*value);
+    *value = NULL;
+}
+
 ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType type) {
     ChannelValue ** array = NULL;
 
