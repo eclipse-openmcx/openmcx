@@ -98,7 +98,6 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         ChannelValue ** offsets = NULL;
         ChannelValue ** defaults = NULL;
         ChannelValue ** initials = NULL;
-        int * writeResults = NULL;
 
         int startIndex = 0;
         int endIndex   = 0;
@@ -173,8 +172,6 @@ static Vector * DatabusReadPortInput(PortInput * input) {
             goto cleanup_1;
         }
 
-        writeResults = vectorPortInput->writeResults;
-
         for (i = startIndex; i <= endIndex; i++) {
             char * name       = NULL;
             char * nameInTool = NULL;
@@ -239,8 +236,9 @@ static Vector * DatabusReadPortInput(PortInput * input) {
             if (initials) {
                 copy.initialValue = initials[i - startIndex];
             }
-            if (writeResults) {
-                copy.writeResult = writeResults[i - startIndex];
+
+            if (vectorPortInput->writeResults.defined) {
+                copy.writeResult = vectorPortInput->writeResults.value;
             }
 
             list->PushBack(list, &copy);
@@ -286,9 +284,6 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         }
         if (initials) {
             mcx_free(initials);
-        }
-        if (writeResults) {
-            // writeResults was taken from vectorPortInput
         }
 
         if (RETURN_ERROR == retVal) {

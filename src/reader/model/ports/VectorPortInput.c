@@ -144,15 +144,7 @@ static McxStatus CopyFrom(VectorPortInput * self, VectorPortInput * src) {
         self->default_ = NULL;
     }
 
-    if (src->writeResults) {
-        self->writeResults = (int *) mcx_calloc(len, sizeof(int));
-        if (!self->writeResults) {
-            return RETURN_ERROR;
-        }
-        memcpy(self->writeResults, src->writeResults, len * sizeof(int));
-    } else {
-        self->writeResults = NULL;
-    }
+    self->writeResults = src->writeResults;
 
     return RETURN_OK;
 }
@@ -187,6 +179,14 @@ static void PrintVec(char * prefix, ChannelType type, size_t len, void * value) 
     mcx_log(LOG_DEBUG, "%s", buffer);
 }
 
+static void PrintOptionalInt(char * prefix, OPTIONAL_VALUE(int) value) {
+    if (value.defined) {
+        mcx_log(LOG_DEBUG, "%s%d,", prefix, value.value);
+    } else {
+        mcx_log(LOG_DEBUG, "%s-,", prefix);
+    }
+}
+
 void VectorPortInputPrint(VectorPortInput * input) {
     size_t len = input->endIndex - input->startIndex + 1;
 
@@ -205,7 +205,7 @@ void VectorPortInputPrint(VectorPortInput * input) {
     PrintVec("  .default: ", input->type, len, input->default_);
     PrintVec("  .initial: ", input->type, len, input->initial);
 
-    PrintVec("  .writeResults: ", input->type, len, input->writeResults);
+    PrintOptionalInt("  .writeResults: ", input->writeResults);
     mcx_log(LOG_DEBUG, "}");
 }
 
@@ -221,7 +221,6 @@ static void VectorPortInputDestructor(VectorPortInput * input) {
     if (input->offset) { mcx_free(input->offset); }
     if (input->default_) { mcx_free(input->default_); }
     if (input->initial) { mcx_free(input->initial); }
-    if (input->writeResults) { mcx_free(input->writeResults); }
 }
 
 static VectorPortInput * VectorPortInputCreate(VectorPortInput * input) {
@@ -247,7 +246,7 @@ static VectorPortInput * VectorPortInputCreate(VectorPortInput * input) {
     input->default_ = NULL;
     input->initial = NULL;
 
-    input->writeResults = NULL;
+    OPTIONAL_UNSET(input->writeResults);
 
     inputElement->Clone = Clone;
     input->CopyFrom = CopyFrom;
