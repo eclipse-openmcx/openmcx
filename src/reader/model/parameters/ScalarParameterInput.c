@@ -19,7 +19,7 @@ static void ScalarParameterInputDestructor(ScalarParameterInput * input) {
 
     if (input->unit) { mcx_free(input->unit); }
 
-    if (input->type == CHANNEL_STRING && input->value.defined && input->value.value.s) {
+    if (ChannelTypeEq(input->type, ChannelTypeString) && input->value.defined && input->value.value.s) {
         mcx_free(input->value.value.s);
     }
 }
@@ -27,7 +27,7 @@ static void ScalarParameterInputDestructor(ScalarParameterInput * input) {
 static ScalarParameterInput * ScalarParameterInputCreate(ScalarParameterInput * input) {
     input->name = NULL;
 
-    input->type = CHANNEL_UNKNOWN;
+    input->type = ChannelTypeUnknown;
     OPTIONAL_UNSET(input->value);
 
     input->unit = NULL;

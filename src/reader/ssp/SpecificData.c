@@ -17,6 +17,7 @@
 #include "reader/model/components/specific_data/VectorIntegratorInput.h"
 #include "reader/model/components/specific_data/ConstantInput.h"
 
+#include "core/channels/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -150,12 +151,12 @@ McxStatus SSDReadVectorIntegratorData(xmlNodePtr componentNode, xmlNodePtr speci
     return RETURN_OK;
 }
 
-static MapStringInt _scalarConstantTypeMapping[] = {
-    {"Real", CHANNEL_DOUBLE},
-    {"Integer", CHANNEL_INTEGER},
-    {"String", CHANNEL_STRING},
-    {"Boolean", CHANNEL_BOOL},
-    {NULL, CHANNEL_UNKNOWN}
+static MapStringChannelType _scalarConstantTypeMapping[] = {
+    {"Real", &ChannelTypeDouble},
+    {"Integer", &ChannelTypeInteger},
+    {"String", &ChannelTypeString},
+    {"Boolean", &ChannelTypeBool},
+    {NULL, &ChannelTypeUnknown}
 };
 
 static ScalarConstantValueInput * SSDReadScalarConstantValue(xmlNodePtr node) {
@@ -176,12 +177,12 @@ static ScalarConstantValueInput * SSDReadScalarConstantValue(xmlNodePtr node) {
 
         for (i = 0; _scalarConstantTypeMapping[i].key; i++) {
             if (!strcmp(xml_node_get_name(node), _scalarConstantTypeMapping[i].key)) {
-                input->type = _scalarConstantTypeMapping[i].value;
+                input->type = *_scalarConstantTypeMapping[i].value;
                 break;
             }
         }
 
-        if (input->type == CHANNEL_UNKNOWN) {
+        if (!ChannelTypeIsValid(input->type)) {
             retVal = xml_error_unsupported_node(node);
             goto cleanup;
         }
@@ -201,10 +202,10 @@ cleanup:
     return input;
 }
 
-static MapStringInt _vectorConstantTypeMapping[] = {
-    {"RealVector", CHANNEL_DOUBLE},
-    {"IntegerVector", CHANNEL_INTEGER},
-    {NULL, CHANNEL_UNKNOWN}
+static MapStringChannelType _vectorConstantTypeMapping[] = {
+    {"RealVector", &ChannelTypeDouble},
+    {"IntegerVector", &ChannelTypeInteger},
+    {NULL, &ChannelTypeUnknown}
 };
 
 static ArrayConstantValueInput * SSDReadArrayConstantValue(xmlNodePtr node) {
@@ -225,18 +226,18 @@ static ArrayConstantValueInput * SSDReadArrayConstantValue(xmlNodePtr node) {
 
         for (i = 0; _vectorConstantTypeMapping[i].key; i++) {
             if (!strcmp(xml_node_get_name(node), _vectorConstantTypeMapping[i].key)) {
-                input->type = _vectorConstantTypeMapping[i].value;
+                input->type = *_vectorConstantTypeMapping[i].value;
                 break;
             }
         }
 
-        if (input->type == CHANNEL_UNKNOWN) {
+        if (!ChannelTypeIsValid(input->type)) {
             retVal = xml_error_unsupported_node(node);
             goto cleanup;
         }
     }
 
-    switch (input->type) {
+    switch (input->type.con) {
         case CHANNEL_DOUBLE:
             retVal = xml_attr_double_vec(node, "value", &input->numValues, (double**)&input->values, SSD_MANDATORY);
             break;

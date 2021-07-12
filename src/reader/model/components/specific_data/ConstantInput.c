@@ -19,7 +19,7 @@ static void ScalarConstantValueInputDestructor(ScalarConstantValueInput * input)
 }
 
 static ScalarConstantValueInput * ScalarConstantValueInputCreate(ScalarConstantValueInput * input) {
-    input->type = CHANNEL_UNKNOWN;
+    input->type = ChannelTypeUnknown;
     input->value.d = 0.0;
 
     return input;
@@ -32,7 +32,7 @@ static void ArrayConstantValueInputDestructor(ArrayConstantValueInput * input) {
 }
 
 static ArrayConstantValueInput * ArrayConstantValueInputCreate(ArrayConstantValueInput * input) {
-    input->type = CHANNEL_UNKNOWN;
+    input->type = ChannelTypeUnknown;
 
     input->numValues = 0;
     input->values = NULL;

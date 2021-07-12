@@ -15,6 +15,7 @@
 
 #include "core/channels/ChannelInfo.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelValue.h"
 #include "core/channels/Channel_impl.h"
 
 #ifdef __cplusplus
@@ -58,7 +59,7 @@ static Channel * ChannelCreate(Channel * channel) {
 
     channel->isDefinedDuringInit = FALSE;
     channel->internalValue = NULL;
-    ChannelValueInit(&channel->value, CHANNEL_UNKNOWN);
+    ChannelValueInit(&channel->value, ChannelTypeUnknown);
 
     channel->Setup = ChannelSetup;
     channel->IsDefinedDuringInit = ChannelIsDefinedDuringInit;
@@ -128,7 +129,7 @@ static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, Channel
         return RETURN_ERROR;
     }
 
-    if (CHANNEL_UNKNOWN != type) {
+    if (ChannelTypeIsValid(type)) {
         if (!info) {
             mcx_log(LOG_ERROR, "Port %s: Set inport reference: Port not set up", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
@@ -244,7 +245,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         return RETURN_OK;
     }
 
-    if (time->startTime < MCX_DEBUG_LOG_TIME && info->type == CHANNEL_DOUBLE) {
+    if (time->startTime < MCX_DEBUG_LOG_TIME && ChannelTypeEq(info->type, ChannelTypeDouble)) {
         MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
     }
 
@@ -277,7 +278,7 @@ static int ChannelInIsDiscrete(ChannelIn * in) {
 }
 
 static int ChannelInIsConnected(Channel * channel) {
-    if (channel->info.type != CHANNEL_UNKNOWN && channel->info.connected) {
+    if (ChannelTypeIsValid(channel->info.type) && channel->info.connected) {
         return TRUE;
     } else {
         ChannelIn * in = (ChannelIn *) channel;
@@ -318,7 +319,7 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
     // setup unit conversion
     inInfo = &channel->info;
 
-    if (inInfo->type == CHANNEL_DOUBLE) {
+    if (ChannelTypeEq(inInfo->type, ChannelTypeDouble)) {
         in->data->unitConversion = (UnitConversion *) object_create(UnitConversion);
         retVal = in->data->unitConversion->Setup(in->data->unitConversion,
                                                  unit,
@@ -334,7 +335,7 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
     }
 
     // setup type conversion
-    if (inInfo->type != type) {
+    if (!ChannelTypeEq(inInfo->type, type)) {
         in->data->typeConversion = (TypeConversion *) object_create(TypeConversion);
         retVal = in->data->typeConversion->Setup(in->data->typeConversion,
                                                  type,
@@ -356,7 +357,7 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
     retVal = channel->Setup(channel, info); // call base-class function
 
     // types
-    if (info->type == CHANNEL_UNKNOWN) {
+    if (!ChannelTypeIsValid(info->type)) {
         mcx_log(LOG_ERROR, "Port %s: Setup inport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
@@ -384,7 +385,8 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
     // unit conversion is setup when a connection is set
 
     // min/max conversions are only used for double types
-    if (info->type == CHANNEL_DOUBLE || info->type == CHANNEL_INTEGER)
+    if (ChannelTypeEq(info->type, ChannelTypeDouble)
+        || ChannelTypeEq(info->type, ChannelTypeInteger))
     {
         ChannelValue * min = info->min;
         ChannelValue * max = info->max;
@@ -509,7 +511,7 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
     retVal = channel->Setup(channel, info); // call base-class function
 
     // default value
-    if (info->type == CHANNEL_UNKNOWN) {
+    if (!ChannelTypeIsValid(info->type)) {
         mcx_log(LOG_ERROR, "Port %s: Setup outport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
@@ -522,7 +524,8 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 
 
     // min/max conversions are only used for double types
-    if (info->type == CHANNEL_DOUBLE || info->type == CHANNEL_INTEGER)
+    if (ChannelTypeEq(info->type, ChannelTypeDouble)
+        || ChannelTypeEq(info->type, ChannelTypeInteger))
     {
         out->data->rangeConversion = (RangeConversion *) object_create(RangeConversion);
         retVal = out->data->rangeConversion->Setup(out->data->rangeConversion, min, max);
@@ -624,9 +627,9 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
         mcx_log(LOG_ERROR, "Port %s: Set outport reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN != type) {
-        if (info->type != type) {
-            if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+    if (ChannelTypeIsValid(type)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
                 mcx_log(LOG_ERROR, "Port %s: Set outport reference: Mismatching types", ChannelInfoGetLogName(info));
@@ -649,8 +652,8 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
     }
 
     info = &channel->info;
-    if (CHANNEL_UNKNOWN != type) {
-        if (info->type != type) {
+    if (ChannelTypeIsValid(type)) {
+        if (!ChannelTypeEq(info->type, type)) {
             mcx_log(LOG_ERROR, "Port %s: Set outport function: Mismatching types", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
@@ -714,7 +717,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         } else {
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
-                if (CHANNEL_DOUBLE == info->type) {
+                if (ChannelTypeEq(ChannelTypeDouble, info->type)) {
                     MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)",
                                   time->startTime,
                                   ChannelInfoGetLogName(info),
@@ -731,7 +734,8 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         }
 
         // Apply conversion
-        if (info->type == CHANNEL_DOUBLE || info->type == CHANNEL_INTEGER) {
+        if (ChannelTypeEq(info->type, ChannelTypeDouble) ||
+            ChannelTypeEq(info->type, ChannelTypeInteger)) {
             ChannelValue * val = &channel->value;
 
             // range
@@ -767,7 +771,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     }
 
 
-    if (CHANNEL_DOUBLE == info->type) {
+    if (ChannelTypeEq(ChannelTypeDouble, info->type)) {
         const double * val = NULL;
 
         {
@@ -882,8 +886,8 @@ static McxStatus ChannelLocalSetReference(ChannelLocal * local,
         mcx_log(LOG_ERROR, "Port %s: Set local value reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN != type) {
-        if (info->type != type) {
+    if (ChannelTypeIsValid(type)) {
+        if (!ChannelTypeEq(info->type, type)) {
             mcx_log(LOG_ERROR, "Port %s: Set local value reference: Mismatching types", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }

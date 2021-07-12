@@ -136,15 +136,15 @@ static void UpdateBinaryChannelTypes(Vector * connInfos, Task * task) {
             mcx_log(LOG_DEBUG, "Fast binary channel requirements fulfilled for connection %s", buffer);
             mcx_free(buffer);
 
-            trgInfo->type = CHANNEL_BINARY_REFERENCE;
-            srcInfo->type = CHANNEL_BINARY_REFERENCE;
+            trgInfo->type = ChannelTypeBinaryReference;
+            srcInfo->type = ChannelTypeBinaryReference;
         } else {
             char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "Using binary channels for connection %s", buffer);
             mcx_free(buffer);
 
-            trgInfo->type = CHANNEL_BINARY;
-            srcInfo->type = CHANNEL_BINARY;
+            trgInfo->type = ChannelTypeBinary;
+            srcInfo->type = ChannelTypeBinary;
         }
     }
 }

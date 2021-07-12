@@ -56,13 +56,13 @@ static McxStatus Setup(Component * comp) {
     CompIntegrator * integrator = (CompIntegrator *) comp;
     McxStatus retVal = RETURN_OK;
 
-    retVal = DatabusSetInReference(comp->GetDatabus(comp), 0, &integrator->deriv, CHANNEL_DOUBLE);
+    retVal = DatabusSetInReference(comp->GetDatabus(comp), 0, &integrator->deriv, ChannelTypeDouble);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Could not register in channel reference");
         return RETURN_ERROR;
     }
 
-    retVal = DatabusSetOutReference(comp->GetDatabus(comp), 0, &integrator->state, CHANNEL_DOUBLE);
+    retVal = DatabusSetOutReference(comp->GetDatabus(comp), 0, &integrator->state, ChannelTypeDouble);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Could not register out channel reference");
         return RETURN_ERROR;

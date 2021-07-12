@@ -69,8 +69,8 @@ static DiscreteFilter * DiscreteFilterCreate(DiscreteFilter * discreteFilter) {
 
     discreteFilter->Setup = DiscreteFilterSetup;
 
-    ChannelValueInit(&discreteFilter->lastSynchronizationStepValue, CHANNEL_UNKNOWN);
-    ChannelValueInit(&discreteFilter->lastCouplingStepValue, CHANNEL_UNKNOWN);
+    ChannelValueInit(&discreteFilter->lastSynchronizationStepValue, ChannelTypeUnknown);
+    ChannelValueInit(&discreteFilter->lastCouplingStepValue, ChannelTypeUnknown);
 
     return discreteFilter;
 }

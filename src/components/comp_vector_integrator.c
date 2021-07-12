@@ -80,7 +80,7 @@ static McxStatus Setup(Component * comp) {
         size_t startIdx = vInfo->GetStartIndex(vInfo);
         size_t endIdx = vInfo->GetEndIndex(vInfo);
         size_t numCh = endIdx - startIdx;
-        retVal = DatabusSetInRefVector(db, i, startIdx, endIdx, integrator->deriv + nextIdx, CHANNEL_DOUBLE);
+        retVal = DatabusSetInRefVector(db, i, startIdx, endIdx, integrator->deriv + nextIdx, ChannelTypeDouble);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register in channel reference");
             return RETURN_ERROR;
@@ -94,7 +94,7 @@ static McxStatus Setup(Component * comp) {
         size_t startIdx = vInfo->GetStartIndex(vInfo);
         size_t endIdx = vInfo->GetEndIndex(vInfo);
         size_t numCh = endIdx - startIdx;
-        retVal = DatabusSetOutRefVector(db, i, startIdx, endIdx, integrator->state + nextIdx, CHANNEL_DOUBLE);
+        retVal = DatabusSetOutRefVector(db, i, startIdx, endIdx, integrator->state + nextIdx, ChannelTypeDouble);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register out channel reference");
             return RETURN_ERROR;

@@ -976,7 +976,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
     Task * task = model->GetTask(model);
     int useInputsAtEndTime = task->useInputsAtEndTime;
 
-    if (ConnectionInfoGetType(info) == CHANNEL_DOUBLE) {
+    if (ChannelTypeEq(ConnectionInfoGetType(info), ChannelTypeDouble)) {
         if (!(INTERVAL_COUPLING == params->interpolationInterval && INTERVAL_SYNCHRONIZATION == params->extrapolationInterval)) {
             mcx_log(LOG_WARNING, "The use of inter/extrapolation interval settings for double is not supported");
         }
@@ -1061,7 +1061,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
         filter = (ChannelFilter *) discreteFilter;
     }
 
-    if (NULL == filter && ConnectionInfoGetType(info) == CHANNEL_DOUBLE) {
+    if (NULL == filter && ChannelTypeEq(ConnectionInfoGetType(info), ChannelTypeDouble)) {
         // TODO: add a check to avoid filters for non-multirate cases
 
         size_t memFilterHist = MemoryFilterHistorySize(info, 0);
@@ -1170,7 +1170,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         // If the value is taken from the in channel, the value must be converted.
         // TODO: It might be a better idea to use the type of the in channel as type of the connection.
         // Such a change might be more complex to implement.
-        if (inValue->type != store->type) {
+        if (!ChannelTypeEq(inValue->type, store->type)) {
             TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
             Conversion * conv = (Conversion *) typeConv;
             retVal = typeConv->Setup(typeConv, inValue->type, store->type);
@@ -1410,7 +1410,7 @@ static Connection * ConnectionCreate(Connection * connection) {
 
     connection->isActiveDependency_ = TRUE;
 
-    ChannelValueInit(&connection->store_, CHANNEL_UNKNOWN);
+    ChannelValueInit(&connection->store_, ChannelTypeUnknown);
 
     connection->state_ = InCommunicationMode;
 

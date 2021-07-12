@@ -83,7 +83,7 @@ static McxStatus ChannelStorageSetup(ChannelStorage * channelStore, int fullStor
         goto cleanup;
     }
 
-    retVal = ChannelInfoSetup(&timeInfo, "Time", "Time", "", GetTimeUnitString(), CHANNEL_DOUBLE, "");
+    retVal = ChannelInfoSetup(&timeInfo, "Time", "Time", "", GetTimeUnitString(), ChannelTypeDouble, "");
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Results: Setup port storage: Could not set up time port data");
         goto cleanup;

@@ -68,7 +68,7 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
                 return RETURN_ERROR;
             }
 
-            if (info->type != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
+            if (!ChannelTypeEq(info->type, Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var)))) {
                 ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
                 ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
                     ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
@@ -117,7 +117,7 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
             return RETURN_ERROR;
         }
 
-        if (info->type != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
+        if (!ChannelTypeEq(info->type, Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var)))) {
             ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
             ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
                 ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
@@ -399,7 +399,7 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
 
             val->SetChannel(val, info->channel);
 
-            if (val->val.type != info->type) {
+            if (!ChannelTypeEq(val->val.type, info->type)) {
                 ChannelValueInit(&val->val, info->type);
             }
             retVal = DatabusSetInReference(db, i,
@@ -437,7 +437,7 @@ static McxStatus Fmu2SetupChannelOut(ObjectContainer /* Fmu2Values */ * vals, Da
 
         val->SetChannel(val, info->channel);
 
-        if (val->val.type != info->type) {
+        if (!ChannelTypeEq(val->val.type, info->type)) {
             ChannelValueInit(&val->val, info->type);
         }
         retVal = DatabusSetOutReference(db, i,
@@ -552,24 +552,24 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))) {
+            if (!ChannelTypeEq(ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelNameLo);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
+                        ChannelTypeToString(ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))) {
+            if (!ChannelTypeEq(ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelNameHi);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
+                        ChannelTypeToString(ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))) {
+            if (!ChannelTypeEq(ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelNameSize);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
+                        ChannelTypeToString(ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
                 return RETURN_ERROR;
             }
 
@@ -589,7 +589,7 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
                 return RETURN_ERROR;
             }
 
-            if (info->type != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
+            if (!ChannelTypeEq(info->type, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelName);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
                              ChannelTypeToString(info->type),
@@ -661,24 +661,24 @@ static McxStatus Fmu2ReadChannelOut(ObjectContainer /* Fmu2Value */ * vals, Data
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))) {
+            if (!ChannelTypeEq(ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelNameLo);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
+                        ChannelTypeToString(ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))) {
+            if (!ChannelTypeEq(ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelNameHi);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
+                        ChannelTypeToString(ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))) {
+            if (!ChannelTypeEq(ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelNameSize);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
+                    ChannelTypeToString(ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
                 return RETURN_ERROR;
             }
 
@@ -698,7 +698,7 @@ static McxStatus Fmu2ReadChannelOut(ObjectContainer /* Fmu2Value */ * vals, Data
                 return RETURN_ERROR;
             }
 
-            if (info->type != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
+            if (!ChannelTypeEq(info->type, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelName);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
                     ChannelTypeToString(info->type), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));

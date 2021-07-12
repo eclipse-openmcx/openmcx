@@ -36,7 +36,7 @@ const char * ChannelInfoGetName(const ChannelInfo * info) {
 }
 
 int ChannelInfoIsBinary(const ChannelInfo * info) {
-    return info->type == CHANNEL_BINARY || info->type == CHANNEL_BINARY_REFERENCE;
+    return ChannelTypeIsBinary(info->type);
 }
 
 static McxStatus ChannelInfoSetString(char ** dst, const char * src) {
@@ -75,7 +75,7 @@ McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name) {
 }
 
 McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type) {
-    if (info->type != CHANNEL_UNKNOWN) {
+    if (ChannelTypeIsValid(info->type)) {
         mcx_log(LOG_ERROR, "Port %s: Type already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
@@ -277,7 +277,7 @@ void ChannelInfoDestroy(ChannelInfo * info) {
 
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
-    info->type = CHANNEL_UNKNOWN;
+    info->type = ChannelTypeUnknown;
     info->connected = FALSE;
     info->writeResult = TRUE;
 }
@@ -300,7 +300,7 @@ McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->scale = NULL;
     info->offset = NULL;
 
-    info->type = CHANNEL_UNKNOWN;
+    info->type = ChannelTypeUnknown;
     info->defaultValue = NULL;
     info->initialValue = NULL;
 
