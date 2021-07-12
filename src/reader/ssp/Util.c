@@ -747,7 +747,7 @@ cleanup:
 }
 
 McxStatus xml_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType type, ChannelValueData * dest, SSDParamMode mode) {
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
         return xml_attr_double(node, attribute_name, &dest->d, mode);
     case CHANNEL_INTEGER:
@@ -1209,7 +1209,7 @@ McxStatus xml_attr_vec_len(xmlNodePtr node, const char * attribute_name, Channel
         goto cleanup;
     }
 
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
         ret_status = xml_attr_double_vec(node, attribute_name, &len, (double **) &values, mode);
         break;

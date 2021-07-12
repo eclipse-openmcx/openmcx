@@ -159,7 +159,7 @@ static void PrintVec(char * prefix, ChannelType type, size_t len, void * value) 
 
     if (value) {
         for (i = 0; i < len; i++) {
-            switch(type) {
+            switch(type.con) {
             case CHANNEL_DOUBLE:
                 num += sprintf(buffer + num, " %f", ((double*)value)[i]);
                 break;
@@ -235,7 +235,7 @@ static VectorPortInput * VectorPortInputCreate(VectorPortInput * input) {
     input->id = NULL;
     input->unit = NULL;
 
-    input->type = CHANNEL_UNKNOWN;
+    input->type = ChannelTypeUnknown;
 
     input->min = NULL;
     input->max = NULL;

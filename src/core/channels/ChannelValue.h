@@ -12,13 +12,14 @@
 #define MCX_CORE_CHANNELS_CHANNEL_VALUE_H
 
 #include "CentralParts.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 // possible types of values that can be put on channels
-typedef enum ChannelType {
+typedef enum ChannelTypeConstructor {
     CHANNEL_UNKNOWN = 0,
     CHANNEL_DOUBLE = 1,
     CHANNEL_INTEGER = 2,
@@ -27,7 +28,43 @@ typedef enum ChannelType {
     CHANNEL_BINARY = 5,
     CHANNEL_BINARY_REFERENCE = 6,
     CHANNEL_ARRAY = 7,
+} ChannelTypeConstructor;
+
+typedef struct ChannelTypeArrayType {
+    struct ChannelType * inner;
+    size_t numDims;
+    size_t * dims;
+} ChannelTypeArrayType;
+
+typedef struct ChannelType {
+    ChannelTypeConstructor con;
+    union {
+        ChannelTypeArrayType a;
+    } ty;
 } ChannelType;
+
+// pre-defined types
+extern ChannelType ChannelTypeUnknown;
+extern ChannelType ChannelTypeInteger;
+extern ChannelType ChannelTypeDouble;
+extern ChannelType ChannelTypeBool;
+extern ChannelType ChannelTypeString;
+extern ChannelType ChannelTypeBinary;
+extern ChannelType ChannelTypeBinaryReference;
+ChannelType ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
+
+int ChannelTypeIsValid(ChannelType a);
+int ChannelTypeIsScalar(ChannelType a);
+int ChannelTypeIsArray(ChannelType a);
+int ChannelTypeIsBinary(ChannelType a);
+
+int ChannelTypeEq(ChannelType a, ChannelType b);
+
+typedef struct MapStringChannelType {
+    const char * key;
+    ChannelType * value;
+} MapStringChannelType;
+
 
 typedef struct {
     double startTime;
@@ -51,6 +88,7 @@ typedef struct {
     void * data;
 } array;
 
+McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType type);
 int array_dims_match(array * a, array * b);
 size_t array_num_elements(array * a);
 

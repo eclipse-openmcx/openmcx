@@ -114,17 +114,17 @@ static fmi1_callback_functions_t fmi1Callbacks = {
 ChannelType Fmi1TypeToChannelType(fmi1_base_type_enu_t type) {
     switch (type) {
     case fmi1_base_type_real:
-        return CHANNEL_DOUBLE;
+        return ChannelTypeDouble;
     case fmi1_base_type_int:
-        return CHANNEL_INTEGER;
+        return ChannelTypeInteger;
     case fmi1_base_type_bool:
-        return CHANNEL_BOOL;
+        return ChannelTypeBool;
     case fmi1_base_type_str:
-        return CHANNEL_STRING;
+        return ChannelTypeString;
     case fmi1_base_type_enum:
-        return CHANNEL_INTEGER;
+        return ChannelTypeInteger;
     default:
-        return CHANNEL_UNKNOWN;
+        return ChannelTypeUnknown;
     }
 }
 
@@ -381,14 +381,14 @@ static ObjectContainer * Fmu1ReadArrayParamValues(const char * name,
                 goto cleanup_1;
             }
 
-            if (input->type == CHANNEL_DOUBLE) {
-                ChannelValueInit(&chVal, CHANNEL_DOUBLE);
+            if (ChannelTypeEq(input->type, ChannelTypeDouble)) {
+                ChannelValueInit(&chVal, ChannelTypeDouble);
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
                     return RETURN_ERROR;
                 }
             }
             else { // integer
-                ChannelValueInit(&chVal, CHANNEL_INTEGER);
+                ChannelValueInit(&chVal, ChannelTypeInteger);
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
                     return RETURN_ERROR;
                 }
@@ -550,7 +550,7 @@ McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     ChannelValue * const chVal = &fmuVal->val;
     ChannelType type = ChannelValueType(chVal);
 
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
     {
         double value = chVal->value.d;
@@ -634,7 +634,7 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     ChannelValue * const chVal = &fmuVal->val;
     ChannelType type = ChannelValueType(chVal);
 
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
         status = fmi1_import_get_real(fmu->fmiImport, vr, 1, (fmi1_real_t *)ChannelValueReference(chVal));
         if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {

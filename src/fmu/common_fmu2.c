@@ -32,7 +32,7 @@ extern "C" {
 
 
 fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType type) {
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
         return fmi2_base_type_real;
     case CHANNEL_INTEGER:
@@ -49,17 +49,17 @@ fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType type) {
 ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
     switch (type) {
     case fmi2_base_type_real:
-        return CHANNEL_DOUBLE;
+        return ChannelTypeDouble;
     case fmi2_base_type_int:
-        return CHANNEL_INTEGER;
+        return ChannelTypeInteger;
     case fmi2_base_type_bool:
-        return CHANNEL_BOOL;
+        return ChannelTypeBool;
     case fmi2_base_type_str:
-        return CHANNEL_STRING;
+        return ChannelTypeString;
     case fmi2_base_type_enum:
-        return CHANNEL_INTEGER;
+        return ChannelTypeInteger;
     default:
-        return CHANNEL_UNKNOWN;
+        return ChannelTypeUnknown;
     }
 }
 
@@ -389,14 +389,14 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
                 goto fmu2_read_array_param_values_for_cleanup;
             }
 
-            if (input->type == CHANNEL_DOUBLE) {
-                ChannelValueInit(&chVal, CHANNEL_DOUBLE);
+            if (ChannelTypeEq(input->type, ChannelTypeDouble)) {
+                ChannelValueInit(&chVal, ChannelTypeDouble);
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
                     retVal = RETURN_ERROR;
                     goto fmu2_read_array_param_values_for_cleanup;
                 }
             } else { // integer
-                ChannelValueInit(&chVal, CHANNEL_INTEGER);
+                ChannelValueInit(&chVal, ChannelTypeInteger);
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
                     retVal = RETURN_ERROR;
                     goto fmu2_read_array_param_values_for_cleanup;
@@ -683,7 +683,7 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     ChannelValue * const chVal = &fmuVal->val;
     ChannelType type = ChannelValueType(chVal);
 
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
     {
         fmi2_value_reference_t vr[] = {fmuVal->data->vr.scalar};
@@ -792,7 +792,7 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
 
     ChannelType type = ChannelValueType(chVal);
 
-    switch (type) {
+    switch (type.con) {
     case CHANNEL_DOUBLE:
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
@@ -935,7 +935,7 @@ McxStatus Fmi2RegisterLocalChannelsAtDatabus(ObjectContainer * vals, const char 
         const char * unitName;
         ChannelType type = ChannelValueType(&val->val);
 
-        if (CHANNEL_DOUBLE == type) {
+        if (ChannelTypeEq(ChannelTypeDouble, type)) {
             unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(val->data->data.scalar));
         }
         if (unit) {

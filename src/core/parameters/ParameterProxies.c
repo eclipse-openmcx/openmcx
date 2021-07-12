@@ -25,7 +25,7 @@ static ChannelType ScalarParameterProxyGetType(ScalarParameterProxy * proxy) {
         return ChannelValueType(&proxy->value_->val);
     }
 
-    return CHANNEL_UNKNOWN;
+    return ChannelTypeUnknown;
 }
 
 static Fmu2Value * ScalarParameterProxyGetValue(ScalarParameterProxy * proxy) {
@@ -57,7 +57,7 @@ static McxStatus ArrayParameterProxyAddValue(ArrayParameterProxy * proxy, Fmu2Va
         Fmu2Value * val = (Fmu2Value *)proxy->values_->At(proxy->values_, 0);
 
         // check that data types match
-        if (ChannelValueType(&val->val) != ChannelValueType(&value->val)) {
+        if (!ChannelTypeEq(ChannelValueType(&val->val), ChannelValueType(&value->val))) {
             mcx_log(LOG_ERROR, "Adding value of '%s' to array proxy '%s' failed: Data type mismatch", value->name, proxy->name_);
             return RETURN_ERROR;
         }
@@ -142,7 +142,7 @@ static ChannelType ArrayParameterProxyGetType(ArrayParameterProxy * proxy) {
         return ChannelValueType(&value->val);
     }
 
-    return CHANNEL_UNKNOWN;
+    return ChannelTypeUnknown;
 }
 
 static void ArrayParameterProxyDestructor(ArrayParameterProxy * proxy) {

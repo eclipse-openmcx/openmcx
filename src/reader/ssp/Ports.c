@@ -17,6 +17,7 @@
 #include "reader/model/ports/ScalarPortInput.h"
 #include "reader/model/ports/VectorPortInput.h"
 
+#include "core/channels/ChannelValue.h"
 #include "util/string.h"
 
 
@@ -24,20 +25,20 @@
 extern "C" {
 #endif /* __cplusplus */
 
-static MapStringInt _typeMapping[] = {
-    {"Real",        CHANNEL_DOUBLE},
-    {"Integer",     CHANNEL_INTEGER},
-    {"Boolean",     CHANNEL_BOOL},
-    {"String",      CHANNEL_STRING},
-    {"Binary",      CHANNEL_BINARY},
-    {NULL,          0},
+static MapStringChannelType _typeMapping[] = {
+    {"Real",        &ChannelTypeDouble},
+    {"Integer",     &ChannelTypeInteger},
+    {"Boolean",     &ChannelTypeBool},
+    {"String",      &ChannelTypeString},
+    {"Binary",      &ChannelTypeBinary},
+    {NULL,          &ChannelTypeUnknown},
 };
 
-static MapStringInt _vectorTypeMapping[] = {
-    {"RealVector",    CHANNEL_DOUBLE},
-    {"IntegerVector", CHANNEL_INTEGER},
-    {"BooleanVector", CHANNEL_BOOL},
-    {NULL,          0},
+static MapStringChannelType _vectorTypeMapping[] = {
+    {"RealVector",    &ChannelTypeDouble},
+    {"IntegerVector", &ChannelTypeInteger},
+    {"BooleanVector", &ChannelTypeBool},
+    {NULL,            &ChannelTypeUnknown},
 };
 
 
@@ -136,11 +137,11 @@ cleanup_1:
 
             for (i = 0; _typeMapping[i].key; i++) {
                 if (!strcmp(typeName, _typeMapping[i].key)) {
-                    vectorPortInput->type = _typeMapping[i].value;
+                    vectorPortInput->type = *_typeMapping[i].value;
                     break;
                 }
             }
-            if (vectorPortInput->type == CHANNEL_UNKNOWN) {
+            if (!ChannelTypeIsValid(vectorPortInput->type)) {
                 retVal = xml_error_unsupported_node(typeNode);
                 goto cleanup;
             }
@@ -172,7 +173,7 @@ cleanup_1:
                     xmlNodePtr vectorNode = NULL;
                     size_t num = 0;
 
-                    switch (vectorPortInput->type) {
+                    switch (vectorPortInput->type.con) {
                     case CHANNEL_DOUBLE:
                         vectorNode = xml_child(portNode, "RealVector");
                         break;
@@ -350,11 +351,11 @@ cleanup_1:
 
             for (i = 0; _typeMapping[i].key; i++) {
                 if (!strcmp(typeName, _typeMapping[i].key)) {
-                    scalarPortInput->type = _typeMapping[i].value;
+                    scalarPortInput->type = *_typeMapping[i].value;
                     break;
                 }
             }
-            if (scalarPortInput->type == CHANNEL_UNKNOWN) {
+            if (!ChannelTypeIsValid(scalarPortInput->type)) {
                 retVal = xml_error_unsupported_node(typeNode);
                 goto cleanup;
             }
@@ -386,7 +387,7 @@ cleanup_1:
                     xmlNodePtr scalarNode = NULL;
                     size_t num = 0;
 
-                    switch (scalarPortInput->type) {
+                    switch (scalarPortInput->type.con) {
                     case CHANNEL_DOUBLE:
                         scalarNode = xml_child(portNode, "Real");
                         break;

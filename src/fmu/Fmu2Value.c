@@ -52,34 +52,34 @@ Fmu2VariableInfo * Fmu2VariableInfoMake(fmi2_import_variable_t * var) {
 
         switch (type) {
             case fmi2_base_type_real:
-                info->type = CHANNEL_DOUBLE;
+                info->type = ChannelTypeDouble;
                 min.d = fmi2_import_get_real_variable_min(fmi2_import_get_variable_as_real(var));
                 minDefined = min.d != -DBL_MAX;
                 max.d = fmi2_import_get_real_variable_max(fmi2_import_get_variable_as_real(var));
                 maxDefined = max.d != DBL_MAX;
                 break;
             case fmi2_base_type_int:
-                info->type = CHANNEL_INTEGER;
+                info->type = ChannelTypeInteger;
                 min.i = fmi2_import_get_integer_variable_min(fmi2_import_get_variable_as_integer(var));
                 minDefined = min.i != -INT_MIN;
                 max.i = fmi2_import_get_integer_variable_max(fmi2_import_get_variable_as_integer(var));
                 maxDefined = max.i != INT_MAX;
                 break;
             case fmi2_base_type_enum:
-                info->type = CHANNEL_INTEGER;
+                info->type = ChannelTypeInteger;
                 min.i = fmi2_import_get_enum_variable_min(fmi2_import_get_variable_as_enum(var));
                 minDefined = min.i != -INT_MIN;
                 max.i = fmi2_import_get_enum_variable_max(fmi2_import_get_variable_as_enum(var));
                 maxDefined = max.i != INT_MAX;
                 break;
             case fmi2_base_type_str:
-                info->type = CHANNEL_STRING;
+                info->type = ChannelTypeString;
                 break;
             case fmi2_base_type_bool:
-                info->type = CHANNEL_BOOL;
+                info->type = ChannelTypeBool;
                 break;
             default:
-                info->type = CHANNEL_UNKNOWN;
+                info->type = ChannelTypeUnknown;
                 break;
         }
 
@@ -121,7 +121,7 @@ static void Fmu2VariableInfoDestructor(Fmu2VariableInfo * info) {
 }
 
 static Fmu2VariableInfo * Fmu2VariableInfoCreate(Fmu2VariableInfo * info) {
-    info->type = CHANNEL_UNKNOWN;
+    info->type = ChannelTypeUnknown;
 
     info->min = NULL;
     info->max = NULL;
@@ -253,7 +253,7 @@ static Fmu2Value * Fmu2ValueCreate(Fmu2Value * v) {
     v->channel = NULL;
     v->info = NULL;
 
-    ChannelValueInit(&v->val, CHANNEL_UNKNOWN);
+    ChannelValueInit(&v->val, ChannelTypeUnknown);
 
     return v;
 }

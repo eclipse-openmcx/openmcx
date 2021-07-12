@@ -1151,10 +1151,10 @@ McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * refe
         return RETURN_ERROR;
     }
 
-    if (CHANNEL_UNKNOWN != type) {
+    if (ChannelTypeIsValid(type)) {
         ChannelInfo * info = &((Channel *)out)->info;
-        if (info->type != type) {
-            if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
                 mcx_log(LOG_ERROR, "Ports: Set out reference: Port %s has mismatching type %s, given: %s",
@@ -1187,7 +1187,7 @@ McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const voi
     }
 
     info = &((Channel *)out)->info;
-    if (info->type != type) {
+    if (!ChannelTypeEq(info->type, type)) {
         mcx_log(LOG_ERROR, "Ports: Set out reference function: Port %s has mismatching type %s, given: %s",
             ChannelInfoGetName(info), ChannelTypeToString(info->type), ChannelTypeToString(type));
         return RETURN_ERROR;
@@ -1212,7 +1212,7 @@ McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
         mcx_log(LOG_ERROR, "Ports: Set out reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN == type) {
+    if (!ChannelTypeIsValid(type)) {
         mcx_log(LOG_ERROR, "Ports: Set out reference vector: Type of vector needs to be specified");
         return RETURN_ERROR;
     }
@@ -1261,7 +1261,7 @@ McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
         mcx_log(LOG_ERROR, "Ports: Set out reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN == type) {
+    if (!ChannelTypeIsValid(type)) {
         mcx_log(LOG_ERROR, "Ports: Set out reference vector: Type of vector needs to be specified");
         return RETURN_ERROR;
     }
@@ -1287,7 +1287,7 @@ McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
             return RETURN_ERROR;
         }
         ii = i - startIdx;
-        switch (type) {
+        switch (type.con) {
         case CHANNEL_DOUBLE:
             ref = (const void *) (((double *) reference) + ii);
             break;
@@ -1335,10 +1335,11 @@ McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, 
         return RETURN_ERROR;
     }
 
-    if (CHANNEL_UNKNOWN != type) {
+    if (ChannelTypeIsValid(type)) {
         info = &((Channel *)in)->info;
-        if (info->type != type) {
-            if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            // TODO: Remove ChannelInfoIsBinary, use ChannelTypeIsBinary instead?
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
                 mcx_log(LOG_ERROR, "Ports: Set in-reference: Port %s has mismatching type %s, given: %s",
@@ -1360,7 +1361,7 @@ McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, s
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN == type) {
+    if (!ChannelTypeIsValid(type)) {
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector needs to be specified");
         return RETURN_ERROR;
     }
@@ -1385,11 +1386,11 @@ McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, s
             return RETURN_ERROR;
         }
         ii = i - startIdx;
-        if (CHANNEL_DOUBLE == type) {
+        if (ChannelTypeEq(ChannelTypeDouble, type)) {
             ref = (void *) (((double *) reference) + ii);
-        } else if (CHANNEL_INTEGER == type) {
+        } else if (ChannelTypeEq(ChannelTypeInteger, type)) {
             ref = (void *) (((int *) reference) + ii);
-        } else if (CHANNEL_BOOL == type) {
+        } else if (ChannelTypeEq(ChannelTypeBool, type)) {
             ref = (void *) (((int *) reference) + ii);
         } else {
             mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector not allowed");
@@ -1417,7 +1418,7 @@ McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN == type) {
+    if (!ChannelTypeIsValid(type)) {
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector needs to be specified");
         return RETURN_ERROR;
     }

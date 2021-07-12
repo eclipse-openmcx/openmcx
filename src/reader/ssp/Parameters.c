@@ -25,6 +25,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
 typedef struct SSDParameterValue SSDParameterValue;
 
 typedef McxStatus(*fSSDParameterValueSetup)(SSDParameterValue * paramValue, xmlNodePtr node, ObjectContainer * units);
@@ -614,12 +615,12 @@ cleanup_0:
     return RETURN_OK;
 }
 
-static MapStringInt _typeMappingScalar[] = {
-    {"Real",        CHANNEL_DOUBLE},
-    {"Integer",     CHANNEL_INTEGER},
-    {"Boolean",     CHANNEL_BOOL},
-    {"String",      CHANNEL_STRING},
-    {NULL,          0},
+static MapStringChannelType _typeMappingScalar[] = {
+    {"Real",        &ChannelTypeDouble},
+    {"Integer",     &ChannelTypeInteger},
+    {"Boolean",     &ChannelTypeBool},
+    {"String",      &ChannelTypeString},
+    {NULL,          &ChannelTypeUnknown},
 };
 
 static ScalarParameterInput * SSDReadScalarParameter(SSDParameter * parameter) {
@@ -671,12 +672,12 @@ static ScalarParameterInput * SSDReadScalarParameter(SSDParameter * parameter) {
 
         for (i = 0; _typeMappingScalar[i].key; i++) {
             if (!strcmp(connectorType, _typeMappingScalar[i].key)) {
-                input->type = _typeMappingScalar[i].value;
+                input->type = *_typeMappingScalar[i].value;
                 break;
             }
         }
 
-        if (input->type == CHANNEL_UNKNOWN) {
+        if (!ChannelTypeIsValid(input->type)) {
             retVal = xml_error_unsupported_node(connectorTypeNode);
             goto cleanup;
         }
@@ -705,11 +706,11 @@ cleanup:
     return input;
 }
 
-static MapStringInt _typeMappingArray[] = {
-    {"Real",        CHANNEL_DOUBLE},
-    {"Integer",     CHANNEL_INTEGER},
-    {"Boolean",     CHANNEL_BOOL},
-    {NULL,          0},
+static MapStringChannelType _typeMappingArray[] = {
+    {"Real",        &ChannelTypeDouble},
+    {"Integer",     &ChannelTypeInteger},
+    {"Boolean",     &ChannelTypeBool},
+    {NULL,          &ChannelTypeUnknown},
 };
 
 static ArrayParameterDimensionInput * SSDReadArrayParameterDimension(xmlNodePtr node) {
@@ -749,7 +750,7 @@ cleanup:
 static McxStatus AllocateMemory(SSDParameter * parameter, ChannelType type, size_t numValues, void ** dest) {
     size_t size = 0;
 
-    switch (type) {
+    switch (type.con) {
         case CHANNEL_DOUBLE:
             size = sizeof(double);
             break;
@@ -825,7 +826,7 @@ static McxStatus SSDReadDimensionlessArrayParameter(SSDParameter * parameter, Ar
             continue;
         }
 
-        switch (input->type) {
+        switch (input->type.con) {
             case CHANNEL_DOUBLE:
                 retVal = xml_attr_double(paramTypeNode, "value", (double*)input->values + paramValue->idx1, SSD_MANDATORY);
                 break;
@@ -911,7 +912,7 @@ static McxStatus SSDReadDimensionArrayParameter(SSDParameter * parameter, ArrayP
             index = (paramValue->idx1 - input->dims[0]->start) * (input->dims[1]->end - input->dims[1]->start + 1) + paramValue->idx2 - input->dims[1]->start;
         }
 
-        switch (input->type) {
+        switch (input->type.con) {
             case CHANNEL_DOUBLE:
                 retVal = xml_attr_double(paramTypeNode, "value", (double*)input->values + index, SSD_MANDATORY);
                 break;
@@ -1020,12 +1021,12 @@ static ArrayParameterInput * SSDReadArrayParameter(SSDParameter * parameter) {
 
         for (i = 0; _typeMappingArray[i].key; i++) {
             if (!strcmp(connectorType, _typeMappingArray[i].key)) {
-                input->type = _typeMappingArray[i].value;
+                input->type = *_typeMappingArray[i].value;
                 break;
             }
         }
 
-        if (input->type == CHANNEL_UNKNOWN) {
+        if (!ChannelTypeIsValid(input->type)) {
             retVal = xml_error_unsupported_node(connectorTypeNode);
             goto cleanup;
         }

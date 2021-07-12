@@ -39,7 +39,7 @@ static McxStatus MemoryFilterSetValue(ChannelFilter * filter, double time, Chann
 
 #ifdef MCX_DEBUG
         if (time < MCX_DEBUG_LOG_TIME) {
-            if (memoryFilter->valueHistoryWrite[0].type == CHANNEL_DOUBLE) {
+            if (ChannelTypeEq(memoryFilter->valueHistoryWrite[0].type, ChannelTypeDouble)) {
                 MCX_DEBUG_LOG("MemoryFilter: F SET (%x) (%f, %f)", filter, time, value.d);
             } else {
                 MCX_DEBUG_LOG("MemoryFilter: F SET (%x) (%f, -)", filter, time);
@@ -62,7 +62,7 @@ static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, doub
         if (double_eq(memoryFilter->timeHistoryRead[i], time)) {
 #ifdef MCX_DEBUG
             if (time < MCX_DEBUG_LOG_TIME) {
-                if (memoryFilter->valueHistoryRead[i].type == CHANNEL_DOUBLE) {
+                if (ChannelTypeEq(memoryFilter->valueHistoryRead[i].type, ChannelTypeDouble)) {
                     MCX_DEBUG_LOG("MemoryFilter: F GET (%x) (%f, %f)", filter, time, memoryFilter->valueHistoryRead[i].value.d);
                 } else {
                     MCX_DEBUG_LOG("MemoryFilter: F GET (%x) (%f, -)", filter, time);
@@ -95,7 +95,7 @@ static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, doub
 
 #ifdef MCX_DEBUG
     if (time < MCX_DEBUG_LOG_TIME) {
-        if (memoryFilter->valueHistoryRead[i].type == CHANNEL_DOUBLE) {
+        if (ChannelTypeEq(memoryFilter->valueHistoryRead[i].type, ChannelTypeDouble)) {
             MCX_DEBUG_LOG("MemoryFilter: F GET CLOSEST (%x) (%f, %f)", filter, time, memoryFilter->valueHistoryRead[i].value.d);
         } else {
             MCX_DEBUG_LOG("MemoryFilter: F GET CLOSEST (%x) (%f, -)", filter, time);
@@ -116,7 +116,7 @@ static ChannelValueData MemoryFilterGetValue(ChannelFilter * filter, double time
         if (double_eq(memoryFilter->timeHistoryRead[i], time)) {
 #ifdef MCX_DEBUG
             if (time < MCX_DEBUG_LOG_TIME) {
-                if (memoryFilter->valueHistoryRead[i].type == CHANNEL_DOUBLE) {
+                if (ChannelTypeEq(memoryFilter->valueHistoryRead[i].type, ChannelTypeDouble)) {
                     MCX_DEBUG_LOG("MemoryFilter: F GET (%x) (%f, %f)", filter, time, memoryFilter->valueHistoryRead[i].value.d);
                 } else {
                     MCX_DEBUG_LOG("MemoryFilter: F GET (%x) (%f, -)", filter, time);
@@ -149,7 +149,7 @@ static ChannelValueData MemoryFilterGetValue(ChannelFilter * filter, double time
 
 #ifdef MCX_DEBUG
     if (time < MCX_DEBUG_LOG_TIME) {
-        if (memoryFilter->valueHistoryRead[i].type == CHANNEL_DOUBLE) {
+        if (ChannelTypeEq(memoryFilter->valueHistoryRead[i].type, ChannelTypeDouble)) {
             MCX_DEBUG_LOG("MemoryFilter: F GET CLOSEST (%x) (%f, %f)", filter, time, memoryFilter->valueHistoryRead[i].value.d);
         } else {
             MCX_DEBUG_LOG("MemoryFilter: F GET CLOSEST (%x) (%f, -)", filter, time);
