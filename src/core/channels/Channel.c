@@ -59,7 +59,7 @@ static Channel * ChannelCreate(Channel * channel) {
 
     channel->isDefinedDuringInit = FALSE;
     channel->internalValue = NULL;
-    ChannelValueInit(&channel->value, ChannelTypeUnknown);
+    ChannelValueInit(&channel->value, &ChannelTypeUnknown);
 
     channel->Setup = ChannelSetup;
     channel->IsDefinedDuringInit = ChannelIsDefinedDuringInit;
@@ -116,7 +116,7 @@ OBJECT_CLASS(ChannelInData, Object);
 
 
 
-static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, ChannelType type) {
+static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, ChannelType * type) {
     Channel * ch = (Channel *) in;
     ChannelInfo * info = &ch->info;
 
@@ -245,7 +245,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         return RETURN_OK;
     }
 
-    if (time->startTime < MCX_DEBUG_LOG_TIME && ChannelTypeEq(info->type, ChannelTypeDouble)) {
+    if (time->startTime < MCX_DEBUG_LOG_TIME && ChannelTypeEq(info->type, &ChannelTypeDouble)) {
         MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
     }
 
@@ -306,8 +306,7 @@ static Connection * ChannelInGetConnection(ChannelIn * in) {
     }
 }
 
-static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType type
-) {
+static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType * type) {
     Channel * channel = (Channel *) in;
     ChannelInfo * inInfo = NULL;
 
@@ -319,7 +318,7 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
     // setup unit conversion
     inInfo = &channel->info;
 
-    if (ChannelTypeEq(inInfo->type, ChannelTypeDouble)) {
+    if (ChannelTypeEq(inInfo->type, &ChannelTypeDouble)) {
         in->data->unitConversion = (UnitConversion *) object_create(UnitConversion);
         retVal = in->data->unitConversion->Setup(in->data->unitConversion,
                                                  unit,
@@ -385,8 +384,8 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
     // unit conversion is setup when a connection is set
 
     // min/max conversions are only used for double types
-    if (ChannelTypeEq(info->type, ChannelTypeDouble)
-        || ChannelTypeEq(info->type, ChannelTypeInteger))
+    if (ChannelTypeEq(info->type, &ChannelTypeDouble)
+        || ChannelTypeEq(info->type, &ChannelTypeInteger))
     {
         ChannelValue * min = info->min;
         ChannelValue * max = info->max;
@@ -524,8 +523,8 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 
 
     // min/max conversions are only used for double types
-    if (ChannelTypeEq(info->type, ChannelTypeDouble)
-        || ChannelTypeEq(info->type, ChannelTypeInteger))
+    if (ChannelTypeEq(info->type, &ChannelTypeDouble)
+        || ChannelTypeEq(info->type, &ChannelTypeInteger))
     {
         out->data->rangeConversion = (RangeConversion *) object_create(RangeConversion);
         retVal = out->data->rangeConversion->Setup(out->data->rangeConversion, min, max);
@@ -609,7 +608,7 @@ static int ChannelOutIsConnected(Channel * channel) {
     return FALSE;
 }
 
-static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference, ChannelType type) {
+static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference, ChannelType * type) {
     Channel * channel = (Channel *) out;
     ChannelInfo * info = NULL;
 
@@ -643,7 +642,7 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
     return RETURN_OK;
 }
 
-static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * reference, ChannelType type) {
+static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * reference, ChannelType * type) {
     Channel * channel = (Channel *) out;
     ChannelInfo * info = NULL;
     if (!out) {
@@ -717,7 +716,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         } else {
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
-                if (ChannelTypeEq(ChannelTypeDouble, info->type)) {
+                if (ChannelTypeEq(&ChannelTypeDouble, info->type)) {
                     MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)",
                                   time->startTime,
                                   ChannelInfoGetLogName(info),
@@ -734,8 +733,8 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         }
 
         // Apply conversion
-        if (ChannelTypeEq(info->type, ChannelTypeDouble) ||
-            ChannelTypeEq(info->type, ChannelTypeInteger)) {
+        if (ChannelTypeEq(info->type, &ChannelTypeDouble) ||
+            ChannelTypeEq(info->type, &ChannelTypeInteger)) {
             ChannelValue * val = &channel->value;
 
             // range
@@ -771,7 +770,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     }
 
 
-    if (ChannelTypeEq(ChannelTypeDouble, info->type)) {
+    if (ChannelTypeEq(&ChannelTypeDouble, info->type)) {
         const double * val = NULL;
 
         {
@@ -872,7 +871,7 @@ static int ChannelLocalIsValid(Channel * channel) {
 // TODO: Unify with ChannelOutsetReference (similar code)
 static McxStatus ChannelLocalSetReference(ChannelLocal * local,
                                           const void * reference,
-                                          ChannelType type) {
+                                          ChannelType * type) {
     Channel * channel = (Channel *) local;
     ChannelInfo * info = NULL;
 

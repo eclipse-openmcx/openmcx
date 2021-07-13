@@ -177,7 +177,7 @@ static ScalarConstantValueInput * SSDReadScalarConstantValue(xmlNodePtr node) {
 
         for (i = 0; _scalarConstantTypeMapping[i].key; i++) {
             if (!strcmp(xml_node_get_name(node), _scalarConstantTypeMapping[i].key)) {
-                input->type = *_scalarConstantTypeMapping[i].value;
+                input->type = _scalarConstantTypeMapping[i].value;
                 break;
             }
         }
@@ -226,7 +226,7 @@ static ArrayConstantValueInput * SSDReadArrayConstantValue(xmlNodePtr node) {
 
         for (i = 0; _vectorConstantTypeMapping[i].key; i++) {
             if (!strcmp(xml_node_get_name(node), _vectorConstantTypeMapping[i].key)) {
-                input->type = *_vectorConstantTypeMapping[i].value;
+                input->type = _vectorConstantTypeMapping[i].value;
                 break;
             }
         }
@@ -237,7 +237,7 @@ static ArrayConstantValueInput * SSDReadArrayConstantValue(xmlNodePtr node) {
         }
     }
 
-    switch (input->type.con) {
+    switch (input->type->con) {
         case CHANNEL_DOUBLE:
             retVal = xml_attr_double_vec(node, "value", &input->numValues, (double**)&input->values, SSD_MANDATORY);
             break;

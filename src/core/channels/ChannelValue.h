@@ -51,14 +51,14 @@ extern ChannelType ChannelTypeBool;
 extern ChannelType ChannelTypeString;
 extern ChannelType ChannelTypeBinary;
 extern ChannelType ChannelTypeBinaryReference;
-ChannelType ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
+ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
 
-int ChannelTypeIsValid(ChannelType a);
-int ChannelTypeIsScalar(ChannelType a);
-int ChannelTypeIsArray(ChannelType a);
-int ChannelTypeIsBinary(ChannelType a);
+int ChannelTypeIsValid(ChannelType * a);
+int ChannelTypeIsScalar(ChannelType * a);
+int ChannelTypeIsArray(ChannelType * a);
+int ChannelTypeIsBinary(ChannelType * a);
 
-int ChannelTypeEq(ChannelType a, ChannelType b);
+int ChannelTypeEq(ChannelType * a, ChannelType * b);
 
 typedef struct MapStringChannelType {
     const char * key;
@@ -84,11 +84,11 @@ typedef struct {
 typedef struct {
     size_t numDims;
     size_t * dims;
-    ChannelType type;
+    ChannelType * type;
     void * data;
 } array;
 
-McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType type);
+McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * type);
 int array_dims_match(array * a, array * b);
 size_t array_num_elements(array * a);
 
@@ -103,40 +103,40 @@ typedef union ChannelValueData {
 } ChannelValueData;
 
 typedef struct ChannelValue {
-    ChannelType type;
+    ChannelType * type;
     ChannelValueData value;
 } ChannelValue;
 
-void   ChannelValueInit(ChannelValue * value, ChannelType type);
+void   ChannelValueInit(ChannelValue * value, ChannelType * type);
 void ChannelValueDestructor(ChannelValue * value);
 char * ChannelValueToString(ChannelValue * value);
-McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType type, char * buffer, size_t len);
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType * type, char * buffer, size_t len);
 McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 
-ChannelType ChannelValueType(ChannelValue * value);
+ChannelType * ChannelValueType(ChannelValue * value);
 void *      ChannelValueReference(ChannelValue * value);
 
-void ChannelValueDataDestructor(ChannelValueData * data, ChannelType type);
-void ChannelValueDataInit(ChannelValueData * data, ChannelType type);
-McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference);
+void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
+void ChannelValueDataInit(ChannelValueData * data, ChannelType * type);
+McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
 
 McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
 McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference);
 
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 
-size_t ChannelValueTypeSize(ChannelType type);
-int ChannelTypeMatch(ChannelType a, ChannelType b);
+size_t ChannelValueTypeSize(ChannelType * type);
+int ChannelTypeMatch(ChannelType * a, ChannelType * b);
 
 void ChannelValueDestroy(ChannelValue ** value);
 
-ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType type);
+ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType * type);
 
 /*
  * Returns a string representation of ChannelType for use in log
  * messages.
  */
-const char * ChannelTypeToString(ChannelType type);
+const char * ChannelTypeToString(ChannelType * type);
 
 /*
  * Creates a copy of value. Allocates memory if needed, e.g. when

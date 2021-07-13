@@ -20,12 +20,12 @@ static void ScalarParameterProxySetValue(ScalarParameterProxy * proxy, Fmu2Value
     proxy->value_ = value;
 }
 
-static ChannelType ScalarParameterProxyGetType(ScalarParameterProxy * proxy) {
+static ChannelType * ScalarParameterProxyGetType(ScalarParameterProxy * proxy) {
     if (proxy->value_) {
         return ChannelValueType(&proxy->value_->val);
     }
 
-    return ChannelTypeUnknown;
+    return &ChannelTypeUnknown;
 }
 
 static Fmu2Value * ScalarParameterProxyGetValue(ScalarParameterProxy * proxy) {
@@ -136,13 +136,13 @@ static size_t ArrayParameterProxyGetDim(ArrayParameterProxy * proxy, size_t idx)
     return proxy->dims_[idx];
 }
 
-static ChannelType ArrayParameterProxyGetType(ArrayParameterProxy * proxy) {
+static ChannelType * ArrayParameterProxyGetType(ArrayParameterProxy * proxy) {
     if (proxy->values_->Size(proxy->values_) > 0) {
         Fmu2Value * value = (Fmu2Value *)proxy->values_->At(proxy->values_, 0);
         return ChannelValueType(&value->val);
     }
 
-    return ChannelTypeUnknown;
+    return &ChannelTypeUnknown;
 }
 
 static void ArrayParameterProxyDestructor(ArrayParameterProxy * proxy) {

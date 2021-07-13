@@ -31,8 +31,8 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType type) {
-    switch (type.con) {
+fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType * type) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
         return fmi2_base_type_real;
     case CHANNEL_INTEGER:
@@ -46,20 +46,20 @@ fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType type) {
     }
 }
 
-ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
+ChannelType * Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
     switch (type) {
     case fmi2_base_type_real:
-        return ChannelTypeDouble;
+        return &ChannelTypeDouble;
     case fmi2_base_type_int:
-        return ChannelTypeInteger;
+        return &ChannelTypeInteger;
     case fmi2_base_type_bool:
-        return ChannelTypeBool;
+        return &ChannelTypeBool;
     case fmi2_base_type_str:
-        return ChannelTypeString;
+        return &ChannelTypeString;
     case fmi2_base_type_enum:
-        return ChannelTypeInteger;
+        return &ChannelTypeInteger;
     default:
-        return ChannelTypeUnknown;
+        return &ChannelTypeUnknown;
     }
 }
 
@@ -389,14 +389,14 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
                 goto fmu2_read_array_param_values_for_cleanup;
             }
 
-            if (ChannelTypeEq(input->type, ChannelTypeDouble)) {
-                ChannelValueInit(&chVal, ChannelTypeDouble);
+            if (ChannelTypeEq(input->type, &ChannelTypeDouble)) {
+                ChannelValueInit(&chVal, &ChannelTypeDouble);
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
                     retVal = RETURN_ERROR;
                     goto fmu2_read_array_param_values_for_cleanup;
                 }
             } else { // integer
-                ChannelValueInit(&chVal, ChannelTypeInteger);
+                ChannelValueInit(&chVal, &ChannelTypeInteger);
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
                     retVal = RETURN_ERROR;
                     goto fmu2_read_array_param_values_for_cleanup;
@@ -681,9 +681,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     }
 
     ChannelValue * const chVal = &fmuVal->val;
-    ChannelType type = ChannelValueType(chVal);
+    ChannelType * type = ChannelValueType(chVal);
 
-    switch (type.con) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
     {
         fmi2_value_reference_t vr[] = {fmuVal->data->vr.scalar};
@@ -790,9 +790,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     char * const name = fmuVal->name;
     ChannelValue * const chVal = &fmuVal->val;
 
-    ChannelType type = ChannelValueType(chVal);
+    ChannelType * type = ChannelValueType(chVal);
 
-    switch (type.con) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
@@ -933,9 +933,9 @@ McxStatus Fmi2RegisterLocalChannelsAtDatabus(ObjectContainer * vals, const char 
         const char * name = val->name;
         fmi2_import_unit_t * unit = NULL;
         const char * unitName;
-        ChannelType type = ChannelValueType(&val->val);
+        ChannelType * type = ChannelValueType(&val->val);
 
-        if (ChannelTypeEq(ChannelTypeDouble, type)) {
+        if (ChannelTypeEq(&ChannelTypeDouble, type)) {
             unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(val->data->data.scalar));
         }
         if (unit) {
@@ -974,7 +974,7 @@ ObjectContainer * Fmu2ValueScalarListFromVarList(fmi2_import_variable_list_t * v
     for (i = 0; i < num; i++) {
         fmi2_import_variable_t * var = fmi2_import_get_variable(vars, i);
         char * name = (char *)fmi2_import_get_variable_name(var);
-        ChannelType type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
+        ChannelType * type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
 
         Fmu2Value * value = Fmu2ValueScalarMake(name, var, NULL, NULL);
         if (value) {
@@ -1007,7 +1007,7 @@ ObjectContainer * Fmu2ValueScalarListFromValVarList(ObjectContainer * vals, fmi2
     for (i = 0; i < num; i++) {
         fmi2_import_variable_t * var = fmi2_import_get_variable(vars, i);
         char * name = (char *)fmi2_import_get_variable_name(var);
-        ChannelType type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
+        ChannelType * type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
         ChannelValue * chVal = (ChannelValue *) vals->At(vals, i);
         Fmu2Value * value = NULL;
 

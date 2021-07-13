@@ -35,7 +35,7 @@ struct VectorPortInput {
     char * id;
     char * unit;
 
-    ChannelType type;
+    ChannelType * type;
 
     void * min;
     void * max;

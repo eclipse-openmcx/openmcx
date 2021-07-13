@@ -86,13 +86,13 @@ size_t DatabusGetRTFactorChannelsNum(struct Databus * db);
 McxStatus DatabusSetOutReference(struct Databus * db,
                                  size_t           channel,
                                  const void     * reference,
-                                 ChannelType      type);
+                                 ChannelType    * type);
 
 
 McxStatus DatabusSetOutReferenceFunction(struct Databus * db,
                                          size_t           channel,
                                          const void     * reference,
-                                         ChannelType      type);
+                                         ChannelType    * type);
 
 /**
  * Connects a variable of type \a type at \a reference to the in channel \a channel
@@ -101,7 +101,7 @@ McxStatus DatabusSetOutReferenceFunction(struct Databus * db,
  *
  * \return \c RETURN_OK on success, or \c RETURN_ERROR otherwise.
  */
-McxStatus DatabusSetInReference(struct Databus * db, size_t channel, void * reference, ChannelType type);
+McxStatus DatabusSetInReference(struct Databus * db, size_t channel, void * reference, ChannelType * type);
 
 /**
  * Adds a local channel of type \a type at \a reference to the databus \a db.
@@ -111,7 +111,7 @@ McxStatus DatabusAddLocalChannel(Databus * db,
                                  const char * id,
                                  const char * unit,
                                  const void * reference,
-                                 ChannelType type);
+                                 ChannelType * type);
 
 /**
  * Adds a rtfactor channel of type \a type at \a reference to the databus \a db.
@@ -121,7 +121,7 @@ McxStatus DatabusAddRTFactorChannel(Databus * db,
                                    const char * id,
                                    const char * unit,
                                    const void * reference,
-                                   ChannelType type);
+                                   ChannelType * type);
 
 /* vector channel functions */
 
@@ -133,13 +133,13 @@ size_t DatabusGetInVectorChannelsNum(Databus * db);
 size_t DatabusGetOutVectorChannelsNum(Databus * db);
 
 McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, const void * reference, ChannelType type);
+    size_t startIdx, size_t endIdx, const void * reference, ChannelType * type);
 
 McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
     size_t startIdx, size_t endIdx, ChannelValue * value);
 
 McxStatus DatabusSetInRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, void * reference, ChannelType type);
+    size_t startIdx, size_t endIdx, void * reference, ChannelType * type);
 McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
     size_t startIdx, size_t endIdx, ChannelValue * value);
 

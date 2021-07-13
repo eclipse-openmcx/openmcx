@@ -62,7 +62,7 @@ extern const struct ObjectClass _Fmu2VariableInfo;
 typedef struct Fmu2VariableInfo {
     Object _;
 
-    ChannelType type;
+    ChannelType * type;
 
     ChannelValueData * min;
     ChannelValueData * max;

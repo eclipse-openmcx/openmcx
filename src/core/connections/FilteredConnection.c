@@ -23,7 +23,7 @@ extern "C" {
 static FilteredConnectionData * FilteredConnectionDataCreate(FilteredConnectionData * data) {
     data->filter = NULL;
 
-    ChannelValueInit(&data->store, ChannelTypeUnknown);
+    ChannelValueInit(&data->store, &ChannelTypeUnknown);
 
     return data;
 }

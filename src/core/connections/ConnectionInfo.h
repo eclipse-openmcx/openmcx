@@ -38,7 +38,7 @@ typedef struct ConnectionInfo {
 
     int hasDiscreteTarget;
 
-    ChannelType connType_;
+    ChannelType * connType_;
 
     InterExtrapolatingType isInterExtrapolating;
 
@@ -54,7 +54,7 @@ typedef struct ConnectionInfo {
 McxStatus ConnectionInfoInit(ConnectionInfo * info);
 
 
-ChannelType ConnectionInfoGetType(ConnectionInfo * info);
+ChannelType * ConnectionInfoGetType(ConnectionInfo * info);
 
 int ConnectionInfoIsDecoupled(ConnectionInfo * info);
 void ConnectionInfoSetDecoupled(ConnectionInfo * info);

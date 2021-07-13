@@ -46,7 +46,7 @@ static McxStatus DiscreteFilterEnterCommunicationMode(ChannelFilter * filter, do
     return RETURN_OK;
 }
 
-static McxStatus DiscreteFilterSetup(DiscreteFilter * filter, ChannelType type) {
+static McxStatus DiscreteFilterSetup(DiscreteFilter * filter, ChannelType * type) {
     ChannelValueInit(&filter->lastSynchronizationStepValue, type);
     ChannelValueInit(&filter->lastCouplingStepValue, type);
 
@@ -69,8 +69,8 @@ static DiscreteFilter * DiscreteFilterCreate(DiscreteFilter * discreteFilter) {
 
     discreteFilter->Setup = DiscreteFilterSetup;
 
-    ChannelValueInit(&discreteFilter->lastSynchronizationStepValue, ChannelTypeUnknown);
-    ChannelValueInit(&discreteFilter->lastCouplingStepValue, ChannelTypeUnknown);
+    ChannelValueInit(&discreteFilter->lastSynchronizationStepValue, &ChannelTypeUnknown);
+    ChannelValueInit(&discreteFilter->lastCouplingStepValue, &ChannelTypeUnknown);
 
     return discreteFilter;
 }

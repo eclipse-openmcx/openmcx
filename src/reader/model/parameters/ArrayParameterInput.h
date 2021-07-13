@@ -29,7 +29,7 @@ typedef struct ArrayParameterInput {
     size_t numDims;
     ArrayParameterDimensionInput ** dims;
 
-    ChannelType type;
+    ChannelType * type;
 
     size_t numValues;
     void * values;

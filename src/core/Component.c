@@ -216,7 +216,7 @@ static McxStatus DefineTimingChannel(Component * comp, const char * chName, cons
         return RETURN_ERROR;
     }
 
-    retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, unit, reference, ChannelTypeDouble);
+    retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, unit, reference, &ChannelTypeDouble);
 
     mcx_free(id);
 
