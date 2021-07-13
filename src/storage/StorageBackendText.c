@@ -215,7 +215,7 @@ static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels
         if (channel == 0) { // leave out separator at the beginning
             sep = "";
         }
-        switch (ChannelValueType(&val).con) {
+        switch (ChannelValueType(&val)->con) {
         case CHANNEL_DOUBLE:
         case CHANNEL_INTEGER:
         case CHANNEL_BOOL:

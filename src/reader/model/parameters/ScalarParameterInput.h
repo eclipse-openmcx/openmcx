@@ -24,7 +24,7 @@ typedef struct ScalarParameterInput {
 
     char * name;
 
-    ChannelType type;
+    ChannelType * type;
     OPTIONAL_VALUE(ChannelValueData) value;
 
     char * unit;

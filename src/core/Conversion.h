@@ -47,7 +47,7 @@ typedef struct RangeConversion {
     fRangeConversionSetup Setup;
     fRangeConversionIsEmpty IsEmpty;
 
-    ChannelType type;
+    ChannelType * type;
 
     ChannelValue * min;
     ChannelValue * max;
@@ -99,7 +99,7 @@ typedef struct LinearConversion {
     fLinearConversionSetup Setup;
     fLinearConversionIsEmpty IsEmpty;
 
-    ChannelType type;
+    ChannelType * type;
 
     ChannelValue * factor;
     ChannelValue * offset;
@@ -114,7 +114,7 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 
 typedef struct TypeConversion TypeConversion;
 
-typedef McxStatus (* fTypeConversionSetup)(TypeConversion * conversion, ChannelType fromType, ChannelType toType);
+typedef McxStatus (* fTypeConversionSetup)(TypeConversion * conversion, ChannelType * fromType, ChannelType * toType);
 typedef int (* fTypeConversionIsEmpty)(TypeConversion * conversion);
 
 extern const struct ObjectClass _TypeConversion;
@@ -126,7 +126,7 @@ struct TypeConversion {
     fTypeConversionIsEmpty IsEmpty;
 };
 
-McxStatus ConvertType(ChannelType fromType, ChannelType toType, ChannelValue * value);
+McxStatus ConvertType(ChannelType * fromType, ChannelType * toType, ChannelValue * value);
 
 
 #ifdef __cplusplus

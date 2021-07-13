@@ -44,10 +44,11 @@ typedef struct ChannelInfo {
     ChannelValue * max;
     ChannelValue * scale;
     ChannelValue * offset;
+
     ChannelValue * defaultValue;
     ChannelValue * initialValue;
 
-    ChannelType type;
+    ChannelType * type;
 
     int connected;
     int initialValueIsExact;
@@ -66,7 +67,7 @@ McxStatus ChannelInfoSetNameInTool(ChannelInfo * info, const char * name);
 McxStatus ChannelInfoSetID(ChannelInfo * info, const char * name);
 McxStatus ChannelInfoSetDescription(ChannelInfo * info, const char * name);
 McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name);
-McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type);
+McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type);
 McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector);
 
 int ChannelInfoIsBinary(const ChannelInfo * info);
@@ -76,7 +77,7 @@ McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * nameInModel,
                            const char * descr,
                            const char * unit,
-                           ChannelType  type,
+                           ChannelType * type,
                            const char * id);
 
 McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other);

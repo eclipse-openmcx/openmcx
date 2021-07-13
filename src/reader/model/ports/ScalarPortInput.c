@@ -132,8 +132,8 @@ static McxStatus CopyFrom(ScalarPortInput * self, ScalarPortInput * src) {
 }
 
 
-static void PrintOptionalChannelValueData(char * prefix, ChannelType type, OPTIONAL_VALUE(ChannelValueData) value) {
-    switch(type.con) {
+static void PrintOptionalChannelValueData(char * prefix, ChannelType * type, OPTIONAL_VALUE(ChannelValueData) value) {
+    switch(type->con) {
     case CHANNEL_DOUBLE:
         if (value.defined) {
             mcx_log(LOG_DEBUG, "%s%f,", prefix, value.value.d);
@@ -208,7 +208,7 @@ static ScalarPortInput * ScalarPortInputCreate(ScalarPortInput * input) {
     input->id = NULL;
     input->unit = NULL;
 
-    input->type = ChannelTypeUnknown;
+    input->type = &ChannelTypeUnknown;
 
     OPTIONAL_UNSET(input->min);
     OPTIONAL_UNSET(input->max);

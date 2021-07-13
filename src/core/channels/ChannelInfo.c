@@ -74,7 +74,7 @@ McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name) {
     return ChannelInfoSetString(&info->unitString, name);
 }
 
-McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type) {
+McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type) {
     if (ChannelTypeIsValid(info->type)) {
         mcx_log(LOG_ERROR, "Port %s: Type already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
@@ -105,7 +105,7 @@ McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * nameInModel,
                            const char * descr,
                            const char * unit,
-                           ChannelType  type,
+                           ChannelType * type,
                            const char * id) {
     if (name && RETURN_OK != ChannelInfoSetName(info, name)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set name", name);
@@ -277,7 +277,7 @@ void ChannelInfoDestroy(ChannelInfo * info) {
 
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
-    info->type = ChannelTypeUnknown;
+    info->type = &ChannelTypeUnknown;
     info->connected = FALSE;
     info->writeResult = TRUE;
 }
@@ -300,7 +300,7 @@ McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->scale = NULL;
     info->offset = NULL;
 
-    info->type = ChannelTypeUnknown;
+    info->type = &ChannelTypeUnknown;
     info->defaultValue = NULL;
     info->initialValue = NULL;
 

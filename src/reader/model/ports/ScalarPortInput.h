@@ -32,7 +32,7 @@ struct ScalarPortInput {
     char * id;
     char * unit;
 
-    ChannelType type;
+    ChannelType * type;
 
     OPTIONAL_VALUE(ChannelValueData) min;
     OPTIONAL_VALUE(ChannelValueData) max;

@@ -149,7 +149,7 @@ static McxStatus CopyFrom(VectorPortInput * self, VectorPortInput * src) {
     return RETURN_OK;
 }
 
-static void PrintVec(char * prefix, ChannelType type, size_t len, void * value) {
+static void PrintVec(char * prefix, ChannelType * type, size_t len, void * value) {
     char buffer[4096] = { 0 };
 
     size_t num = 0;
@@ -159,7 +159,7 @@ static void PrintVec(char * prefix, ChannelType type, size_t len, void * value) 
 
     if (value) {
         for (i = 0; i < len; i++) {
-            switch(type.con) {
+            switch(type->con) {
             case CHANNEL_DOUBLE:
                 num += sprintf(buffer + num, " %f", ((double*)value)[i]);
                 break;
@@ -235,7 +235,7 @@ static VectorPortInput * VectorPortInputCreate(VectorPortInput * input) {
     input->id = NULL;
     input->unit = NULL;
 
-    input->type = ChannelTypeUnknown;
+    input->type = &ChannelTypeUnknown;
 
     input->min = NULL;
     input->max = NULL;

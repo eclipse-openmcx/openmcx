@@ -137,7 +137,7 @@ cleanup_1:
 
             for (i = 0; _typeMapping[i].key; i++) {
                 if (!strcmp(typeName, _typeMapping[i].key)) {
-                    vectorPortInput->type = *_typeMapping[i].value;
+                    vectorPortInput->type = _typeMapping[i].value;
                     break;
                 }
             }
@@ -173,7 +173,7 @@ cleanup_1:
                     xmlNodePtr vectorNode = NULL;
                     size_t num = 0;
 
-                    switch (vectorPortInput->type.con) {
+                    switch (vectorPortInput->type->con) {
                     case CHANNEL_DOUBLE:
                         vectorNode = xml_child(portNode, "RealVector");
                         break;
@@ -351,7 +351,7 @@ cleanup_1:
 
             for (i = 0; _typeMapping[i].key; i++) {
                 if (!strcmp(typeName, _typeMapping[i].key)) {
-                    scalarPortInput->type = *_typeMapping[i].value;
+                    scalarPortInput->type = _typeMapping[i].value;
                     break;
                 }
             }
@@ -387,7 +387,7 @@ cleanup_1:
                     xmlNodePtr scalarNode = NULL;
                     size_t num = 0;
 
-                    switch (scalarPortInput->type.con) {
+                    switch (scalarPortInput->type->con) {
                     case CHANNEL_DOUBLE:
                         scalarNode = xml_child(portNode, "Real");
                         break;

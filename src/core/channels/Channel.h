@@ -113,7 +113,7 @@ typedef McxStatus (* fChannelInSetup)(ChannelIn * in, struct ChannelInfo * info)
 
 typedef McxStatus  (* fChannelInSetReference) (ChannelIn   * in,
                                                void        * reference,
-                                               ChannelType   type);
+                                               ChannelType * type);
 
 typedef struct ConnectionInfo * (* fChannelInGetConnectionInfo)(ChannelIn * in);
 
@@ -122,7 +122,7 @@ typedef struct Connection * (* fChannelInGetConnection)(ChannelIn * in);
 typedef McxStatus (* fChannelInSetConnection)(ChannelIn * in,
                                               struct Connection * connection,
                                               const char * unit,
-                                              ChannelType type);
+                                              ChannelType * type);
 
 typedef int (*fChannelInIsDiscrete)(ChannelIn * in);
 typedef void (*fChannelInSetDiscrete)(ChannelIn * in);
@@ -184,10 +184,10 @@ typedef McxStatus (* fChannelOutSetup)(ChannelOut * out,
 
 typedef McxStatus (* fChannelOutSetReference) (ChannelOut * out,
                                                const void * reference,
-                                               ChannelType  type);
+                                               ChannelType * type);
 typedef McxStatus (* fChannelOutSetReferenceFunction) (ChannelOut * out,
                                                        const proc * reference,
-                                                       ChannelType  type);
+                                                       ChannelType * type);
 
 typedef McxStatus (* fChannelOutRegisterConnection)(struct ChannelOut * out,
                                                     struct Connection * connection);
@@ -252,7 +252,7 @@ typedef McxStatus (* fChannelLocalSetup)(ChannelLocal * local, struct ChannelInf
 
 typedef McxStatus (* fChannelLocalSetReference) (ChannelLocal * local,
                                                  const void * reference,
-                                                 ChannelType  type);
+                                                 ChannelType * type);
 
 extern const struct ObjectClass _ChannelLocal;
 

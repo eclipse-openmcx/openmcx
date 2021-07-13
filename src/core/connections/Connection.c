@@ -941,7 +941,7 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     return size + model->config->memFilterHistoryExtra;
 }
 
-static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType sourceType, size_t historySize) {
+static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType * sourceType, size_t historySize) {
     McxStatus retVal = RETURN_OK;
 
     MemoryFilter * filter = (MemoryFilter *)object_create(MemoryFilter);
@@ -976,7 +976,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
     Task * task = model->GetTask(model);
     int useInputsAtEndTime = task->useInputsAtEndTime;
 
-    if (ChannelTypeEq(ConnectionInfoGetType(info), ChannelTypeDouble)) {
+    if (ChannelTypeEq(ConnectionInfoGetType(info), &ChannelTypeDouble)) {
         if (!(INTERVAL_COUPLING == params->interpolationInterval && INTERVAL_SYNCHRONIZATION == params->extrapolationInterval)) {
             mcx_log(LOG_WARNING, "The use of inter/extrapolation interval settings for double is not supported");
         }
@@ -1061,7 +1061,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
         filter = (ChannelFilter *) discreteFilter;
     }
 
-    if (NULL == filter && ChannelTypeEq(ConnectionInfoGetType(info), ChannelTypeDouble)) {
+    if (NULL == filter && ChannelTypeEq(ConnectionInfoGetType(info), &ChannelTypeDouble)) {
         // TODO: add a check to avoid filters for non-multirate cases
 
         size_t memFilterHist = MemoryFilterHistorySize(info, 0);
@@ -1410,7 +1410,7 @@ static Connection * ConnectionCreate(Connection * connection) {
 
     connection->isActiveDependency_ = TRUE;
 
-    ChannelValueInit(&connection->store_, ChannelTypeUnknown);
+    ChannelValueInit(&connection->store_, &ChannelTypeUnknown);
 
     connection->state_ = InCommunicationMode;
 

@@ -26,7 +26,7 @@ struct ScalarParameterProxy;
 typedef struct ScalarParameterProxy ScalarParameterProxy;
 
 typedef void (*fScalarParameterProxySetValue)(ScalarParameterProxy * proxy, Fmu2Value * value);
-typedef ChannelType (*fScalarParameterProxyGetType)(ScalarParameterProxy * proxy);
+typedef ChannelType * (*fScalarParameterProxyGetType)(ScalarParameterProxy * proxy);
 typedef Fmu2Value * (*fScalarParameterProxyGetValue)(ScalarParameterProxy * proxy);
 
 extern const struct ObjectClass _ScalarParameterProxy;
@@ -53,7 +53,7 @@ typedef const char * (*fArrayParameterProxyGetUnit)(ArrayParameterProxy * proxy)
 typedef size_t (*fArrayParameterProxyGetNumDims)(ArrayParameterProxy * proxy);
 typedef size_t (*fArrayParameterProxyGetDim)(ArrayParameterProxy * proxy, size_t idx);
 typedef ObjectContainer * (*fArrayParameterProxyGetValues)(ArrayParameterProxy * proxy);
-typedef ChannelType (*fArrayParameterProxyGetType)(ArrayParameterProxy * proxy);
+typedef ChannelType * (*fArrayParameterProxyGetType)(ArrayParameterProxy * proxy);
 typedef fmi2_value_reference_t (*fArrayParameterProxyGetValueReference)(ArrayParameterProxy * proxy, size_t idx);
 typedef ChannelValueData * (*fArrayParameterProxyGetMin)(ArrayParameterProxy * proxy);
 typedef ChannelValueData * (*fArrayParameterProxyGetMax)(ArrayParameterProxy * proxy);

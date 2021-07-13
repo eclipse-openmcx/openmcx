@@ -107,7 +107,7 @@ static Vector * DatabusReadPortInput(PortInput * input) {
         VectorPortInput * vectorPortInput = input->port.vectorPort;
         InputElement * vectorPortElement = (InputElement *) vectorPortInput;
 
-        ChannelType expectedType = vectorPortInput->type;
+        ChannelType * expectedType = vectorPortInput->type;
         size_t expectedLen = 0;
 
         if (!vector) {
@@ -310,8 +310,7 @@ static Vector * DatabusReadPortInput(PortInput * input) {
             ChannelInfoSetUnit(&info, "-");
         }
 
-        ChannelType expectedType = info.type;
-
+        ChannelType * expectedType = info.type;
 
         ChannelValue value;
         ChannelValueInit(&value, expectedType);
@@ -1133,7 +1132,7 @@ size_t DatabusGetRTFactorChannelsNum(Databus * db) {
 }
 
 
-McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * reference, ChannelType type) {
+McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * reference, ChannelType * type) {
     ChannelOut * out = NULL;
 
     if (!db) {
@@ -1167,7 +1166,7 @@ McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * refe
     return out->SetReference(out, reference, type);
 }
 
-McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const void * reference, ChannelType  type) {
+McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const void * reference, ChannelType *  type) {
     ChannelOut * out = NULL;
     ChannelInfo * info = NULL;
 
@@ -1206,7 +1205,7 @@ McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
     VectorChannelInfo * vInfo = NULL;
     size_t i = 0;
     size_t ii = 0;
-    ChannelType type = ChannelValueType(value);
+    ChannelType * type = ChannelValueType(value);
 
     if (startIdx > endIdx) {
         mcx_log(LOG_ERROR, "Ports: Set out reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
@@ -1251,7 +1250,7 @@ McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
 }
 
 McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, const void * reference, ChannelType type)
+    size_t startIdx, size_t endIdx, const void * reference, ChannelType * type)
 {
     VectorChannelInfo * vInfo = NULL;
     size_t i = 0;
@@ -1287,7 +1286,7 @@ McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
             return RETURN_ERROR;
         }
         ii = i - startIdx;
-        switch (type.con) {
+        switch (type->con) {
         case CHANNEL_DOUBLE:
             ref = (const void *) (((double *) reference) + ii);
             break;
@@ -1316,7 +1315,7 @@ McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
     return RETURN_OK;
 }
 
-McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, ChannelType  type) {
+McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, ChannelType *  type) {
     ChannelIn * in = NULL;
     ChannelInfo * info = NULL;
 
@@ -1352,7 +1351,7 @@ McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, 
     return in->SetReference(in, reference, type);
 }
 
-McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, size_t endIdx, void * reference, ChannelType type)
+McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, size_t endIdx, void * reference, ChannelType * type)
 {
     VectorChannelInfo * vInfo = NULL;
     size_t i = 0;
@@ -1386,11 +1385,11 @@ McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, s
             return RETURN_ERROR;
         }
         ii = i - startIdx;
-        if (ChannelTypeEq(ChannelTypeDouble, type)) {
+        if (ChannelTypeEq(&ChannelTypeDouble, type)) {
             ref = (void *) (((double *) reference) + ii);
-        } else if (ChannelTypeEq(ChannelTypeInteger, type)) {
+        } else if (ChannelTypeEq(&ChannelTypeInteger, type)) {
             ref = (void *) (((int *) reference) + ii);
-        } else if (ChannelTypeEq(ChannelTypeBool, type)) {
+        } else if (ChannelTypeEq(&ChannelTypeBool, type)) {
             ref = (void *) (((int *) reference) + ii);
         } else {
             mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector not allowed");
@@ -1412,7 +1411,7 @@ McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
     VectorChannelInfo * vInfo = NULL;
     size_t i = 0;
     size_t ii = 0;
-    ChannelType type = ChannelValueType(value);
+    ChannelType * type = ChannelValueType(value);
 
     if (startIdx > endIdx) {
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
@@ -1491,7 +1490,7 @@ static McxStatus DatabusAddLocalChannelInternal(Databus * db,
                                                 const char * id,
                                                 const char * unit,
                                                 const void * reference,
-                                                ChannelType type) {
+                                                ChannelType * type) {
     ChannelInfo chInfo = { 0 };
     ChannelLocal * local = NULL;
     Channel * channel = NULL;
@@ -1563,7 +1562,7 @@ McxStatus DatabusAddLocalChannel(Databus * db,
                                  const char * id,
                                  const char * unit,
                                  const void * reference,
-                                 ChannelType type) {
+                                 ChannelType * type) {
     DatabusData * dbData = db->data;
     DatabusInfoData * infoData = dbData->localInfo->data;
 
@@ -1592,7 +1591,7 @@ McxStatus DatabusAddRTFactorChannel(Databus * db,
                                     const char * id,
                                     const char * unit,
                                     const void * reference,
-                                    ChannelType type) {
+                                    ChannelType * type) {
     DatabusData * dbData = db->data;
     DatabusInfoData * infoData = dbData->rtfactorInfo->data;
 

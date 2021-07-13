@@ -672,7 +672,7 @@ static ScalarParameterInput * SSDReadScalarParameter(SSDParameter * parameter) {
 
         for (i = 0; _typeMappingScalar[i].key; i++) {
             if (!strcmp(connectorType, _typeMappingScalar[i].key)) {
-                input->type = *_typeMappingScalar[i].value;
+                input->type = _typeMappingScalar[i].value;
                 break;
             }
         }
@@ -747,10 +747,10 @@ cleanup:
     return input;
 }
 
-static McxStatus AllocateMemory(SSDParameter * parameter, ChannelType type, size_t numValues, void ** dest) {
+static McxStatus AllocateMemory(SSDParameter * parameter, ChannelType * type, size_t numValues, void ** dest) {
     size_t size = 0;
 
-    switch (type.con) {
+    switch (type->con) {
         case CHANNEL_DOUBLE:
             size = sizeof(double);
             break;
@@ -826,7 +826,7 @@ static McxStatus SSDReadDimensionlessArrayParameter(SSDParameter * parameter, Ar
             continue;
         }
 
-        switch (input->type.con) {
+        switch (input->type->con) {
             case CHANNEL_DOUBLE:
                 retVal = xml_attr_double(paramTypeNode, "value", (double*)input->values + paramValue->idx1, SSD_MANDATORY);
                 break;
@@ -912,7 +912,7 @@ static McxStatus SSDReadDimensionArrayParameter(SSDParameter * parameter, ArrayP
             index = (paramValue->idx1 - input->dims[0]->start) * (input->dims[1]->end - input->dims[1]->start + 1) + paramValue->idx2 - input->dims[1]->start;
         }
 
-        switch (input->type.con) {
+        switch (input->type->con) {
             case CHANNEL_DOUBLE:
                 retVal = xml_attr_double(paramTypeNode, "value", (double*)input->values + index, SSD_MANDATORY);
                 break;
@@ -1021,7 +1021,7 @@ static ArrayParameterInput * SSDReadArrayParameter(SSDParameter * parameter) {
 
         for (i = 0; _typeMappingArray[i].key; i++) {
             if (!strcmp(connectorType, _typeMappingArray[i].key)) {
-                input->type = *_typeMappingArray[i].value;
+                input->type = _typeMappingArray[i].value;
                 break;
             }
         }

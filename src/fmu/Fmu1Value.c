@@ -37,7 +37,7 @@ Fmu1Value * Fmu1ValueCreate(Fmu1Value * v) {
     v->name = NULL;
     v->var = NULL;
     v->channel = NULL;
-    ChannelValueInit(&v->val, ChannelTypeUnknown);
+    ChannelValueInit(&v->val, &ChannelTypeUnknown);
 
     return v;
 }

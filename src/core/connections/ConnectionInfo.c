@@ -28,7 +28,7 @@ void ConnectionInfoSetDecoupled(ConnectionInfo * info) {
     info->isDecoupled_ = TRUE;
 }
 
-ChannelType ConnectionInfoGetType(ConnectionInfo * info) {
+ChannelType * ConnectionInfoGetType(ConnectionInfo * info) {
     //Return the data type of the corresponding outport of the source component
     Component * source = NULL;
     Databus * db = NULL;
@@ -40,28 +40,28 @@ ChannelType ConnectionInfoGetType(ConnectionInfo * info) {
 
     if (NULL == info) {
         mcx_log(LOG_DEBUG, "ConnectionInfo: GetType: no info available");
-        return ChannelTypeUnknown;
+        return &ChannelTypeUnknown;
     }
     source = info->sourceComponent;
     if (NULL == source) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_DEBUG, "ConnectionInfo '%s': GetType: no source available", buffer);
         mcx_free(buffer);
-        return ChannelTypeUnknown;
+        return &ChannelTypeUnknown;
     }
     db = source->GetDatabus(source);
     if (NULL == db) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_DEBUG, "ConnectionInfo '%s': GetType: no databus available", buffer);
         mcx_free(buffer);
-        return ChannelTypeUnknown;
+        return &ChannelTypeUnknown;
     }
     outInfo = DatabusInfoGetChannel(DatabusGetOutInfo(db), info->sourceChannel);
     if (!outInfo) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_DEBUG, "ConnectionInfo '%s': GetType: no outinfo available", buffer);
         mcx_free(buffer);
-        return ChannelTypeUnknown;
+        return &ChannelTypeUnknown;
     }
 
     info->connType_ = outInfo->type;
@@ -158,7 +158,7 @@ McxStatus ConnectionInfoInit(ConnectionInfo * info) {
 
     info->hasDiscreteTarget = FALSE;
 
-    info->connType_ = ChannelTypeUnknown;
+    info->connType_ = &ChannelTypeUnknown;
 
     return RETURN_OK;
 }

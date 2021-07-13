@@ -42,7 +42,7 @@ McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * va
 
     McxStatus retVal = RETURN_OK;
 
-    if (!ChannelTypeEq(value->type, ChannelTypeDouble) && !ChannelTypeEq(value->type, ChannelTypeInteger)) {
+    if (!ChannelTypeEq(value->type, &ChannelTypeDouble) && !ChannelTypeEq(value->type, &ChannelTypeInteger)) {
         return RETURN_OK;
     }
 
@@ -150,8 +150,8 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
         conversion->type = ChannelValueType(max);
     }
 
-    if (!(ChannelTypeEq(conversion->type, ChannelTypeDouble)
-          || ChannelTypeEq(conversion->type, ChannelTypeInteger))) {
+    if (!(ChannelTypeEq(conversion->type, &ChannelTypeDouble)
+          || ChannelTypeEq(conversion->type, &ChannelTypeInteger))) {
         mcx_log(LOG_ERROR, "Range conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -163,7 +163,7 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
 }
 
 static int RangeConversionIsEmpty(RangeConversion * conversion) {
-    switch (conversion->type.con) {
+    switch (conversion->type->con) {
     case CHANNEL_DOUBLE:
         return
             (!conversion->min || * (double *) ChannelValueReference(conversion->min) == (-DBL_MAX)) &&
@@ -194,7 +194,7 @@ static RangeConversion * RangeConversionCreate(RangeConversion * rangeConversion
     rangeConversion->Setup = RangeConversionSetup;
     rangeConversion->IsEmpty = RangeConversionIsEmpty;
 
-    rangeConversion->type = ChannelTypeUnknown;
+    rangeConversion->type = &ChannelTypeUnknown;
 
     rangeConversion->min = NULL;
     rangeConversion->max = NULL;
@@ -263,8 +263,8 @@ static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * v
 
     double val = 0.0;
 
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeDouble)) {
-        mcx_log(LOG_ERROR, "Unit conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeDouble));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeDouble)) {
+        mcx_log(LOG_ERROR, "Unit conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
         return RETURN_ERROR;
     }
 
@@ -353,7 +353,7 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 
     McxStatus retVal = RETURN_OK;
 
-    if (!ChannelTypeEq(value->type, ChannelTypeDouble) && !ChannelTypeEq(value->type, ChannelTypeInteger)) {
+    if (!ChannelTypeEq(value->type, &ChannelTypeDouble) && !ChannelTypeEq(value->type, &ChannelTypeInteger)) {
         return RETURN_OK;
     }
 
@@ -454,8 +454,8 @@ static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelVal
         conversion->type = ChannelValueType(offset);
     }
 
-    if (!(ChannelTypeEq(conversion->type, ChannelTypeDouble)
-          || ChannelTypeEq(conversion->type, ChannelTypeInteger))) {
+    if (!(ChannelTypeEq(conversion->type, &ChannelTypeDouble)
+          || ChannelTypeEq(conversion->type, &ChannelTypeInteger))) {
         mcx_log(LOG_WARNING, "Linear conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -467,7 +467,7 @@ static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelVal
 }
 
 static int LinearConversionIsEmpty(LinearConversion * conversion) {
-    switch (conversion->type.con) {
+    switch (conversion->type->con) {
     case CHANNEL_DOUBLE:
         return
             (!conversion->factor || * (double *) ChannelValueReference(conversion->factor) == 1.0) &&
@@ -497,7 +497,7 @@ static LinearConversion * LinearConversionCreate(LinearConversion * linearConver
     linearConversion->Setup = LinearConversionSetup;
     linearConversion->IsEmpty = LinearConversionIsEmpty;
 
-    linearConversion->type = ChannelTypeUnknown;
+    linearConversion->type = &ChannelTypeUnknown;
 
     linearConversion->factor = NULL;
     linearConversion->offset = NULL;
@@ -511,7 +511,7 @@ OBJECT_CLASS(LinearConversion, Conversion);
 // ----------------------------------------------------------------------
 // Type Conversion
 
-McxStatus ConvertType(ChannelType fromType, ChannelType toType, ChannelValue * value) {
+McxStatus ConvertType(ChannelType * fromType, ChannelType * toType, ChannelValue * value) {
     TypeConversion * typeConv = NULL;
     Conversion * conv = NULL;
 
@@ -544,72 +544,72 @@ cleanup:
 }
 
 static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeInteger)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeInteger));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeInteger)) {
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeInteger));
         return RETURN_ERROR;
     }
 
-    value->type = ChannelTypeDouble;
+    value->type = &ChannelTypeDouble;
     value->value.d = (double)value->value.i;
 
     return RETURN_OK;
 }
 
 static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeDouble)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeDouble));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeDouble)) {
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
         return RETURN_ERROR;
     }
 
-    value->type = ChannelTypeInteger;
+    value->type = &ChannelTypeInteger;
     value->value.i = (int)floor(value->value.d + 0.5);
 
     return RETURN_OK;
 }
 
 static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeBool)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeBool));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeBool)) {
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeBool));
         return RETURN_ERROR;
     }
 
-    value->type = ChannelTypeDouble;
+    value->type = &ChannelTypeDouble;
     value->value.d = (value->value.i != 0) ? 1. : 0.;
 
     return RETURN_OK;
 }
 
 static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeDouble)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeDouble));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeDouble)) {
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
         return RETURN_ERROR;
     }
 
-    value->type = ChannelTypeBool;
+    value->type = &ChannelTypeBool;
     value->value.i = (value->value.d > 0) ? 1 : 0;
 
     return RETURN_OK;
 }
 
 static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeBool)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeBool));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeBool)) {
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeBool));
         return RETURN_ERROR;
     }
 
-    value->type = ChannelTypeInteger;
+    value->type = &ChannelTypeInteger;
     value->value.i = (value->value.i != 0) ? 1 : 0;
 
     return RETURN_OK;
 }
 
 static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), ChannelTypeInteger)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(ChannelTypeInteger));
+    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeInteger)) {
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeInteger));
         return RETURN_ERROR;
     }
 
-    value->type = ChannelTypeBool;
+    value->type = &ChannelTypeBool;
     value->value.i = (value->value.i != 0) ? 1 : 0;
 
     return RETURN_OK;
@@ -620,23 +620,23 @@ static McxStatus TypeConversionConvertId(Conversion * conversion, ChannelValue *
 }
 
 static McxStatus TypeConversionSetup(TypeConversion * typeConversion,
-                                     ChannelType fromType,
-                                     ChannelType toType) {
+                                     ChannelType * fromType,
+                                     ChannelType * toType) {
     Conversion * conversion = (Conversion *) typeConversion;
 
     if (ChannelTypeEq(fromType, toType)) {
         conversion->convert = TypeConversionConvertId;
-    } else if (ChannelTypeEq(fromType, ChannelTypeInteger) && ChannelTypeEq(toType, ChannelTypeDouble)) {
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
         conversion->convert = TypeConversionConvertIntDouble;
-    } else if (ChannelTypeEq(fromType, ChannelTypeDouble) && ChannelTypeEq(toType, ChannelTypeInteger)) {
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
         conversion->convert = TypeConversionConvertDoubleInt;
-    } else if (ChannelTypeEq(fromType, ChannelTypeBool) && ChannelTypeEq(toType, ChannelTypeDouble)) {
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
         conversion->convert = TypeConversionConvertBoolDouble;
-    } else if (ChannelTypeEq(fromType, ChannelTypeDouble) && ChannelTypeEq(toType, ChannelTypeBool)) {
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeBool)) {
         conversion->convert = TypeConversionConvertDoubleBool;
-    } else if (ChannelTypeEq(fromType, ChannelTypeBool) && ChannelTypeEq(toType, ChannelTypeInteger)) {
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
         conversion->convert = TypeConversionConvertBoolInteger;
-    } else if (ChannelTypeEq(fromType, ChannelTypeInteger) && ChannelTypeEq(toType, ChannelTypeBool)) {
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeBool)) {
         conversion->convert = TypeConversionConvertIntegerBool;
     } else {
         mcx_log(LOG_ERROR, "Setup type conversion: Illegal conversion selected");
