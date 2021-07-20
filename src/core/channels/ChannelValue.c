@@ -15,6 +15,16 @@
 extern "C" {
 #endif /* __cplusplus */
 
+void * mcx_copy(void * object, size_t size) {
+    void * copy = mcx_malloc(size);
+    if (!copy) {
+        return NULL;
+    }
+
+    memcpy(copy, object, size);
+
+    return copy;
+}
 
 ChannelType ChannelTypeUnknown = { CHANNEL_UNKNOWN, NULL};
 ChannelType ChannelTypeInteger = { CHANNEL_INTEGER, NULL};
@@ -23,6 +33,57 @@ ChannelType ChannelTypeBool = { CHANNEL_BOOL, NULL};
 ChannelType ChannelTypeString = { CHANNEL_STRING, NULL};
 ChannelType ChannelTypeBinary = { CHANNEL_BINARY, NULL};
 ChannelType ChannelTypeBinaryReference = { CHANNEL_BINARY_REFERENCE, NULL};
+
+
+ChannelType * ChannelTypeClone(ChannelType * type) {
+    switch (type->con) {
+    case CHANNEL_UNKNOWN:
+    case CHANNEL_INTEGER:
+    case CHANNEL_DOUBLE:
+    case CHANNEL_BOOL:
+    case CHANNEL_STRING:
+    case CHANNEL_BINARY:
+    case CHANNEL_BINARY_REFERENCE:
+        // Scalar types are used statically (&ChannelTypeDouble, etc)
+        return type;
+    case CHANNEL_ARRAY: {
+        ChannelType * clone = (ChannelType *) mcx_calloc(sizeof(ChannelType), 1);
+        if (!clone) { return NULL; }
+
+        clone->con = type->con;
+
+        clone->ty.a.inner = ChannelTypeClone(type->ty.a.inner);
+        clone->ty.a.numDims = type->ty.a.numDims;
+        clone->ty.a.dims = mcx_copy(type->ty.a.dims, sizeof(size_t) * type->ty.a.numDims);
+        if (!clone->ty.a.dims) {
+            mcx_free(clone);
+            return NULL;
+        }
+
+        return clone;
+    }
+    }
+
+    return NULL;
+}
+
+void ChannelTypeDestructor(ChannelType * type) {
+    if (&ChannelTypeUnknown == type) { }
+    else if (&ChannelTypeInteger == type) { }
+    else if (&ChannelTypeDouble == type) { }
+    else if (&ChannelTypeBool == type) { }
+    else if (&ChannelTypeString == type) { }
+    else if (&ChannelTypeBinary == type) { }
+    else if (&ChannelTypeBinaryReference == type) { }
+    else if (type->con == CHANNEL_ARRAY) {
+        // other ChannelTypes are static
+        ChannelTypeDestructor(type->ty.a.inner);
+        mcx_free(type->ty.a.dims);
+        mcx_free(type);
+    } else {
+        mcx_free(type);
+    }
+}
 
 ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims) {
     ChannelType * array = NULL;
@@ -136,7 +197,7 @@ size_t array_num_elements(array * a) {
 }
 
 void ChannelValueInit(ChannelValue * value, ChannelType * type) {
-    value->type = type;
+    value->type = ChannelTypeClone(type);
     ChannelValueDataInit(&value->value, type);
 }
 
@@ -155,6 +216,7 @@ void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type) {
         // do not free references to binary, they are not owned by the ChannelValueData
     } else if (type->con == CHANNEL_ARRAY) {
         if (data->a.dims) {
+
             mcx_free(data->a.dims);
             data->a.dims = NULL;
         }
@@ -162,13 +224,12 @@ void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type) {
             mcx_free(data->a.data);
             data->a.data = NULL;
         }
-        // other ChannelTypes are static
-        mcx_free(type);
     }
 }
 
 void ChannelValueDestructor(ChannelValue * value) {
     ChannelValueDataDestructor(&value->value, value->type);
+    ChannelTypeDestructor(value->type);
 }
 
 static int isSpecialChar(unsigned char c) {
@@ -242,6 +303,31 @@ char * ChannelValueToString(ChannelValue * value) {
             }
         }
         break;
+    case CHANNEL_ARRAY:{
+        const char * doubleFmt = "% *.*E";
+
+        // TODO:
+
+        length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
+        length *= array_num_elements(&value->value.a);
+        buffer = (char *) mcx_malloc(sizeof(char) * length);
+        if (!buffer) {
+            return NULL;
+        }
+
+        size_t i = 0;
+        size_t n = 0;
+
+        if (array_num_elements(&value->value.a) > 0) {
+            n += sprintf(buffer + n, doubleFmt, (unsigned)precision, (unsigned)precision, ((double *)value->value.a.data)[0]);
+            for (i = 1; i < array_num_elements(&value->value.a); i++) {
+                n += sprintf(buffer + n, ",");
+                n += sprintf(buffer + n, doubleFmt, (unsigned)precision, (unsigned)precision, ((double *)value->value.a.data)[i]);
+            }
+        }
+
+        break;
+    }
     default:
         return NULL;
     }
@@ -315,6 +401,21 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
             }
         }
         break;
+    case CHANNEL_ARRAY: {
+    const char * doubleFmt = "% *.*E";
+
+        // TODO:
+
+        length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
+        if (len < length) {
+            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            return RETURN_ERROR;
+        }
+        sprintf(buffer, doubleFmt, (unsigned)precision, (unsigned)precision, *(double *)value->a.data);
+
+
+        break;
+    }
     default:
         mcx_log(LOG_DEBUG, "Port value to string: Unknown type");
         return RETURN_ERROR;
@@ -358,11 +459,17 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType * type) {
             data->b.len = 0;
             data->b.data = NULL;
             break;
-        case CHANNEL_ARRAY:
-            data->a.numDims = 0;
-            data->a.dims = NULL;
-            data->a.data = NULL;
+        case CHANNEL_ARRAY: {
+            void * tmp = data->a.dims;
+            data->a.type = ChannelTypeClone(type->ty.a.inner);
+            data->a.numDims = type->ty.a.numDims;
+            data->a.dims = (size_t *) mcx_calloc(sizeof(size_t), type->ty.a.numDims);
+            if (data->a.dims) {
+                memcpy(data->a.dims, type->ty.a.dims, type->ty.a.numDims * sizeof(size_t));
+            }
+            data->a.data = mcx_calloc(array_num_elements(&data->a), ChannelValueTypeSize(data->a.type));
             break;
+        }
         case CHANNEL_UNKNOWN:
         default:
             break;
@@ -431,7 +538,7 @@ McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType 
                 return RETURN_ERROR;
             }
 
-            memcpy(data->a.data, a->data, ChannelValueTypeSize(a->type) * array_num_elements(a));
+            memcpy(data->a.data, a->data, ChannelValueTypeSize(data->a.type) * array_num_elements(&data->a));
         }
     case CHANNEL_UNKNOWN:
     default:
@@ -601,6 +708,8 @@ const char * ChannelTypeToString(ChannelType * type) {
 }
 
 ChannelValue * ChannelValueClone(ChannelValue * value) {
+    if (!value) { return NULL; }
+
     ChannelValue * clone = (ChannelValue *) mcx_malloc(sizeof(ChannelValue));
 
     if (!clone) { return NULL; }
@@ -702,6 +811,28 @@ McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor) {
         mcx_log(LOG_ERROR, "Port: Scale: Type %s not allowed", ChannelTypeToString(ChannelValueType(val)));
         return RETURN_ERROR;
     }
+}
+
+// Does not take ownership of dims or data
+ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType * type, void * data) {
+    ChannelValue * value = mcx_malloc(sizeof(ChannelValue));
+    if (!value) {
+        return NULL;
+    }
+
+    ChannelType * arrayType = ChannelTypeArray(type, numDims, dims);
+    if (!ChannelTypeIsValid(arrayType)) {
+        mcx_free(value);
+        return NULL;
+    }
+    ChannelValueInit(value, arrayType);
+    ChannelTypeDestructor(arrayType);
+
+    if (value->value.a.data && data) {
+        memcpy(value->value.a.data, data, ChannelValueTypeSize(type) * array_num_elements(&value->value.a));
+    }
+
+    return value;
 }
 
 void ChannelValueDestroy(ChannelValue ** value) {

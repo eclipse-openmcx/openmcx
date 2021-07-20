@@ -160,6 +160,8 @@ McxStatus ConnectionInfoInit(ConnectionInfo * info) {
 
     info->connType_ = &ChannelTypeUnknown;
 
+    info->sourceDimension = NULL;
+
     return RETURN_OK;
 }
 

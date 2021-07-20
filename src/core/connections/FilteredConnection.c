@@ -130,6 +130,8 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
     }
 #endif
 
+    // TODO: copy only sourceDimension slice
+
     if (filter && time->startTime >= 0) {
         ChannelValueData value = * (ChannelValueData *) channel->GetValueReference(channel);
         filter->SetValue(filter, time->startTime, value);

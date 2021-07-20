@@ -565,6 +565,9 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * connection) {
     ObjectList * conns = out->data->connections;
 
+    // TODO: do we have to check that channelout and connection match
+    // in type/dimension?
+
     return conns->PushBack(conns, (Object *) connection);
 }
 

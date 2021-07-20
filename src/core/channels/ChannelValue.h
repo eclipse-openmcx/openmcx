@@ -18,6 +18,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+void * mcx_copy(void * object, size_t size);
+
 // possible types of values that can be put on channels
 typedef enum ChannelTypeConstructor {
     CHANNEL_UNKNOWN = 0,
@@ -52,6 +54,9 @@ extern ChannelType ChannelTypeString;
 extern ChannelType ChannelTypeBinary;
 extern ChannelType ChannelTypeBinaryReference;
 ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
+
+ChannelType * ChannelTypeClone(ChannelType * type);
+void ChannelTypeDestructor(ChannelType * type);
 
 int ChannelTypeIsValid(ChannelType * a);
 int ChannelTypeIsScalar(ChannelType * a);
@@ -128,6 +133,7 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 size_t ChannelValueTypeSize(ChannelType * type);
 int ChannelTypeMatch(ChannelType * a, ChannelType * b);
 
+ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType * type, void * data);
 void ChannelValueDestroy(ChannelValue ** value);
 
 ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType * type);

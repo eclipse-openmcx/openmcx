@@ -13,6 +13,7 @@
 
 #include "core/channels/ChannelValue.h"
 #include "core/channels/VectorChannelInfo.h"
+#include "core/channels/ChannelDimension.h"
 
 #include "common/status.h"
 
@@ -30,6 +31,9 @@ typedef struct ChannelInfo {
     VectorChannelInfo * vector;
 
     struct Channel * channel;
+
+    // Channel is a scalar iff dimension == NULL
+    ChannelDimension * dimension;
 
     char * name;
     char * nameInTool;
