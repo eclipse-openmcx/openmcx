@@ -215,6 +215,9 @@ static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels
         if (channel == 0) { // leave out separator at the beginning
             sep = "";
         }
+
+        // TODO: This should not mention CHANNEL_* anymore
+
         switch (ChannelValueType(&val)->con) {
         case CHANNEL_DOUBLE:
         case CHANNEL_INTEGER:
@@ -243,6 +246,12 @@ static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels
             } else {
                 mcx_os_fprintf(file, "%s", sep);
             }
+            break;
+        }
+        case CHANNEL_ARRAY: {
+            char * str = ChannelValueToString(&val);
+            mcx_os_fprintf(file, "%s%s", sep, str);
+            mcx_free(str);
             break;
         }
         default:

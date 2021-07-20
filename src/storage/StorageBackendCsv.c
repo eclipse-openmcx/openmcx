@@ -16,6 +16,7 @@
 #include "storage/StorageBackendCsv.h"
 #include "storage/StorageBackendText_impl.h"
 #include "storage/PPD.h"
+#include "core/connections/ConnectionInfoFactory.h"
 
 #include "util/string.h"
 #include "util/os.h"
@@ -182,6 +183,29 @@ static char * QuoteString(const char * _str) {
     return newStr;
 }
 
+static char * ExpandedChannelNames(const char * name, size_t start, size_t end) {
+    char ** names = (char **) mcx_malloc(sizeof(char *) * (end - start + 1 + 1));
+    if (!names) { return NULL; }
+
+    size_t i = 0;
+
+    for (i = start; i <= end; i++) {
+        names[i-start] = CreateIndexedName(name, i);
+    }
+    names[i-start] = NULL;
+
+    return names;
+}
+
+static void FreeExpandedChannelNames(char ** names) {
+    size_t i = 0;
+    while (names[i]) {
+        mcx_free(names[i]);
+        ++i;
+    }
+    mcx_free(names);
+}
+
 static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
     StorageBackendText * textBackend = (StorageBackendText *) backend;
     ResultsStorage * storage = backend->storage;
@@ -255,30 +279,77 @@ static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
             for (chIdx = 0; chIdx < chNum; chIdx++) {
                 ChannelInfo * info = chStore->GetChannelInfo(chStore, chIdx);
                 const char * channelName = ChannelInfoGetName(info);
-                char * quotedChannelName = QuoteString(channelName);
-                const char * sep = textBackend->separator;
+                ChannelType * type = info->type;
 
-                if (chIdx == 0) {
-                    sep = "";
-                }
-                if(quotedChannelName){
-                    mcx_os_fprintf(textFile->fp, "%s\"%s\"", sep, quotedChannelName);
-                    mcx_free(quotedChannelName);
+                if (ChannelTypeIsArray(type)) {
+                    if (type->ty.a.numDims > 1) {
+                        // multi-dim not yet supported
+                        continue;
+                    }
+                    ChannelDimension * dimension = info->dimension;
+                    size_t array_start = dimension->startIdxs[0];
+                    size_t array_end = dimension->endIdxs[0];
+
+                    size_t array_idx = 0;
+
+                    char ** names = ExpandedChannelNames(channelName, array_start, array_end);
+                    const char * sep = textBackend->separator;
+                    while (names[array_idx]) {
+                        char * quotedChannelName = QuoteString(names[array_idx]);
+
+                        if(quotedChannelName){
+                            mcx_os_fprintf(textFile->fp, "%s\"%s\"", sep, quotedChannelName);
+                            mcx_free(quotedChannelName);
+                        } else {
+                            mcx_os_fprintf(textFile->fp, "%s", sep);
+                        }
+                        ++array_idx;
+                    }
+                    FreeExpandedChannelNames(names);
                 } else {
-                    mcx_os_fprintf(textFile->fp, "%s", sep);
-                }
+                    char * quotedChannelName = QuoteString(channelName);
+                    const char * sep = textBackend->separator;
 
+                    if (chIdx == 0) {
+                        sep = "";
+                    }
+                    if(quotedChannelName){
+                        mcx_os_fprintf(textFile->fp, "%s\"%s\"", sep, quotedChannelName);
+                        mcx_free(quotedChannelName);
+                    } else {
+                        mcx_os_fprintf(textFile->fp, "%s", sep);
+                    }
+                }
             }
             mcx_os_fprintf(textFile->fp, "\n");
 
             for (chIdx = 0; chIdx < chNum; chIdx++) {
                 ChannelInfo * info = chStore->GetChannelInfo(chStore, chIdx);
+                ChannelType * type = info->type;
                 const char * channelUnit = info->unitString;
-                const char * sep = textBackend->separator;
-                if (chIdx == 0) {
-                    sep = "";
+
+                if (ChannelTypeIsArray(type)) {
+                    if (type->ty.a.numDims > 1) {
+                        // multi-dim not yet supported
+                        continue;
+                    }
+                    ChannelDimension * dimension = info->dimension;
+                    size_t array_start = dimension->startIdxs[0];
+                    size_t array_end = dimension->endIdxs[0];
+
+                    size_t array_idx = 0;
+
+                    const char * sep = textBackend->separator;
+                    for (array_idx = array_start; array_idx <= array_end; array_idx++) {
+                        mcx_os_fprintf(textFile->fp, "%s%s", sep, channelUnit);
+                    }
+                } else {
+                    const char * sep = textBackend->separator;
+                    if (chIdx == 0) {
+                        sep = "";
+                    }
+                    mcx_os_fprintf(textFile->fp, "%s%s", sep, channelUnit);
                 }
-                mcx_os_fprintf(textFile->fp, "%s%s", sep, channelUnit);
             }
             mcx_os_fprintf(textFile->fp, "\n");
         }
