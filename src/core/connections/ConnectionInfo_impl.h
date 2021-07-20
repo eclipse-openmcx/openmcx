@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2022 AVL List GmbH and others
+ * Copyright (c) 2020 AVL List GmbH and others
  * 
  * This program and the accompanying materials are made available under the
  * terms of the Apache Software License 2.0 which is available at
@@ -8,63 +8,60 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef MCX_CORE_CONNECTIONS_CONNECTIONINFO_H
-#define MCX_CORE_CONNECTIONS_CONNECTIONINFO_H
+#ifndef MCX_CORE_CONNECTIONS_CONNECTIONINFO_IMPL_H
+#define MCX_CORE_CONNECTIONS_CONNECTIONINFO_IMPL_H
 
+/* for interExtrapolation, DecoupleType */
 #include "CentralParts.h"
-#include "core/Component_interface.h"
+
+/* for ChannelType */
+#include "core/channels/ChannelValue.h"
+
+/* for ChannelDimension */
 #include "core/channels/ChannelDimension.h"
 
-#define DECOUPLE_DEFAULT DECOUPLE_IFNEEDED
+/* for Component */
+#include "core/Component.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+// ----------------------------------------------------------------------
+// ConnectionInfo
 
-typedef struct Component Component;
+extern const struct ObjectClass _ConnectionInfoData;
 
+typedef struct ConnectionInfoData {
+    Object _;
 
-typedef struct ConnectionInfo {
-    Component * sourceComponent;
-    Component * targetComponent;
+    struct Component * sourceComponent;
+    struct Component * targetComponent;
 
     int sourceChannel;
     int targetChannel;
 
+    ChannelDimension * sourceDimension;
+
     // Decouple Info: If this connection is decoupled because of an algebraic loop
     // in the model (this means that the value of the source for the target is
     // behind one timestep)
-    int isDecoupled_;
-
-    int hasDiscreteTarget;
-
-    ChannelType * connType_;
+    int isDecoupled;
 
     InterExtrapolatingType isInterExtrapolating;
 
     InterExtrapolationType interExtrapolationType;
-    InterExtrapolationParams interExtrapolationParams;
+    InterExtrapolationParams * interExtrapolationParams;
 
     DecoupleType decoupleType;
-    int decouplePriority;
+    int          decouplePriority;
 
-    ChannelDimension * sourceDimension;
-} ConnectionInfo;
+    int hasDiscreteTarget;
 
-
-McxStatus ConnectionInfoInit(ConnectionInfo * info);
-
-
-ChannelType * ConnectionInfoGetType(ConnectionInfo * info);
-
-int ConnectionInfoIsDecoupled(ConnectionInfo * info);
-void ConnectionInfoSetDecoupled(ConnectionInfo * info);
-
-char * ConnectionInfoConnectionString(ConnectionInfo * info);
+} ConnectionInfoData;
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
 
-#endif /* MCX_CORE_CONNECTIONS_CONNECTIONINFO_H */
+#endif /* MCX_CORE_CONNECTIONS_CONNECTIONINFO_IMPL_H */

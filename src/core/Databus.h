@@ -341,8 +341,6 @@ typedef struct Databus {
     size_t modeSwitchDataSize;
 } Databus;
 
-char * CreateIndexedName(const char * name, unsigned i);
-
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

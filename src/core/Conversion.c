@@ -151,7 +151,8 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
     }
 
     if (!(ChannelTypeEq(conversion->type, &ChannelTypeDouble)
-          || ChannelTypeEq(conversion->type, &ChannelTypeInteger))) {
+          || ChannelTypeEq(conversion->type, &ChannelTypeInteger)
+          || ChannelTypeIsArray(conversion->type))) {
         mcx_log(LOG_ERROR, "Range conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -455,7 +456,8 @@ static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelVal
     }
 
     if (!(ChannelTypeEq(conversion->type, &ChannelTypeDouble)
-          || ChannelTypeEq(conversion->type, &ChannelTypeInteger))) {
+          || ChannelTypeEq(conversion->type, &ChannelTypeInteger)
+          || ChannelTypeIsArray(conversion->type))) {
         mcx_log(LOG_WARNING, "Linear conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -615,6 +617,25 @@ static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, Chann
     return RETURN_OK;
 }
 
+static McxStatus TypeConversionConvertSingletonDoubleToDouble(Conversion * conversion, ChannelValue * value) {
+    if (!(ChannelTypeIsArray(ChannelValueType(value)) && value->value.a.type, &ChannelTypeDouble)) {
+        ChannelType * array = ChannelTypeArray(&ChannelTypeDouble, 0, NULL);
+        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), array);
+        ChannelTypeDestructor(array);
+        return RETURN_ERROR;
+    }
+
+    double val = *(double *)value->value.a.data;
+
+    ChannelValueDataDestructor(&value->value, value->type);
+    ChannelTypeDestructor(value->type);
+    value->type = &ChannelTypeDouble;
+
+    value->value.d = val;
+
+    return RETURN_OK;
+}
+
 static McxStatus TypeConversionConvertId(Conversion * conversion, ChannelValue * value) {
     return RETURN_OK;
 }
@@ -638,6 +659,8 @@ static McxStatus TypeConversionSetup(TypeConversion * typeConversion,
         conversion->convert = TypeConversionConvertBoolInteger;
     } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeBool)) {
         conversion->convert = TypeConversionConvertIntegerBool;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
+        conversion->convert = TypeConversionConvertSingletonDoubleToDouble;
     } else {
         mcx_log(LOG_ERROR, "Setup type conversion: Illegal conversion selected");
         return RETURN_ERROR;

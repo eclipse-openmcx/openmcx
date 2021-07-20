@@ -20,12 +20,11 @@
 extern "C" {
 #endif /* __cplusplus */
 
-
+char * CreateIndexedName(const char * name, unsigned i);
 Vector * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * components,
                                                     ConnectionInput * connInput,
                                                     Component * sourceCompOverride,
                                                     Component * targetCompOverride);
-
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

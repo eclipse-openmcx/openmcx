@@ -285,6 +285,8 @@ void ChannelInfoDestroy(ChannelInfo * info) {
 McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->vector = NULL;
 
+    info->dimension = NULL;
+
     info->name        = NULL;
     info->nameInTool  = NULL;
     info->description = NULL;
