@@ -135,6 +135,7 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 size_t ChannelValueTypeSize(ChannelType * type);
 int ChannelTypeMatch(ChannelType * a, ChannelType * b);
 
+ChannelValue * ChannelValueNewScalar(ChannelType * type, void * data);
 ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType * type, void * data);
 void ChannelValueDestroy(ChannelValue ** value);
 
