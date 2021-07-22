@@ -822,6 +822,19 @@ McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor) {
 }
 
 // Does not take ownership of dims or data
+ChannelValue * ChannelValueNewScalar(ChannelType * type, void * data) {
+    ChannelValue * value = mcx_malloc(sizeof(ChannelValue));
+    if (!value) {
+        return NULL;
+    }
+
+    ChannelValueInit(value, type);
+    ChannelValueSetFromReference(value, data);
+
+    return value;
+}
+
+// Does not take ownership of dims or data
 ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType * type, void * data) {
     ChannelValue * value = mcx_malloc(sizeof(ChannelValue));
     if (!value) {
