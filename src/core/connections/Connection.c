@@ -1208,7 +1208,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
             mcx_log(LOG_WARNING, "Connection %s: No initial values are specified for the ports of the connection", buffer);
             mcx_free(buffer);
         }
-        ChannelValueInit(&connection->store_, ConnectionInfoGetType(info));
+        ChannelValueInit(&connection->store_, ChannelTypeClone(ConnectionInfoGetType(info)));
     }
 
     return RETURN_OK;
@@ -1343,7 +1343,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     connection->info = *info;
 
-    ChannelValueInit(&connection->store_, outInfo->type);
+    ChannelValueInit(&connection->store_, ChannelTypeClone(outInfo->type));
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);
