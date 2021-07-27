@@ -180,7 +180,7 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
         ChannelType * expectedType = info->type;
 
         ChannelValue value;
-        ChannelValueInit(&value, expectedType);
+        ChannelValueInit(&value, ChannelTypeClone(expectedType));
 
         if (scalarPortInput->min.defined) {
             if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->min.value)) {

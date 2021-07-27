@@ -37,7 +37,7 @@ Fmu1Value * Fmu1ValueCreate(Fmu1Value * v) {
     v->name = NULL;
     v->var = NULL;
     v->channel = NULL;
-    ChannelValueInit(&v->val, &ChannelTypeUnknown);
+    ChannelValueInit(&v->val, ChannelTypeClone(&ChannelTypeUnknown));
 
     return v;
 }
@@ -64,7 +64,7 @@ Fmu1Value * Fmu1ValueMake(const char * name, fmi1_import_variable_t * var, Chann
         value->name = mcx_string_copy(name);
         value->vr = fmi1_import_get_variable_vr(var);
         value->var = var;
-        ChannelValueInit(&value->val, Fmi1TypeToChannelType(t));
+        ChannelValueInit(&value->val, ChannelTypeClone(Fmi1TypeToChannelType(t)));
 
         if (!value->name) {
             mcx_log(LOG_ERROR, "Fmu1Value: Setup failed: Cannot copy name");

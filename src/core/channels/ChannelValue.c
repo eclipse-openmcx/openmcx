@@ -219,7 +219,7 @@ size_t array_num_elements(array * a) {
 }
 
 void ChannelValueInit(ChannelValue * value, ChannelType * type) {
-    value->type = ChannelTypeClone(type);
+    value->type = type;
     ChannelValueDataInit(&value->value, type);
 }
 
@@ -760,7 +760,9 @@ ChannelValue * ChannelValueClone(ChannelValue * value) {
 
     if (!clone) { return NULL; }
 
-    ChannelValueInit(clone, ChannelValueType(value));
+    // ChannelTypeClone might fail, then clone will be
+    // ChannelTypeUnknown and ChannelValueSet below returns an error
+    ChannelValueInit(clone, ChannelTypeClone(ChannelValueType(value)));
 
     if (ChannelValueSet(clone, value) != RETURN_OK) {
         mcx_free(clone);
@@ -866,7 +868,7 @@ ChannelValue * ChannelValueNewScalar(ChannelType * type, void * data) {
         return NULL;
     }
 
-    ChannelValueInit(value, type);
+    ChannelValueInit(value, ChannelTypeClone(type));
     ChannelValueSetFromReference(value, data);
 
     return value;
@@ -879,13 +881,7 @@ ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType *
         return NULL;
     }
 
-    ChannelType * arrayType = ChannelTypeArray(type, numDims, dims);
-    if (!ChannelTypeIsValid(arrayType)) {
-        mcx_free(value);
-        return NULL;
-    }
-    ChannelValueInit(value, arrayType);
-    ChannelTypeDestructor(arrayType);
+    ChannelValueInit(value, ChannelTypeArray(type, numDims, dims));
 
     if (value->value.a.data && data) {
         memcpy(value->value.a.data, data, ChannelValueTypeSize(type) * array_num_elements(&value->value.a));
@@ -925,7 +921,7 @@ ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType 
             return NULL;
         }
 
-        ChannelValueInit(array[i], type);
+        ChannelValueInit(array[i], ChannelTypeClone(type));
         if (RETURN_OK != ChannelValueSetFromReference(array[i], (char *) values + i*size)) {
             return RETURN_ERROR;
         }

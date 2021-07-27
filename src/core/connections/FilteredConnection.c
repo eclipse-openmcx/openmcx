@@ -23,7 +23,7 @@ extern "C" {
 static FilteredConnectionData * FilteredConnectionDataCreate(FilteredConnectionData * data) {
     data->filter = NULL;
 
-    ChannelValueInit(&data->store, &ChannelTypeUnknown);
+    ChannelValueInit(&data->store, ChannelTypeClone(&ChannelTypeUnknown));
 
     return data;
 }
@@ -54,7 +54,7 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     filteredConnection->data->filter = NULL;
 
     // value store
-    ChannelValueInit(&filteredConnection->data->store, sourceInfo->type);
+    ChannelValueInit(&filteredConnection->data->store, ChannelTypeClone(sourceInfo->type));
 
     // value reference
     connection->value_ = ChannelValueReference(&filteredConnection->data->store);

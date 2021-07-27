@@ -226,7 +226,7 @@ static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData 
     if (v->data->type == FMU2_VALUE_SCALAR) {
         fmi2_base_type_enu_t t = fmi2_import_get_variable_base_type(data->data.scalar);
 
-        ChannelValueInit(&v->val, Fmi2TypeToChannelType(t));
+        ChannelValueInit(&v->val, ChannelTypeClone(Fmi2TypeToChannelType(t)));
 
         if (!v->name) {
             mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Cannot copy name");
@@ -293,7 +293,7 @@ static Fmu2Value * Fmu2ValueCreate(Fmu2Value * v) {
     v->channel = NULL;
     v->info = NULL;
 
-    ChannelValueInit(&v->val, &ChannelTypeUnknown);
+    ChannelValueInit(&v->val, ChannelTypeClone(&ChannelTypeUnknown));
 
     return v;
 }

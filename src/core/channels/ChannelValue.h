@@ -117,6 +117,7 @@ typedef struct ChannelValue {
     ChannelValueData value;
 } ChannelValue;
 
+// Takes ownership of type
 void   ChannelValueInit(ChannelValue * value, ChannelType * type);
 void ChannelValueDestructor(ChannelValue * value);
 char * ChannelValueToString(ChannelValue * value);

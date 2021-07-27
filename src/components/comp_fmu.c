@@ -401,7 +401,7 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
             val->SetChannel(val, info->channel);
 
             if (!ChannelTypeIsValid(val->val.type)) {
-                ChannelValueInit(&val->val, info->type);
+                ChannelValueInit(&val->val, ChannelTypeClone(info->type));
             }
             retVal = DatabusSetInReference(db, i,
                            ChannelValueReference(&val->val),
@@ -439,7 +439,7 @@ static McxStatus Fmu2SetupChannelOut(ObjectContainer /* Fmu2Values */ * vals, Da
         val->SetChannel(val, info->channel);
 
         if (!ChannelTypeEq(val->val.type, info->type)) {
-            ChannelValueInit(&val->val, info->type);
+            ChannelValueInit(&val->val, ChannelTypeClone(info->type));
         }
         retVal = DatabusSetOutReference(db, i,
                                         ChannelValueReference(&val->val),

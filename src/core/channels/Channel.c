@@ -179,7 +179,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         connInfo = &conn->info;
 
         ChannelValueDestructor(val);
-        ChannelValueInit(val, ConnectionInfoGetType(connInfo));
+        ChannelValueInit(val, ChannelTypeClone(ConnectionInfoGetType(connInfo)));
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
@@ -360,7 +360,7 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
         mcx_log(LOG_ERROR, "Port %s: Setup inport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    ChannelValueInit(&channel->value, info->type);
+    ChannelValueInit(&channel->value, ChannelTypeClone(info->type));
 
     // default value
     if (info->defaultValue) {
@@ -514,7 +514,7 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
         mcx_log(LOG_ERROR, "Port %s: Setup outport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    ChannelValueInit(&channel->value, info->type);
+    ChannelValueInit(&channel->value, ChannelTypeClone(info->type));
 
     // default value
     if (info->defaultValue) {

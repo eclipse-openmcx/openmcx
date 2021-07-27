@@ -282,7 +282,7 @@ Fmu1Value * Fmu1ReadParamValue(ScalarParameterInput * input, fmi1_import_t * imp
         return NULL;
     }
 
-    ChannelValueInit(&chVal, input->type);
+    ChannelValueInit(&chVal, ChannelTypeClone(input->type));
     if (RETURN_OK != ChannelValueSetFromReference(&chVal, &input->value.value)) {
         return NULL;
     }
@@ -382,13 +382,13 @@ static ObjectContainer * Fmu1ReadArrayParamValues(const char * name,
             }
 
             if (ChannelTypeEq(input->type, &ChannelTypeDouble)) {
-                ChannelValueInit(&chVal, &ChannelTypeDouble);
+                ChannelValueInit(&chVal, ChannelTypeClone(&ChannelTypeDouble));
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
                     return RETURN_ERROR;
                 }
             }
             else { // integer
-                ChannelValueInit(&chVal, &ChannelTypeInteger);
+                ChannelValueInit(&chVal, ChannelTypeClone(&ChannelTypeInteger));
                 if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
                     return RETURN_ERROR;
                 }
