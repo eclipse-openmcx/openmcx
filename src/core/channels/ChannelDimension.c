@@ -62,6 +62,20 @@ McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t num,
     return RETURN_OK;
 }
 
+size_t ChannelDimensionNumElements(ChannelDimension * dimension) {
+    size_t i = 0, n = 1;
+
+    if (dimension->num == 0) {
+        return 0;
+    }
+
+    for (i = 0; i < dimension->num; i++) {
+        n *= (dimension->endIdxs[i] - dimension->startIdxs[i] + 1);
+    }
+
+    return n;
+}
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
