@@ -20,7 +20,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-char * CreateIndexedName(const char * name, unsigned i);
 Vector * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * components,
                                                     ConnectionInput * connInput,
                                                     Component * sourceCompOverride,
