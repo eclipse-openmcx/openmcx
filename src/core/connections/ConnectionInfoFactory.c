@@ -17,26 +17,12 @@
 #include "util/stdlib.h"
 #include "util/string.h"
 
+#include "core/channels/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-
-char * CreateIndexedName(const char * name, unsigned i) {
-    size_t len = 0;
-    char * buffer = NULL;
-
-    len = strlen(name) + (mcx_digits10(i) + 1) + 2 + 1;
-
-    buffer = (char *) mcx_calloc(len, sizeof(char));
-    if (!buffer) {
-        return NULL;
-    }
-
-    snprintf(buffer, len, "%s[%d]", name, i);
-
-    return buffer;
-}
 
 static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
                                                          ObjectContainer * components,

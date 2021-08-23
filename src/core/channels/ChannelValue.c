@@ -35,6 +35,23 @@ ChannelType ChannelTypeBinary = { CHANNEL_BINARY, NULL};
 ChannelType ChannelTypeBinaryReference = { CHANNEL_BINARY_REFERENCE, NULL};
 
 
+char * CreateIndexedName(const char * name, unsigned i) {
+    size_t len = 0;
+    char * buffer = NULL;
+
+    len = strlen(name) + (mcx_digits10(i) + 1) + 2 + 1;
+
+    buffer = (char *) mcx_calloc(len, sizeof(char));
+    if (!buffer) {
+        return NULL;
+    }
+
+    snprintf(buffer, len, "%s[%d]", name, i);
+
+    return buffer;
+}
+
+
 ChannelType * ChannelTypeClone(ChannelType * type) {
     switch (type->con) {
     case CHANNEL_UNKNOWN:

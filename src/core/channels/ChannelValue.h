@@ -20,6 +20,8 @@ extern "C" {
 
 void * mcx_copy(void * object, size_t size);
 
+char * CreateIndexedName(const char * name, unsigned i);
+
 // possible types of values that can be put on channels
 typedef enum ChannelTypeConstructor {
     CHANNEL_UNKNOWN = 0,
