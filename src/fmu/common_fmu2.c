@@ -760,7 +760,7 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         break;
     }
     default:
-        mcx_log(LOG_ERROR, "FMU: Unknown variable type");
+        mcx_log(LOG_ERROR, "FMU: Unknown variable type: %s", ChannelTypeToString(type));
         return RETURN_ERROR;
     }
 
