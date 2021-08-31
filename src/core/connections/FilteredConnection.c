@@ -155,9 +155,12 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
 
     if (out->GetFunction(out)) {
         proc * p = (proc *) out->GetFunction(out);
-        double value = 0.0;
+        ChannelValueData value = { 0 };
 
-        value = p->fn(time, p->env);
+        if (p->fn(time, p->env, &value) != 0) {
+            mcx_log(LOG_ERROR, "FilteredConnection: Function failed");
+            return RETURN_ERROR;
+        }
         if (RETURN_OK != filteredConnection->SetResult(filteredConnection, &value)) {
             mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
             return RETURN_ERROR;
@@ -165,7 +168,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
     } else {
         // only filter if time is not negative (negative time means filter disabled)
         if (filteredConnection->GetReadFilter(filteredConnection) && time->startTime >= 0) {
-            ChannelValueData value;
+            ChannelValueData value = { 0 };
 
             filter = filteredConnection->GetReadFilter(filteredConnection);
             value = filter->GetValue(filter, time->startTime);

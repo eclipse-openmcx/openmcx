@@ -80,8 +80,11 @@ typedef struct {
     double endTime;
 } TimeInterval;
 
+typedef union ChannelValueData ChannelValueData;
+typedef struct ChannelValue ChannelValue;
+
 typedef struct {
-    double (* fn)(TimeInterval * arg, void * env);
+    int (* fn)(TimeInterval * arg, void * env, ChannelValueData * res);
     void * env;
 } proc;
 
@@ -103,19 +106,19 @@ int array_dims_match(array * a, array * b);
 size_t array_num_elements(array * a);
 
 // TODO: change concrete types to McxDouble, McxInteger, etc
-typedef union ChannelValueData {
+union ChannelValueData {
     /* the order is significant. double needs to be the first entry for union initialization to work */
     double d;
     int i;
     char * s;
     binary_string b;
     array a;
-} ChannelValueData;
+};
 
-typedef struct ChannelValue {
+struct ChannelValue {
     ChannelType * type;
     ChannelValueData value;
-} ChannelValue;
+};
 
 // Takes ownership of type
 void   ChannelValueInit(ChannelValue * value, ChannelType * type);

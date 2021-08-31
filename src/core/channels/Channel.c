@@ -707,10 +707,13 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         if (out->GetFunction(out)) {
             // function value
             proc * p = (proc *) out->GetFunction(out);
-            double val = p->fn(time, p->env);
+            ChannelValueData val = { 0 };
+            if (p->fn(time, p->env, &val) != 0) {
+                return RETURN_ERROR;
+            }
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
-                MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, val);
+                MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, val.d);
             }
 #endif // MCX_DEBUG
             if (RETURN_OK != ChannelValueSetFromReference(&channel->value, &val)) {
