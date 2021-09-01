@@ -895,26 +895,6 @@ size_t DatabusGetInChannelsNum(Databus * db) {
 }
 
 // Only returns SIZE_T_ERROR if db was NULL
-size_t DatabusGetOutVectorChannelsNum(Databus * db) {
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get outport number: Invalid structure");
-        return SIZE_T_ERROR;
-    }
-
-    return DatabusInfoGetVectorChannelNum(DatabusGetOutInfo(db));
-}
-
-// Only returns SIZE_T_ERROR if db was NULL
-size_t DatabusGetInVectorChannelsNum(Databus * db) {
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get inport number: Invalid structure");
-        return SIZE_T_ERROR;
-    }
-
-    return DatabusInfoGetVectorChannelNum(DatabusGetInInfo(db));
-}
-
-// Only returns SIZE_T_ERROR if db was NULL
 size_t DatabusGetLocalChannelsNum(Databus * db) {
     if (!db) {
         mcx_log(LOG_ERROR, "Ports: Get local variable number: Invalid structure");
@@ -1019,12 +999,12 @@ McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
         return RETURN_ERROR;
     }
 
-    if (channel > DatabusGetOutVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutVectorChannelsNum(db));
+    if (channel > DatabusGetOutChannelsNum(db)) {
+        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutChannelsNum(db));
         return RETURN_ERROR;
     }
 
-    vInfo = DatabusGetOutVectorChannelInfo(db, channel);
+    vInfo = DatabusGetOutChannelInfo(db, channel);
     for (i = startIdx; i <= endIdx; i++) {
         McxStatus retVal = RETURN_OK;
         const void * ref = NULL;
@@ -1068,12 +1048,12 @@ McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
         return RETURN_ERROR;
     }
 
-    if (channel > DatabusGetOutVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutVectorChannelsNum(db));
+    if (channel > DatabusGetOutChannelsNum(db)) {
+        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutChannelsNum(db));
         return RETURN_ERROR;
     }
 
-    vInfo = DatabusGetOutVectorChannelInfo(db, channel);
+    vInfo = DatabusGetOutChannelInfo(db, channel);
     for (i = startIdx; i <= endIdx; i++) {
         McxStatus retVal = RETURN_OK;
         const void * ref = NULL;
@@ -1167,12 +1147,12 @@ McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, s
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector needs to be specified");
         return RETURN_ERROR;
     }
-    if (channel > DatabusGetInVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutVectorChannelsNum(db));
+    if (channel > DatabusGetInChannelsNum(db)) {
+        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutChannelsNum(db));
         return RETURN_ERROR;
     }
 
-    vInfo = DatabusGetInVectorChannelInfo(db, channel);
+    vInfo = DatabusGetInChannelInfo(db, channel);
     for (i = startIdx; i <= endIdx; i++) {
         McxStatus retVal = RETURN_OK;
         void * ref = NULL;
@@ -1224,12 +1204,12 @@ McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
         mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector needs to be specified");
         return RETURN_ERROR;
     }
-    if (channel > DatabusGetInVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetInVectorChannelsNum(db));
+    if (channel > DatabusGetInChannelsNum(db)) {
+        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetInChannelsNum(db));
         return RETURN_ERROR;
     }
 
-    vInfo = DatabusGetInVectorChannelInfo(db, channel);
+    vInfo = DatabusGetInChannelInfo(db, channel);
     for (i = startIdx; i <= endIdx; i++) {
         McxStatus retVal = RETURN_OK;
         void * ref = NULL;
@@ -1484,41 +1464,6 @@ ChannelInfo * DatabusGetLocalChannelInfo(Databus * db, size_t channel) {
     }
 
     return (ChannelInfo *) data->infos->At(data->infos, channel);
-}
-
-ChannelInfo * DatabusGetRTFactorChannelInfo(Databus * db, size_t channel) {
-    DatabusInfoData * data = db->data->rtfactorInfo->data;
-
-    if (channel >= data->infos->Size(data->infos)) {
-        mcx_log(LOG_ERROR, "Ports: Get rtfactor-info: Unknown port %d", channel);
-        return NULL;
-    }
-
-    return (ChannelInfo *) data->infos->At(data->infos, channel);
-}
-
-VectorChannelInfo * DatabusGetInVectorChannelInfo(Databus * db, size_t channel) {
-    DatabusInfo * inInfo = NULL;
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get in-info: Invalid structure");
-        return NULL;
-    }
-
-    inInfo = DatabusGetInInfo(db);
-
-    return DatabusInfoGetVectorChannelInfo(inInfo, channel);
-}
-
-VectorChannelInfo * DatabusGetOutVectorChannelInfo(Databus * db, size_t channel) {
-    DatabusInfo * outInfo = NULL;
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get out-info: Invalid structure");
-        return NULL;
-    }
-
-    outInfo = DatabusGetOutInfo(db);
-
-    return DatabusInfoGetVectorChannelInfo(outInfo, channel);
 }
 
 int DatabusChannelInIsValid(Databus * db, size_t channel) {
