@@ -125,13 +125,6 @@ McxStatus DatabusAddRTFactorChannel(Databus * db,
 
 /* vector channel functions */
 
-VectorChannelInfo * DatabusGetInVectorChannelInfo(Databus * db, size_t channel);
-VectorChannelInfo * DatabusGetOutVectorChannelInfo(Databus * db, size_t channel);
-
-size_t DatabusGetInVectorChannelsNum(Databus * db);
-
-size_t DatabusGetOutVectorChannelsNum(Databus * db);
-
 McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
     size_t startIdx, size_t endIdx, const void * reference, ChannelType * type);
 

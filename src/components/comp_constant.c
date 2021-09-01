@@ -56,7 +56,7 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
 static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
     Component * comp = (Component *) (compConstant);
     Databus * db = comp->GetDatabus(comp);
-    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t numOut = DatabusGetOutChannelsNum(db);
     size_t i = 0;
     size_t sum = 0;
     ChannelValue * value = NULL;
@@ -65,8 +65,8 @@ static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
     size_t startIdx = 0;
     size_t endIdx = 0;
 
-    for (i = 0; i < numVecOut; i++) {
-        vInfo = DatabusGetOutVectorChannelInfo(db, i);
+    for (i = 0; i < numOut; i++) {
+        vInfo = DatabusGetOutChannelInfo(db, i);
         startIdx = vInfo->GetStartIndex(vInfo);
         endIdx = vInfo->GetEndIndex(vInfo);
         numCh = endIdx - startIdx + 1;
@@ -77,7 +77,7 @@ static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
         }
     }
 
-    if (i >= numVecOut) {
+    if (i >= numOut) {
         ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%d) provided", idx);
         return NULL;
     }
