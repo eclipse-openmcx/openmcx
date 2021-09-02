@@ -123,19 +123,6 @@ McxStatus DatabusAddRTFactorChannel(Databus * db,
                                    const void * reference,
                                    ChannelType * type);
 
-/* vector channel functions */
-
-McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, const void * reference, ChannelType * type);
-
-McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, ChannelValue * value);
-
-McxStatus DatabusSetInRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, void * reference, ChannelType * type);
-McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, ChannelValue * value);
-
 
 /**
  * \return The address of the value of the in channel \a channel in \a db or \c NULL
