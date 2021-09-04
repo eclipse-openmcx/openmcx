@@ -233,12 +233,14 @@ static McxStatus TaskRead(Task * task, TaskInput * taskInput) {
     task->params->timeStepSize = taskInput->deltaTime.defined ? taskInput->deltaTime.value : 0.01;
     mcx_log(LOG_INFO, "  Synchronization time step: %g s", task->params->timeStepSize);
 
-    task->params->sumTime = taskInput->sumTime.defined ? taskInput->sumTime.value : FALSE;
+    task->params->sumTime = taskInput->sumTime.defined ? taskInput->sumTime.value : TRUE;
     if (task->config && task->config->sumTimeDefined) {
         task->params->sumTime = task->config->sumTime;
     }
     if (task->params->sumTime) {
         mcx_log(LOG_DEBUG, "  Using summation for time calculation");
+    } else {
+        mcx_log(LOG_DEBUG, "  Using multiplication for time calculation");
     }
 
     task->stepTypeType = taskInput->stepType;
