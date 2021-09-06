@@ -126,6 +126,14 @@ int ChannelTypeIsBinary(ChannelType * a) {
     return a->con == CHANNEL_BINARY || a->con == CHANNEL_BINARY_REFERENCE;
 }
 
+ChannelType * ChannelTypeBaseType(ChannelType * a) {
+    if (ChannelTypeIsArray(a)) {
+        return ChannelTypeBaseType(a->ty.a.inner);
+    } else {
+        return a;
+    }
+}
+
 int ChannelTypeEq(ChannelType * a, ChannelType * b) {
     if (a->con == CHANNEL_ARRAY && b->con == CHANNEL_ARRAY) {
         size_t i = 0;

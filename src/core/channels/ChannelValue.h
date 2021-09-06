@@ -63,6 +63,8 @@ int ChannelTypeIsScalar(ChannelType * a);
 int ChannelTypeIsArray(ChannelType * a);
 int ChannelTypeIsBinary(ChannelType * a);
 
+ChannelType * ChannelTypeBaseType(ChannelType * a);
+
 int ChannelTypeEq(ChannelType * a, ChannelType * b);
 
 typedef struct MapStringChannelType {
