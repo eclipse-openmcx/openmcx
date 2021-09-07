@@ -709,6 +709,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
             proc * p = (proc *) out->GetFunction(out);
             ChannelValueData val = { 0 };
             if (p->fn(time, p->env, &val) != 0) {
+                mcx_log(LOG_ERROR, "Port %s: Update outport: Function failed", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
 #ifdef MCX_DEBUG
@@ -734,6 +735,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
             }
 #endif // MCX_DEBUG
             if (RETURN_OK != ChannelValueSetFromReference(&channel->value, channel->internalValue)) {
+                mcx_log(LOG_ERROR, "Port %s: Update outport: Setting value failed", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
         }
