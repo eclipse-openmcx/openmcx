@@ -60,22 +60,9 @@ static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
     size_t i = 0;
     size_t sum = 0;
     ChannelValue * value = NULL;
-    VectorChannelInfo * vInfo = NULL;
     size_t numCh = 0;
     size_t startIdx = 0;
     size_t endIdx = 0;
-
-    for (i = 0; i < numOut; i++) {
-        vInfo = DatabusGetOutChannelInfo(db, i);
-        startIdx = vInfo->GetStartIndex(vInfo);
-        endIdx = vInfo->GetEndIndex(vInfo);
-        numCh = endIdx - startIdx + 1;
-
-        sum += numCh;
-        if (sum > idx) {
-            break;
-        }
-    }
 
     if (i >= numOut) {
         ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%zu) provided", idx);
@@ -83,9 +70,6 @@ static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
     }
 
     value = compConstant->values[i];
-    if (!vInfo->IsScalar(vInfo)) {
-        value += idx - (sum - numCh);
-    }
 
     return value;
 }

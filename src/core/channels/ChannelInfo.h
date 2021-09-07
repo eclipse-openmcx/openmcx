@@ -12,7 +12,7 @@
 #define MCX_CORE_CHANNELS_CHANNELINFO_H
 
 #include "core/channels/ChannelValue.h"
-#include "core/channels/VectorChannelInfo.h"
+#include "CentralParts.h"
 #include "core/channels/ChannelDimension.h"
 
 #include "common/status.h"
@@ -25,11 +25,6 @@ extern "C" {
 
 
 typedef struct ChannelInfo {
-    /* vector must be NULL if this is a scalar. It is the *only* way
-     * to distinguish between vectors of size 1 and scalar values.
-     */
-    VectorChannelInfo * vector;
-
     struct Channel * channel;
 
     // Channel is a scalar iff dimension == NULL
@@ -72,7 +67,6 @@ McxStatus ChannelInfoSetID(ChannelInfo * info, const char * name);
 McxStatus ChannelInfoSetDescription(ChannelInfo * info, const char * name);
 McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name);
 McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type);
-McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector);
 
 int ChannelInfoIsBinary(const ChannelInfo * info);
 

@@ -38,14 +38,11 @@ extern "C" {
 
 static void DatabusInfoDataDestructor(DatabusInfoData * data) {
     object_destroy(data->infos);
-    data->origInfos->DestroyObjects(data->origInfos);
-    object_destroy(data->origInfos);
 }
 
 static DatabusInfoData * DatabusInfoDataCreate(DatabusInfoData * data) {
     data->infos = (Vector *) object_create(Vector);
     data->infos->Setup(data->infos, sizeof(ChannelInfo), ChannelInfoInit, ChannelInfoSetFrom, ChannelInfoDestroy);
-    data->origInfos = (ObjectContainer *) object_create(ObjectContainer);
     return data;
 }
 
@@ -289,7 +286,6 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
     Vector * dbInfos = dbInfo->data->infos;
     size_t requiredSize = 0;
-    ObjectContainer * allChannels = dbInfo->data->origInfos;
 
     for (i = 0; i < numChildren; i++) {
         PortInput * portInput = (PortInput *) input->ports->At(input->ports, i);
@@ -314,10 +310,6 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
             mcx_log(LOG_DEBUG, "    Port: \"%s\"", name);
         }
 
-        if (RETURN_OK != allChannels->PushBackNamed(allChannels, (Object *) info, name)) {
-            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %d", i);
-            return RETURN_ERROR;
-        }
         if (RETURN_OK != dbInfos->PushBack(dbInfos, (Object *) object_strong_reference(info), name)) {
             mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %d", i);
             return RETURN_ERROR;
@@ -751,7 +743,7 @@ size_t DatabusInfoGetVectorChannelNum(DatabusInfo * info) {
         return SIZE_T_ERROR;
     }
 
-    return info->data->origInfos->Size(info->data->origInfos);
+    return info->data->infos->Size(info->data->infos);
 }
 
 ChannelInfo * DatabusInfoGetChannel(DatabusInfo * info, size_t i) {
@@ -766,20 +758,6 @@ ChannelInfo * DatabusInfoGetChannel(DatabusInfo * info, size_t i) {
     }
 
     return (ChannelInfo *) info->data->infos->At(info->data->infos, i);
-}
-
-static VectorChannelInfo * DatabusInfoGetVectorChannelInfo(DatabusInfo * info, size_t i) {
-    if (!info) {
-        mcx_log(LOG_ERROR, "Ports: Get vector port info: Invalid structure");
-        return NULL;
-    }
-
-    if (i >= info->data->origInfos->Size(info->data->origInfos)) {
-        mcx_log(LOG_ERROR, "Ports: Get vector port info: Unknown port %d", i);
-        return NULL;
-    }
-
-    return (VectorChannelInfo *) info->data->origInfos->At(info->data->origInfos, i);
 }
 
 int DatabusInChannelsDefined(Databus * db) {
