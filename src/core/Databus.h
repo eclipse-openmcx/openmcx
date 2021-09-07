@@ -18,7 +18,6 @@
 #include "core/channels/Channel.h"
 #include "core/connections/Connection.h"
 #include "core/Component.h"
-#include "core/channels/VectorChannelInfo.h"
 #include "reader/model/ports/PortsInput.h"
 
 #ifdef __cplusplus

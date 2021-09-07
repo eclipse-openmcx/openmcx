@@ -90,16 +90,6 @@ McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type) {
     return RETURN_OK;
 }
 
-McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector) {
-    if (info->vector) {
-        object_destroy(info->vector);
-    }
-
-    info->vector = vector;
-
-    return RETURN_OK;
-}
-
 McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * name,
                            const char * nameInModel,
@@ -239,14 +229,6 @@ McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other) {
         }
     }
 
-    if (info->vector) {
-        object_destroy(info->vector);
-    }
-
-    if (other->vector) {
-        info->vector = (VectorChannelInfo *) object_strong_reference(other->vector);
-    }
-
     return RETURN_OK;
 }
 
@@ -271,10 +253,6 @@ void ChannelInfoDestroy(ChannelInfo * info) {
     FreeChannelValue(&info->defaultValue);
     FreeChannelValue(&info->initialValue);
 
-    if (info->vector) {
-        object_destroy(info->vector);
-    }
-
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
     info->type = &ChannelTypeUnknown;
@@ -283,8 +261,6 @@ void ChannelInfoDestroy(ChannelInfo * info) {
 }
 
 McxStatus ChannelInfoInit(ChannelInfo * info) {
-    info->vector = NULL;
-
     info->dimension = NULL;
 
     info->name        = NULL;
