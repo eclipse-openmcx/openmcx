@@ -13,6 +13,7 @@
 
 #include "CentralParts.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelDimension.h"
 #include "fmilib.h"
 
 #ifdef __cplusplus
@@ -113,6 +114,9 @@ Fmu2Value * Fmu2ValueArrayMake(const char * name, size_t numDims, size_t dims[],
 Fmu2Value * Fmu2ValueBinaryMake(const char * name, fmi2_import_variable_t * hi, fmi2_import_variable_t * lo, fmi2_import_variable_t * size, Channel * channel);
 
 void Fmu2ValuePrintDebug(Fmu2Value * val);
+
+Fmu2Value * Fmu2ReadFmu2ScalarValue(const char * logPrefix, ChannelType * type, const char * channelName, const char * unitString, fmi2_import_t * fmiImport);
+Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, const char * channelName, ChannelDimension * dimension, const char * unitString, fmi2_import_t * fmiImport);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
