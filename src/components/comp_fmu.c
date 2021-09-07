@@ -591,6 +591,10 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
             }
         } else if (info->dimension) {
             val = Fmu2ReadFmu2ArrayValue(logPrefix, info->type, channelName, info->dimension, info->unitString, fmiImport);
+            if (!val) {
+                mcx_log(LOG_ERROR, "%s: Could not create value for %s", logPrefix, channelName);
+                return RETURN_ERROR;
+            }
 
             val->SetChannel(val, info->channel);
 
@@ -601,6 +605,10 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
             }
         } else { // scalar
             val = Fmu2ReadFmu2ScalarValue(logPrefix, info->type, channelName, info->unitString, fmiImport);
+            if (!val) {
+                mcx_log(LOG_ERROR, "%s: Could not create value for %s", logPrefix, channelName);
+                return RETURN_ERROR;
+            }
 
             val->SetChannel(val, info->channel);
 
