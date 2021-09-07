@@ -12,6 +12,8 @@
 
 #include "core/channels/ChannelInfo.h"
 
+#include "core/channels/ChannelValue.h"
+#include "objects/Object.h"
 #include "util/string.h"
 
 #ifdef __cplusplus
@@ -252,6 +254,14 @@ void ChannelInfoDestroy(ChannelInfo * info) {
     FreeChannelValue(&info->offset);
     FreeChannelValue(&info->defaultValue);
     FreeChannelValue(&info->initialValue);
+
+    if (info->type) {
+        ChannelTypeDestructor(info->type);
+    }
+
+    if (info->dimension) {
+        object_destroy(info->dimension);
+    }
 
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
