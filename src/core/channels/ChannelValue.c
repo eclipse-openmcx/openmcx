@@ -110,6 +110,14 @@ ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dim
     return array;
 }
 
+ChannelType * ChannelTypeArrayInner(ChannelType * array) {
+    if (!ChannelTypeIsArray(array)) {
+        return &ChannelTypeUnknown;
+    }
+
+    return array->ty.a.inner;
+}
+
 int ChannelTypeIsValid(ChannelType * a) {
     return a->con != CHANNEL_UNKNOWN;
 }

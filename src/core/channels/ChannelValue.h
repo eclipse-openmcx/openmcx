@@ -58,6 +58,8 @@ ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dim
 ChannelType * ChannelTypeClone(ChannelType * type);
 void ChannelTypeDestructor(ChannelType * type);
 
+ChannelType * ChannelTypeArrayInner(ChannelType * array);
+
 int ChannelTypeIsValid(ChannelType * a);
 int ChannelTypeIsScalar(ChannelType * a);
 int ChannelTypeIsArray(ChannelType * a);
