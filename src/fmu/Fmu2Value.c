@@ -213,6 +213,96 @@ static McxStatus Fmu2ValueSetFromChannelValue(Fmu2Value * v, ChannelValue * val)
     return ChannelValueSet(&v->val, val);
 }
 
+static McxStatus Fmu2ValueGetVariableStart(fmi2_base_type_enu_t t, fmi2_import_variable_t * var, ChannelValue * value) {
+
+    switch (t) {
+    case fmi2_base_type_real:
+        value->value.d = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(var));
+        break;
+    case fmi2_base_type_int:
+        value->value.i = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(var));
+        break;
+    case fmi2_base_type_bool:
+        value->value.i = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(var));
+        break;
+    case fmi2_base_type_str: {
+        const char * buffer = fmi2_import_get_string_variable_start(fmi2_import_get_variable_as_string(var));
+        if (RETURN_OK != ChannelValueSetFromReference(value, &buffer)) {
+            return RETURN_ERROR;
+        }
+        break;
+    }
+    case fmi2_base_type_enum:
+        value->value.i = fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(var));
+        break;
+    default:
+        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Base type %s not supported", fmi2_base_type_to_string(t));
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus Fmu2ValueGetArrayVariableStart(fmi2_base_type_enu_t t, fmi2_import_variable_t * var, array * a, size_t i) {
+
+    switch (t) {
+    case fmi2_base_type_real:
+        ((double *)a->data)[i] = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(var));
+        break;
+    case fmi2_base_type_int:
+        ((int *)a->data)[i] = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(var));
+        break;
+    case fmi2_base_type_enum:
+       ((int *)a->data)[i] = fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(var));
+        break;
+    case fmi2_base_type_bool:
+        ((int *)a->data)[i] = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(var));
+        break;
+    default:
+        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Array base type %s not supported", fmi2_base_type_to_string(t));
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus Fmu2ValueGetBinaryVariableStart(fmi2_import_variable_t * varHi, fmi2_import_variable_t * varLo, fmi2_import_variable_t * varSize, ChannelValue * value) {
+    fmi2_base_type_enu_t t;
+
+    t = fmi2_import_get_variable_base_type(varHi);
+    if (t != fmi2_base_type_int) {
+        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Binary base type (hi) %s not supported", fmi2_base_type_to_string(t));
+        return RETURN_ERROR;
+    }
+    t = fmi2_import_get_variable_base_type(varLo);
+    if (t != fmi2_base_type_int) {
+        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Binary base type (lo) %s not supported", fmi2_base_type_to_string(t));
+        return RETURN_ERROR;
+    }
+    t = fmi2_import_get_variable_base_type(varSize);
+    if (t != fmi2_base_type_int) {
+        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Binary base type (size) %s not supported", fmi2_base_type_to_string(t));
+        return RETURN_ERROR;
+    }
+
+    fmi2_integer_t hi = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(varHi));
+    fmi2_integer_t lo = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(varLo));
+    fmi2_integer_t size = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(varSize));
+
+    binary_string b;
+
+    b.len = size;
+    b.data = (char *) ((((long long)hi & 0xffffffff) << 32) | (lo & 0xffffffff));
+
+    if (RETURN_OK != ChannelValueSetFromReference(value, &b)) {
+        mcx_log(LOG_ERROR, "Fmu2Value: Could not set value");
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+
 static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData * data, const char * unit, Channel * channel) {
     if (!name || !data) {
         mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Name or data missing");
@@ -224,42 +314,61 @@ static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData 
     v->data = data;
     v->channel = channel;
 
+    if (!v->name) {
+        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Cannot copy name");
+        return RETURN_ERROR;
+    }
+
     if (v->data->type == FMU2_VALUE_SCALAR) {
         fmi2_base_type_enu_t t = fmi2_import_get_variable_base_type(data->data.scalar);
 
         ChannelValueInit(&v->val, ChannelTypeClone(Fmi2TypeToChannelType(t)));
 
-        if (!v->name) {
-            mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Cannot copy name");
+
+        if (RETURN_OK != Fmu2ValueGetVariableStart(t, data->data.scalar, &v->val)) {
+            return RETURN_ERROR;
+        }
+    } else if (v->data->type == FMU2_VALUE_ARRAY) {
+        fmi2_base_type_enu_t t = fmi2_import_get_variable_base_type(data->data.array.values[0]);
+
+        ChannelValueInit(&v->val, ChannelTypeArray(Fmi2TypeToChannelType(t), data->data.array.numDims, data->data.array.dims));
+
+        if (data->data.array.numDims == 0) {
+            mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Array of dimension 0 is not supported");
             return RETURN_ERROR;
         }
 
-        switch (t) {
-        case fmi2_base_type_real:
-            v->val.value.d = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(data->data.scalar));
-            break;
-        case fmi2_base_type_int:
-            v->val.value.i = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(data->data.scalar));
-            break;
-        case fmi2_base_type_bool:
-            v->val.value.i = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(data->data.scalar));
-            break;
-        case fmi2_base_type_str: {
-            const char * buffer = fmi2_import_get_string_variable_start(fmi2_import_get_variable_as_string(data->data.scalar));
-            if (RETURN_OK != ChannelValueSetFromReference(&v->val, &buffer)) {
+        size_t i = 0, n = 1;
+
+        for (i = 0; i < data->data.array.numDims; i++) {
+            n *= data->data.array.dims[i];
+        }
+
+        array * a = (array *) ChannelValueReference(&v->val);
+
+        for (i = 0; i < n; i++) {
+            if (RETURN_OK != Fmu2ValueGetArrayVariableStart(t, data->data.array.values[i], a, i)) {
                 return RETURN_ERROR;
             }
-            break;
         }
-        case fmi2_base_type_enum:
-            v->val.value.i = fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(data->data.scalar));
-            break;
-        default:
-            mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Base type %s not supported", fmi2_base_type_to_string(t));
-            return RETURN_ERROR;
-        }
+    } else if (v->data->type == FMU2_VALUE_BINARY_OSI) {
+        return RETURN_OK;
+
+        // TODO: Setting the initial value causes some memory errors.
+
+        // ChannelValueInit(&v->val, &ChannelTypeBinary);
+
+        // if (RETURN_OK != Fmu2ValueGetBinaryVariableStart(
+        //         data->data.binary.hi,
+        //         data->data.binary.lo,
+        //         data->data.binary.size,
+        //         &v->val)) {
+        //     return RETURN_ERROR;
+        // }
+
+
     } else {
-        // TODO
+        return RETURN_ERROR;
     }
 
     return RETURN_OK;
