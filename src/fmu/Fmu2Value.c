@@ -22,6 +22,12 @@ extern "C" {
 #endif /* __cplusplus */
 
 static void Fmu2ValueDataDestructor(Fmu2ValueData * data) {
+    if (data->type == FMU2_VALUE_ARRAY) {
+        mcx_free(data->data.array.dims);
+        mcx_free(data->data.array.values);
+
+        mcx_free(data->vr.array.values);
+    }
 }
 
 static Fmu2ValueData * Fmu2ValueDataCreate(Fmu2ValueData * data) {
@@ -387,6 +393,7 @@ static void Fmu2ValueDestructor(Fmu2Value * v) {
         mcx_free(v->unit);
         v->unit = NULL;
     }
+    Fmu2ValueDataDestructor(v->data);
     object_destroy(v->data);
     object_destroy(v->info);
     ChannelValueDestructor(&v->val);
@@ -485,7 +492,7 @@ Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, c
 
     if (dimension->num > 1) {
         mcx_log(LOG_ERROR, "%s: Port %s: Invalid dimension", logPrefix, channelName);
-        return RETURN_ERROR;
+        goto cleanup;
     }
 
     size_t i = 0;
@@ -494,7 +501,7 @@ Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, c
 
     fmi2_import_variable_t ** vars = mcx_calloc(endIdx - startIdx + 1, sizeof(fmi2_import_variable_t *));
     if (!vars) {
-        return NULL;
+        goto cleanup;
     }
 
     for (i = startIdx; i <= endIdx; i++) {
@@ -502,14 +509,14 @@ Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, c
         fmi2_import_variable_t * var = fmi2_import_get_variable_by_name(fmiImport, indexedChannelName);
         if (!var) {
             mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix, indexedChannelName);
-            return NULL;
+            goto cleanup;
         }
         if (!ChannelTypeEq(ChannelTypeArrayInner(type), Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var)))) {
             mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, indexedChannelName);
             mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
                     ChannelTypeToString(ChannelTypeArrayInner(type)),
                     ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
-            return NULL;
+            goto cleanup;
         }
         vars[i - startIdx] = var;
 
@@ -520,7 +527,12 @@ Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, c
     val = Fmu2ValueArrayMake(channelName, 1 /* numDims */, dims, vars, unitString, NULL);
     if (!val) {
         mcx_log(LOG_ERROR, "%s: Could not set value for channel %s", logPrefix, channelName);
-        return NULL;
+        goto cleanup;
+    }
+
+cleanup:
+    if (vars) {
+        mcx_free(vars);
     }
 
     return val;
