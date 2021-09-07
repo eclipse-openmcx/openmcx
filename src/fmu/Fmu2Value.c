@@ -11,6 +11,7 @@
 #include "fmu/Fmu2Value.h"
 
 #include "core/channels/ChannelValue.h"
+#include "core/connections/ConnectionInfoFactory.h"
 #include "CentralParts.h"
 #include "util/string.h"
 #include "util/stdlib.h"
@@ -341,6 +342,81 @@ Fmu2Value * Fmu2ValueBinaryMake(const char * name, fmi2_import_variable_t * hi, 
 void Fmu2ValuePrintDebug(Fmu2Value * val) {
     mcx_log(LOG_DEBUG, "Fmu2Value { name: \"%s\" }", val->name);
 }
+
+Fmu2Value * Fmu2ReadFmu2ScalarValue(const char * logPrefix, ChannelType * type, const char * channelName, const char * unitString, fmi2_import_t * fmiImport) {
+    Fmu2Value * val = NULL;
+    fmi2_import_variable_t * var = NULL;
+
+    var = fmi2_import_get_variable_by_name(fmiImport, channelName);
+    if (!var) {
+        mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix, channelName);
+        return NULL;
+    }
+
+    if (!ChannelTypeEq(type, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var)))) {
+        mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelName);
+        mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
+                ChannelTypeToString(type),
+                ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
+        return NULL;
+    }
+
+    val = Fmu2ValueScalarMake(channelName, var, unitString, NULL);
+    if (!val) {
+        mcx_log(LOG_ERROR, "%s: Could not set value for channel %s", logPrefix, channelName);
+        return NULL;
+    }
+
+    return val;
+}
+
+Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, const char * channelName, ChannelDimension * dimension, const char * unitString, fmi2_import_t * fmiImport) {
+    Fmu2Value * val = NULL;
+    fmi2_import_variable_t * var = NULL;
+
+    if (dimension->num > 1) {
+        mcx_log(LOG_ERROR, "%s: Port %s: Invalid dimension", logPrefix, channelName);
+        return RETURN_ERROR;
+    }
+
+    size_t i = 0;
+    size_t startIdx = dimension->startIdxs[0];
+    size_t endIdx = dimension->endIdxs[0];
+
+    fmi2_import_variable_t ** vars = mcx_calloc(endIdx - startIdx + 1, sizeof(fmi2_import_variable_t *));
+    if (!vars) {
+        return NULL;
+    }
+
+    for (i = startIdx; i <= endIdx; i++) {
+        char * indexedChannelName = CreateIndexedName(channelName, i);
+        fmi2_import_variable_t * var = fmi2_import_get_variable_by_name(fmiImport, indexedChannelName);
+        if (!var) {
+            mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix, indexedChannelName);
+            return NULL;
+        }
+        if (!ChannelTypeEq(ChannelTypeArrayInner(type), Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var)))) {
+            mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, indexedChannelName);
+            mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
+                    ChannelTypeToString(ChannelTypeArrayInner(type)),
+                    ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
+            return NULL;
+        }
+        vars[i - startIdx] = var;
+
+        mcx_free(indexedChannelName);
+    }
+
+    size_t dims[] = { endIdx - startIdx + 1 };
+    val = Fmu2ValueArrayMake(channelName, 1 /* numDims */, dims, vars, unitString, NULL);
+    if (!val) {
+        mcx_log(LOG_ERROR, "%s: Could not set value for channel %s", logPrefix, channelName);
+        return NULL;
+    }
+
+    return val;
+}
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
