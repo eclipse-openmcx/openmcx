@@ -251,6 +251,19 @@ static int isSpecialChar(unsigned char c) {
     return (c < ' ' || c > '~');
 }
 
+size_t ChannelValueDataDoubleToBuffer(char * buffer, void * value, size_t i) {
+    const size_t precision = 13;
+    return sprintf(buffer, "%*.*E", (unsigned) precision, (unsigned) precision, ((double *) value)[i]);
+}
+
+size_t ChannelValueDataIntegerToBuffer(char * buffer, void * value, size_t i) {
+    return sprintf(buffer, "%d", ((int *) value)[i]);
+}
+
+size_t ChannelValueDataBoolToBuffer(char * buffer, void * value, size_t i) {
+    return sprintf(buffer, "%1d", (((int *) value)[i] != 0) ? 1 : 0);
+}
+
 char * ChannelValueToString(ChannelValue * value) {
     size_t i = 0;
     size_t length = 0;
@@ -265,7 +278,7 @@ char * ChannelValueToString(ChannelValue * value) {
         if (!buffer) {
             return NULL;
         }
-        sprintf(buffer, "%*.*E", (unsigned) precision, (unsigned) precision, value->value.d);
+        ChannelValueDataDoubleToBuffer(buffer, &value->value.d, 0);
         break;
     case CHANNEL_INTEGER:
         length = 1 /* sign */ + mcx_digits10(abs(value->value.i)) + 1 /* string termination*/;
@@ -273,7 +286,7 @@ char * ChannelValueToString(ChannelValue * value) {
         if (!buffer) {
             return NULL;
         }
-        sprintf(buffer, "%d", value->value.i);
+        ChannelValueDataIntegerToBuffer(buffer, &value->value.i, 0);
         break;
     case CHANNEL_BOOL:
         length = 2;
@@ -281,7 +294,7 @@ char * ChannelValueToString(ChannelValue * value) {
         if (!buffer) {
             return NULL;
         }
-        sprintf(buffer, "%1d", (value->value.i != 0) ? 1 : 0);
+        ChannelValueDataBoolToBuffer(buffer, &value->value.i, 0);
         break;
     case CHANNEL_STRING:
         if (!value->value.s) {
@@ -318,6 +331,17 @@ char * ChannelValueToString(ChannelValue * value) {
         }
         break;
     case CHANNEL_ARRAY:{
+        size_t (*fmt)(char * buffer, void * value, size_t i);
+        if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeDouble)) {
+            fmt = ChannelValueDataDoubleToBuffer;
+        } else if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeInteger)) {
+            fmt = ChannelValueDataIntegerToBuffer;
+        } else if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeBool)) {
+            fmt = ChannelValueDataBoolToBuffer;
+        } else {
+            return NULL;
+        }
+
         const char * doubleFmt = "% *.*E";
 
         // TODO:
@@ -333,10 +357,10 @@ char * ChannelValueToString(ChannelValue * value) {
         size_t n = 0;
 
         if (array_num_elements(&value->value.a) > 0) {
-            n += sprintf(buffer + n, doubleFmt, (unsigned)precision, (unsigned)precision, ((double *)value->value.a.data)[0]);
+            n += fmt(buffer + n, value->value.a.data, 0);
             for (i = 1; i < array_num_elements(&value->value.a); i++) {
                 n += sprintf(buffer + n, ",");
-                n += sprintf(buffer + n, doubleFmt, (unsigned)precision, (unsigned)precision, ((double *)value->value.a.data)[i]);
+                n += fmt(buffer + n, value->value.a.data, i);
             }
         }
 
