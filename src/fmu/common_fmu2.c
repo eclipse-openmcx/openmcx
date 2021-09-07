@@ -669,6 +669,7 @@ McxStatus Fmu2UpdateTunableParamValues(ObjectContainer * tunableParams, ObjectCo
 }
 
 
+// TODO: move into fmu2value?
 McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     fmi2_status_t status = fmi2_status_ok;
 
@@ -736,6 +737,25 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
                                 };
 
         status = fmi2_import_set_integer(fmu->fmiImport, vrs, 3, vals);
+
+        break;
+    }
+    case CHANNEL_ARRAY:
+    {
+        fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
+        array * a = (array *) ChannelValueReference(&fmuVal->val);
+
+        size_t num = array_num_elements(a);
+        void * vals = a->data;
+
+        if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
+            status = fmi2_import_set_real(fmu->fmiImport, vrs, num, vals);
+        } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
+            status = fmi2_import_set_integer(fmu->fmiImport, vrs, num, vals);
+        } else {
+            mcx_log(LOG_ERROR, "FMU: Unsupported array variable type: %s", ChannelTypeToString(a->type));
+            return RETURN_ERROR;
+        }
 
         break;
     }
@@ -850,6 +870,25 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
 
         if (RETURN_OK != ChannelValueSetFromReference(chVal, &binary)) {
+            return RETURN_ERROR;
+        }
+
+        break;
+    }
+    case CHANNEL_ARRAY:
+    {
+        fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
+        array * a = (array *) ChannelValueReference(&fmuVal->val);
+
+        size_t num = array_num_elements(a);
+        void * vals = a->data;
+
+        if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
+            status = fmi2_import_get_real(fmu->fmiImport, vrs, num, vals);
+        } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
+            status = fmi2_import_get_integer(fmu->fmiImport, vrs, num, vals);
+        } else {
+            // TODO: log message
             return RETURN_ERROR;
         }
 

@@ -13,6 +13,7 @@
 #include "core/channels/ChannelValue.h"
 #include "CentralParts.h"
 #include "util/string.h"
+#include "util/stdlib.h"
 #include "fmu/common_fmu2.h"
 
 #ifdef __cplusplus
@@ -23,11 +24,9 @@ static void Fmu2ValueDataDestructor(Fmu2ValueData * data) {
 }
 
 static Fmu2ValueData * Fmu2ValueDataCreate(Fmu2ValueData * data) {
-    data->type = FMU2_VALUE_INVALID;
+    memset(data, 0, sizeof(Fmu2ValueData));
 
-    data->data.binary.lo = NULL;
-    data->data.binary.hi = NULL;
-    data->data.binary.size = NULL;
+    data->type = FMU2_VALUE_INVALID;
 
     return data;
 }
@@ -150,6 +149,44 @@ Fmu2ValueData * Fmu2ValueDataScalarMake(fmi2_import_variable_t * scalar) {
     return data;
 }
 
+Fmu2ValueData * Fmu2ValueDataArrayMake(size_t numDims, size_t dims[], fmi2_import_variable_t ** values) {
+    Fmu2ValueData * data = NULL;
+
+    if (!numDims) {
+        return NULL;
+    }
+
+    data = (Fmu2ValueData *) object_create(Fmu2ValueData);
+    if (data) {
+        size_t num = 1;
+        size_t i = 0;
+
+        for (i = 0; i < numDims; i++) {
+            num *= dims[i];
+        }
+
+        data->type = FMU2_VALUE_ARRAY;
+        data->data.array.numDims = numDims;
+        data->data.array.dims = mcx_copy(dims, sizeof(size_t) * numDims);
+        if (!data->data.array.dims) { goto error; }
+
+        data->data.array.values = mcx_copy(values, num * sizeof(fmi2_import_variable_t *));
+        if (!data->data.array.values) { goto error; }
+
+        data->vr.array.values = mcx_calloc(num, sizeof(fmi2_value_reference_t));
+        if (!data->vr.array.values) { goto error; }
+
+        for (i = 0; i < num; i++) {
+            data->vr.array.values[i] = fmi2_import_get_variable_vr(data->data.array.values[i]);
+        }
+    }
+
+    return data;
+error:
+    if (data) { object_destroy(data); }
+    return NULL;
+}
+
 Fmu2ValueData * Fmu2ValueDataBinaryMake(fmi2_import_variable_t * hi, fmi2_import_variable_t * lo, fmi2_import_variable_t * size) {
     Fmu2ValueData * data = (Fmu2ValueData *) object_create(Fmu2ValueData);
 
@@ -176,49 +213,52 @@ static McxStatus Fmu2ValueSetFromChannelValue(Fmu2Value * v, ChannelValue * val)
 }
 
 static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData * data, const char * unit, Channel * channel) {
-    fmi2_base_type_enu_t t;
-
     if (!name || !data) {
         mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Name or data missing");
         return RETURN_ERROR;
     }
 
-    t = fmi2_import_get_variable_base_type(data->data.scalar);
-
     v->name = mcx_string_copy(name);
     v->unit = mcx_string_copy(unit);
     v->data = data;
     v->channel = channel;
-    ChannelValueInit(&v->val, Fmi2TypeToChannelType(t));
 
-    if (!v->name) {
-        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Cannot copy name");
-        return RETURN_ERROR;
-    }
+    if (v->data->type == FMU2_VALUE_SCALAR) {
+        fmi2_base_type_enu_t t = fmi2_import_get_variable_base_type(data->data.scalar);
 
-    switch (t) {
-    case fmi2_base_type_real:
-        v->val.value.d = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(data->data.scalar));
-        break;
-    case fmi2_base_type_int:
-        v->val.value.i = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(data->data.scalar));
-        break;
-    case fmi2_base_type_bool:
-        v->val.value.i = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(data->data.scalar));
-        break;
-    case fmi2_base_type_str: {
-        const char * buffer = fmi2_import_get_string_variable_start(fmi2_import_get_variable_as_string(data->data.scalar));
-        if (RETURN_OK != ChannelValueSetFromReference(&v->val, &buffer)) {
+        ChannelValueInit(&v->val, Fmi2TypeToChannelType(t));
+
+        if (!v->name) {
+            mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Cannot copy name");
             return RETURN_ERROR;
         }
-        break;
-    }
-    case fmi2_base_type_enum:
-        v->val.value.i = fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(data->data.scalar));
-        break;
-    default:
-        mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Base type %s not supported", fmi2_base_type_to_string(t));
-        return RETURN_ERROR;
+
+        switch (t) {
+        case fmi2_base_type_real:
+            v->val.value.d = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(data->data.scalar));
+            break;
+        case fmi2_base_type_int:
+            v->val.value.i = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(data->data.scalar));
+            break;
+        case fmi2_base_type_bool:
+            v->val.value.i = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(data->data.scalar));
+            break;
+        case fmi2_base_type_str: {
+            const char * buffer = fmi2_import_get_string_variable_start(fmi2_import_get_variable_as_string(data->data.scalar));
+            if (RETURN_OK != ChannelValueSetFromReference(&v->val, &buffer)) {
+                return RETURN_ERROR;
+            }
+            break;
+        }
+        case fmi2_base_type_enum:
+            v->val.value.i = fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(data->data.scalar));
+            break;
+        default:
+            mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Base type %s not supported", fmi2_base_type_to_string(t));
+            return RETURN_ERROR;
+        }
+    } else {
+        // TODO
     }
 
     return RETURN_OK;
@@ -280,6 +320,13 @@ Fmu2Value * Fmu2ValueScalarMake(const char * name, fmi2_import_variable_t * scal
     Fmu2Value * value = Fmu2ValueMake(name, data, unit, channel);
 
     value->info = Fmu2VariableInfoMake(scalar);
+
+    return value;
+}
+
+Fmu2Value * Fmu2ValueArrayMake(const char * name, size_t numDims, size_t dims[], fmi2_import_variable_t ** values, const char * unit, Channel * channel) {
+    Fmu2ValueData * data = Fmu2ValueDataArrayMake(numDims, dims, values);
+    Fmu2Value * value = Fmu2ValueMake(name, data, unit, channel);
 
     return value;
 }

@@ -64,16 +64,16 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
         ChannelInfo * inInfo = DatabusGetInChannelInfo(db, i);
         ChannelInfo * outInfo = DatabusGetOutChannelInfo(db, i);
 
-        if (!ChannelTypeEq(inInfo->GetType(inInfo), outInfo->GetType(outInfo))) {
-            ComponentLog(comp, LOG_ERROR, "Types of inport %s and outport %s do not match", inInfo->GetName(inInfo), outInfo->GetName(outInfo));
+        if (!ChannelTypeEq(inInfo->type, outInfo->type)) {
+            ComponentLog(comp, LOG_ERROR, "Types of inport %s and outport %s do not match", ChannelInfoGetName(inInfo), ChannelInfoGetName(outInfo));
             return RETURN_ERROR;
         }
 
         ChannelInfo * info = outInfo;
-        ChannelType * type = info->GetType(info);
+        ChannelType * type = info->type;
 
         if (!ChannelTypeEq(type, &ChannelTypeDouble) || ChannelTypeIsArray(type)) {
-            ComponentLog(comp, LOG_ERROR, "Inport %s: Invalid type", info->GetName(info));
+            ComponentLog(comp, LOG_ERROR, "Inport %s: Invalid type", ChannelInfoGetName(info));
             return RETURN_ERROR;
         }
 
@@ -96,13 +96,13 @@ static McxStatus Setup(Component * comp) {
         ChannelInfo * inInfo = DatabusGetInChannelInfo(db, i);
         ChannelInfo * outInfo = DatabusGetOutChannelInfo(db, i);
 
-        retVal = DatabusSetInReference(db, i, ChannelValueReference(&integrator->deriv[i]), inInfo->GetType(inInfo));
+        retVal = DatabusSetInReference(db, i, ChannelValueReference(&integrator->deriv[i]), inInfo->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register in channel reference");
             return RETURN_ERROR;
         }
 
-        retVal = DatabusSetOutReference(db, i, ChannelValueReference(&integrator->state[i]), outInfo->GetType(outInfo));
+        retVal = DatabusSetOutReference(db, i, ChannelValueReference(&integrator->state[i]), outInfo->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register out channel reference");
             return RETURN_ERROR;

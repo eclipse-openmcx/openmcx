@@ -26,9 +26,10 @@ typedef struct Fmu2ValueData Fmu2ValueData;
 extern const struct ObjectClass _Fmu2ValueData;
 
 typedef enum Fmu2ValueType {
-    FMU2_VALUE_SCALAR
-    , FMU2_VALUE_BINARY_OSI
-    , FMU2_VALUE_INVALID
+    FMU2_VALUE_SCALAR,
+    FMU2_VALUE_ARRAY,
+    FMU2_VALUE_BINARY_OSI,
+    FMU2_VALUE_INVALID
 } Fmu2ValueType;
 
 struct Fmu2ValueData {
@@ -38,6 +39,11 @@ struct Fmu2ValueData {
     union {
         fmi2_import_variable_t * scalar;
         struct {
+            size_t numDims;
+            size_t * dims;
+            fmi2_import_variable_t ** values;
+        } array;
+        struct {
             fmi2_import_variable_t * lo;
             fmi2_import_variable_t * hi;
             fmi2_import_variable_t * size;
@@ -45,6 +51,9 @@ struct Fmu2ValueData {
     } data;
     union {
         fmi2_value_reference_t scalar;
+        struct {
+            fmi2_value_reference_t * values;
+        } array;
         struct {
             fmi2_value_reference_t lo;
             fmi2_value_reference_t hi;
@@ -54,6 +63,7 @@ struct Fmu2ValueData {
 };
 
 Fmu2ValueData * Fmu2ValueDataScalarMake(fmi2_import_variable_t * scalar);
+Fmu2ValueData * Fmu2ValueDataArrayMake(size_t numDims, size_t dims[], fmi2_import_variable_t ** values);
 Fmu2ValueData * Fmu2ValueDataBinaryMake(fmi2_import_variable_t * hi, fmi2_import_variable_t * lo, fmi2_import_variable_t * size);
 
 
@@ -99,6 +109,7 @@ struct Fmu2Value {
 
 Fmu2Value * Fmu2ValueMake(const char * name, Fmu2ValueData * data, const char * unit, Channel * channel);
 Fmu2Value * Fmu2ValueScalarMake(const char * name, fmi2_import_variable_t * scalar, const char * unit, Channel * channel);
+Fmu2Value * Fmu2ValueArrayMake(const char * name, size_t numDims, size_t dims[], fmi2_import_variable_t ** values, const char * unit, Channel * channel);
 Fmu2Value * Fmu2ValueBinaryMake(const char * name, fmi2_import_variable_t * hi, fmi2_import_variable_t * lo, fmi2_import_variable_t * size, Channel * channel);
 
 void Fmu2ValuePrintDebug(Fmu2Value * val);
