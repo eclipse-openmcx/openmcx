@@ -743,9 +743,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     case CHANNEL_ARRAY:
     {
         fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
-        array * a = (array *) ChannelValueReference(&fmuVal->val);
+        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
 
-        size_t num = array_num_elements(a);
+        size_t num = mcx_array_num_elements(a);
         void * vals = a->data;
 
         if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
@@ -878,9 +878,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     case CHANNEL_ARRAY:
     {
         fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
-        array * a = (array *) ChannelValueReference(&fmuVal->val);
+        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
 
-        size_t num = array_num_elements(a);
+        size_t num = mcx_array_num_elements(a);
         void * vals = a->data;
 
         if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {

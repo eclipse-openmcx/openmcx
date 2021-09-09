@@ -178,7 +178,7 @@ int ChannelTypeEq(ChannelType * a, ChannelType * b) {
     }
 }
 
-McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * inner) {
+McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * inner) {
     a->numDims = numDims;
     a->dims = (size_t *) mcx_calloc(sizeof(size_t), numDims);
     if (!a->dims) {
@@ -187,7 +187,7 @@ McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * inn
     memcpy(a->dims, dims, sizeof(size_t) * numDims);
 
     a->type = inner;
-    a->data = (void *) mcx_calloc(ChannelValueTypeSize(inner), array_num_elements(a));
+    a->data = (void *) mcx_calloc(ChannelValueTypeSize(inner), mcx_array_num_elements(a));
     if (!a->data) {
         return RETURN_ERROR;
     }
@@ -195,13 +195,13 @@ McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * inn
     return RETURN_OK;
 }
 
-void array_destroy(array * a) {
+void mcx_array_destroy(mcx_array * a) {
     if (a->dims) { mcx_free(a->dims); }
     if (a->data) { mcx_free(a->data); }
     if (a->type) { ChannelTypeDestructor(a->type); }
 }
 
-int array_dims_match(array * a, array * b) {
+int mcx_array_dims_match(mcx_array * a, mcx_array * b) {
     size_t i = 0;
 
     if (a->numDims != b->numDims) {
@@ -220,7 +220,7 @@ int array_dims_match(array * a, array * b) {
     return 1;
 }
 
-size_t array_num_elements(array * a) {
+size_t mcx_array_num_elements(mcx_array * a) {
     size_t i = 0;
     size_t n = 1;
 
@@ -372,7 +372,7 @@ char * ChannelValueToString(ChannelValue * value) {
         // TODO:
 
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
-        length *= array_num_elements(&value->value.a);
+        length *= mcx_array_num_elements(&value->value.a);
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
@@ -381,9 +381,9 @@ char * ChannelValueToString(ChannelValue * value) {
         size_t i = 0;
         size_t n = 0;
 
-        if (array_num_elements(&value->value.a) > 0) {
+        if (mcx_array_num_elements(&value->value.a) > 0) {
             n += fmt(buffer + n, value->value.a.data, 0);
-            for (i = 1; i < array_num_elements(&value->value.a); i++) {
+            for (i = 1; i < mcx_array_num_elements(&value->value.a); i++) {
                 n += sprintf(buffer + n, ",");
                 n += fmt(buffer + n, value->value.a.data, i);
             }
@@ -530,7 +530,7 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType * type) {
             if (data->a.dims) {
                 memcpy(data->a.dims, type->ty.a.dims, type->ty.a.numDims * sizeof(size_t));
             }
-            data->a.data = mcx_calloc(array_num_elements(&data->a), ChannelValueTypeSize(data->a.type));
+            data->a.data = mcx_calloc(mcx_array_num_elements(&data->a), ChannelValueTypeSize(data->a.type));
             break;
         }
         case CHANNEL_UNKNOWN:
@@ -583,17 +583,17 @@ McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType 
         break;
     case CHANNEL_ARRAY:
         if (NULL != reference) {
-            array * a = (array *) reference;
+            mcx_array * a = (mcx_array *) reference;
 
             // The first call to SetFromReference fixes the dimensions
             if (!data->a.numDims && a->numDims) {
-                if (RETURN_OK != array_init(&data->a, a->numDims, a->dims, a->type)) {
+                if (RETURN_OK != mcx_array_init(&data->a, a->numDims, a->dims, a->type)) {
                     return RETURN_ERROR;
                 }
             }
 
             // Arrays do not support multiplexing (yet)
-            if (!array_dims_match(&data->a, a)) {
+            if (!mcx_array_dims_match(&data->a, a)) {
                 return RETURN_ERROR;
             }
 
@@ -601,7 +601,7 @@ McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType 
                 return RETURN_ERROR;
             }
 
-            memcpy(data->a.data, a->data, ChannelValueTypeSize(data->a.type) * array_num_elements(&data->a));
+            memcpy(data->a.data, a->data, ChannelValueTypeSize(data->a.type) * mcx_array_num_elements(&data->a));
         }
     case CHANNEL_UNKNOWN:
     default:
@@ -673,17 +673,17 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
         break;
     case CHANNEL_ARRAY:
         if (NULL != reference) {
-            array * a = (array *) reference;
+            mcx_array * a = (mcx_array *) reference;
 
             // First Set fixes the dimensions
             if (value->value.a.numDims && !a->numDims) {
-                if (RETURN_OK != array_init(a, value->value.a.numDims, value->value.a.dims, value->value.a.type)) {
+                if (RETURN_OK != mcx_array_init(a, value->value.a.numDims, value->value.a.dims, value->value.a.type)) {
                     return RETURN_ERROR;
                 }
             }
 
             // Arrays do not support multiplexing (yet)
-            if (!array_dims_match(a, &value->value.a)) {
+            if (!mcx_array_dims_match(a, &value->value.a)) {
                 return RETURN_ERROR;
             }
 
@@ -691,7 +691,7 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
                 return RETURN_ERROR;
             }
 
-            memcpy(a->data, value->value.a.data, ChannelValueTypeSize(a->type) * array_num_elements(a));
+            memcpy(a->data, value->value.a.data, ChannelValueTypeSize(a->type) * mcx_array_num_elements(a));
         }
         break;
     case CHANNEL_UNKNOWN:
@@ -901,7 +901,7 @@ ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType *
     ChannelValueInit(value, ChannelTypeArray(type, numDims, dims));
 
     if (value->value.a.data && data) {
-        memcpy(value->value.a.data, data, ChannelValueTypeSize(type) * array_num_elements(&value->value.a));
+        memcpy(value->value.a.data, data, ChannelValueTypeSize(type) * mcx_array_num_elements(&value->value.a));
     }
 
     return value;

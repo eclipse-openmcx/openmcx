@@ -119,11 +119,11 @@ static McxStatus DoStep(Component * comp, size_t group, double time, double delt
     size_t i;
     for (i = 0; i < integrator->num; i++) {
         if (ChannelTypeIsArray(ChannelValueType(&integrator->state[i]))) {
-            array * state = ChannelValueReference(&integrator->state[i]);
-            array * deriv = ChannelValueReference(&integrator->deriv[i]);
+            mcx_array * state = ChannelValueReference(&integrator->state[i]);
+            mcx_array * deriv = ChannelValueReference(&integrator->deriv[i]);
 
             size_t j = 0;
-            for (j = 0; j < array_num_elements(state); j++) {
+            for (j = 0; j < mcx_array_num_elements(state); j++) {
                 ((double *)state->data)[j] = ((double *)state->data)[j] * ((double *)deriv->data)[j] + deltaTime;
             }
 
@@ -144,10 +144,10 @@ static McxStatus Initialize(Component * comp, size_t idx, double startTime) {
     size_t i;
     for (i = 0; i < integrator->num; i++) {
         if (ChannelTypeIsArray(ChannelValueType(&integrator->state[i]))) {
-            array * a = (array *) ChannelValueReference(&integrator->state[i]);
+            mcx_array * a = (mcx_array *) ChannelValueReference(&integrator->state[i]);
             size_t j;
 
-            for (j = 0; j < array_num_elements(a); j++) {
+            for (j = 0; j < mcx_array_num_elements(a); j++) {
                 ((double *) a->data)[j] = integrator->initialState;
             }
         } else {

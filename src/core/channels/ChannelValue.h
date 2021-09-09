@@ -100,12 +100,12 @@ typedef struct {
     size_t * dims;
     ChannelType * type;
     void * data;
-} array;
+} mcx_array;
 
-McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * type);
-void array_destroy(array * a);
-int array_dims_match(array * a, array * b);
-size_t array_num_elements(array * a);
+McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * type);
+void mcx_array_destroy(mcx_array * a);
+int mcx_array_dims_match(mcx_array * a, mcx_array * b);
+size_t mcx_array_num_elements(mcx_array * a);
 
 // TODO: change concrete types to McxDouble, McxInteger, etc
 union ChannelValueData {
@@ -114,7 +114,7 @@ union ChannelValueData {
     int i;
     char * s;
     binary_string b;
-    array a;
+    mcx_array a;
 };
 
 struct ChannelValue {
