@@ -249,7 +249,7 @@ static McxStatus Fmu2ValueGetVariableStart(fmi2_base_type_enu_t t, fmi2_import_v
     return RETURN_OK;
 }
 
-static McxStatus Fmu2ValueGetArrayVariableStart(fmi2_base_type_enu_t t, fmi2_import_variable_t * var, array * a, size_t i) {
+static McxStatus Fmu2ValueGetArrayVariableStart(fmi2_base_type_enu_t t, fmi2_import_variable_t * var, mcx_array * a, size_t i) {
 
     switch (t) {
     case fmi2_base_type_real:
@@ -350,7 +350,7 @@ static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData 
             n *= data->data.array.dims[i];
         }
 
-        array * a = (array *) ChannelValueReference(&v->val);
+        mcx_array * a = (mcx_array *) ChannelValueReference(&v->val);
 
         for (i = 0; i < n; i++) {
             if (RETURN_OK != Fmu2ValueGetArrayVariableStart(t, data->data.array.values[i], a, i)) {
