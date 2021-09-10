@@ -170,6 +170,12 @@ McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * inn
     return RETURN_OK;
 }
 
+void array_destroy(array * a) {
+    if (a->dims) { mcx_free(a->dims); }
+    if (a->data) { mcx_free(a->data); }
+    if (a->type) { ChannelTypeDestructor(a->type); }
+}
+
 int array_dims_match(array * a, array * b) {
     size_t i = 0;
 
