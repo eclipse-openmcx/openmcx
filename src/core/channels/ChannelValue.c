@@ -345,7 +345,11 @@ char * ChannelValueToString(ChannelValue * value) {
         }
         break;
     case CHANNEL_ARRAY:{
+        size_t i = 0;
+        size_t n = 0;
+
         size_t (*fmt)(char * buffer, void * value, size_t i);
+
         if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeDouble)) {
             fmt = ChannelValueDataDoubleToBuffer;
         } else if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeInteger)) {
@@ -356,19 +360,12 @@ char * ChannelValueToString(ChannelValue * value) {
             return NULL;
         }
 
-        const char * doubleFmt = "% *.*E";
-
-        // TODO:
-
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
         length *= mcx_array_num_elements(&value->value.a);
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
         }
-
-        size_t i = 0;
-        size_t n = 0;
 
         if (mcx_array_num_elements(&value->value.a) > 0) {
             n += fmt(buffer + n, value->value.a.data, 0);
