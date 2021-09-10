@@ -96,6 +96,7 @@ typedef struct {
 } array;
 
 McxStatus array_init(array * a, size_t numDims, size_t * dims, ChannelType * type);
+void array_destroy(array * a);
 int array_dims_match(array * a, array * b);
 size_t array_num_elements(array * a);
 
