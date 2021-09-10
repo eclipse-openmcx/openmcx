@@ -15,17 +15,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-void * mcx_copy(void * object, size_t size) {
-    void * copy = mcx_malloc(size);
-    if (!copy) {
-        return NULL;
-    }
-
-    memcpy(copy, object, size);
-
-    return copy;
-}
-
 ChannelType ChannelTypeUnknown = { CHANNEL_UNKNOWN, NULL};
 ChannelType ChannelTypeInteger = { CHANNEL_INTEGER, NULL};
 ChannelType ChannelTypeDouble = { CHANNEL_DOUBLE, NULL};

@@ -18,8 +18,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-void * mcx_copy(void * object, size_t size);
-
 char * CreateIndexedName(const char * name, unsigned i);
 
 // possible types of values that can be put on channels
