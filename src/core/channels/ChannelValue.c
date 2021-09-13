@@ -453,8 +453,6 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
     case CHANNEL_ARRAY: {
     const char * doubleFmt = "% *.*E";
 
-        // TODO:
-
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
         if (len < length) {
             mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
@@ -526,7 +524,7 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType * type) {
 }
 
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference) {
-    if (!reference) { return RETURN_OK; } // TODO: change to ERROR
+    if (!reference) { return RETURN_OK; }
 
     switch (type->con) {
     case CHANNEL_DOUBLE:
@@ -688,7 +686,6 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
     return RETURN_OK;
 }
 
-// TODO: invalid size should be (-1)
 #ifdef __cplusplus
 size_t ChannelValueTypeSize(ChannelType * type) {
     switch (type->con) {
