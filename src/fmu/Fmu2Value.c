@@ -358,19 +358,15 @@ static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData 
             }
         }
     } else if (v->data->type == FMU2_VALUE_BINARY_OSI) {
-        return RETURN_OK;
+        ChannelValueInit(&v->val, &ChannelTypeBinary);
 
-        // TODO: Setting the initial value causes some memory errors.
-
-        // ChannelValueInit(&v->val, &ChannelTypeBinary);
-
-        // if (RETURN_OK != Fmu2ValueGetBinaryVariableStart(
-        //         data->data.binary.hi,
-        //         data->data.binary.lo,
-        //         data->data.binary.size,
-        //         &v->val)) {
-        //     return RETURN_ERROR;
-        // }
+        if (RETURN_OK != Fmu2ValueGetBinaryVariableStart(
+                data->data.binary.hi,
+                data->data.binary.lo,
+                data->data.binary.size,
+                &v->val)) {
+            return RETURN_ERROR;
+        }
 
 
     } else {
