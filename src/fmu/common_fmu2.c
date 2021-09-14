@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "fmu/common_fmu2.h"
+#include "core/channels/ChannelValue.h"
 #include "fmu/common_fmu.h" /* for jm callbacks */
 
 #include "fmu/Fmu2Value.h"
