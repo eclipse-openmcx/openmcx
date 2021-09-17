@@ -192,7 +192,20 @@ static McxStatus AddFilter(Connection * connection) {
     if (filteredConnection->data->filter) {
         mcx_log(LOG_DEBUG, "Connection: Not inserting filter");
     } else {
-        filteredConnection->data->filter = FilterFactory(connection);
+        ConnectionInfo *info = connection->GetInfo(connection);
+        const char * connString = ConnectionInfoConnectionString(info);
+
+        filteredConnection->data->filter = FilterFactory(&connection->state_,
+                                                         info->interExtrapolationType,
+                                                         &info->interExtrapolationParams,
+                                                         ConnectionInfoGetType(info),
+                                                         info->isInterExtrapolating,
+                                                         ConnectionInfoIsDecoupled(info),
+                                                         info->sourceComponent,
+                                                         info->targetComponent,
+                                                         connString);
+        mcx_free(connString);
+
         if (NULL == filteredConnection->data->filter) {
             mcx_log(LOG_DEBUG, "Connection: No Filter created");
             retVal = RETURN_ERROR;

@@ -211,7 +211,16 @@ struct Connection {
 // Common Functionality for Subclasses
 McxStatus ConnectionSetup(Connection * connection, struct ChannelOut * out, struct ChannelIn * in, ConnectionInfo * info);
 
-struct ChannelFilter * FilterFactory(Connection * connection);
+struct ChannelFilter *FilterFactory(ConnectionState *state,
+                                    InterExtrapolationType extrapolation_type,
+                                    InterExtrapolationParams *extrapolation_params,
+                                    ChannelType *channel_type,
+                                    InterExtrapolatingType inter_extrapolating_type,
+                                    int is_decoupled,
+                                    Component * sourceComp,
+                                    Component * targetComp,
+                                    const char * connString);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
