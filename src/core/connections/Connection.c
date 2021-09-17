@@ -127,9 +127,7 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
     return RETURN_OK;
 }
 
-static void LogStepRatios(double sourceStep, double targetStep, double synchStep, ConnectionInfo * info) {
-    char * connString = ConnectionInfoConnectionString(info);
-
+static void LogStepRatios(double sourceStep, double targetStep, double synchStep, const char * connString) {
     if (sourceStep <= synchStep && targetStep <= synchStep) {
         MCX_DEBUG_LOG("CONN %s: source <= synch && target <= synch", connString);
     } else if (sourceStep <= synchStep && targetStep > synchStep) {
@@ -139,18 +137,13 @@ static void LogStepRatios(double sourceStep, double targetStep, double synchStep
     } else {
         MCX_DEBUG_LOG("CONN %s: source > synch && target > synch", connString);
     }
-
-    mcx_free(connString);
 }
 
 static int ComponentMightNotRespectStepSize(Component * comp) {
     return FALSE;
 }
 
-static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
-    Component * source = info->sourceComponent;
-    Component * target = info->targetComponent;
-
+static size_t DetermineFilterBufferSize(Component * source, Component * target, const char * connString) {
     Model * model = source->GetModel(source);
     Task * task = model->GetTask(model);
 
@@ -173,10 +166,8 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     buffSize += model->config->interpolationBuffSizeSafetyExt;
 
     if (buffSize > model->config->interpolationBuffSizeLimit) {
-        char * connString = ConnectionInfoConnectionString(info);
         mcx_log(LOG_WARNING, "%s: buffer limit exceeded (%zu > &zu). Limit can be changed via MC_INTERPOLATION_BUFFER_SIZE_LIMIT.",
                 connString, buffSize, model->config->interpolationBuffSizeLimit);
-        mcx_free(connString);
 
         buffSize = model->config->interpolationBuffSizeLimit;
     }
@@ -184,11 +175,8 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     return buffSize;
 }
 
-static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
+static size_t MemoryFilterHistorySize(Component * sourceComp, Component * targetComp, int extDegree, const char * connString) {
     size_t size = 0;
-
-    Component * sourceComp = info->sourceComponent;
-    Component * targetComp = info->targetComponent;
 
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
@@ -929,11 +917,9 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     }
 
     if (size + model->config->memFilterHistoryExtra > limit) {
-        char * connString = ConnectionInfoConnectionString(info);
         mcx_log(LOG_WARNING, "%s: history size limit exceeded (%zu > &zu). Limit can be changed via MC_MEM_FILTER_HISTORY_LIMIT. "
                              "Disabling memory filter",
                 connString, size + model->config->memFilterHistoryExtra, limit);
-        mcx_free(connString);
 
         return 0;
     }
@@ -963,46 +949,51 @@ static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType * sourceTyp
     return filter;
 }
 
-ChannelFilter * FilterFactory(Connection * connection) {
+ChannelFilter * FilterFactory(ConnectionState * state,
+                              InterExtrapolationType extrapolation_type,
+                              InterExtrapolationParams * extrapolation_params,
+                              ChannelType * channel_type,
+                              InterExtrapolatingType inter_extrapolating_type,
+                              int is_decoupled,
+                              Component * sourceComp,
+                              Component * targetComp,
+                              const char * connString) {
     ChannelFilter * filter = NULL;
     McxStatus retVal;
-    ConnectionInfo * info = connection->GetInfo(connection);
 
-    InterExtrapolationType extrapolType = info->interExtrapolationType;
-    InterExtrapolationParams * params = &info->interExtrapolationParams;
-
-    Component * sourceComp = info->sourceComponent;
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
     int useInputsAtEndTime = task->useInputsAtEndTime;
 
-    if (ChannelTypeEq(ConnectionInfoGetType(info), &ChannelTypeDouble)) {
-        if (!(INTERVAL_COUPLING == params->interpolationInterval && INTERVAL_SYNCHRONIZATION == params->extrapolationInterval)) {
+    if (ChannelTypeEq(channel_type, &ChannelTypeDouble)) {
+        if (!(INTERVAL_COUPLING == extrapolation_params->interpolationInterval &&
+              INTERVAL_SYNCHRONIZATION == extrapolation_params->extrapolationInterval))
+        {
             mcx_log(LOG_WARNING, "The use of inter/extrapolation interval settings for double is not supported");
         }
-        if (extrapolType == INTEREXTRAPOLATION_POLYNOMIAL) {
+        if (extrapolation_type == INTEREXTRAPOLATION_POLYNOMIAL) {
 
-            InterExtrapolatingType isInterExtrapol = info->isInterExtrapolating;
-            if (INTERPOLATING == isInterExtrapol && ConnectionInfoIsDecoupled(info)) {
-                isInterExtrapol = INTEREXTRAPOLATING;
+            if (INTERPOLATING == inter_extrapolating_type && is_decoupled) {
+                inter_extrapolating_type = INTEREXTRAPOLATING;
             }
 
-            int degree = (INTERPOLATING == isInterExtrapol) ? params->interpolationOrder : params->extrapolationOrder;
+            int degree = (INTERPOLATING == inter_extrapolating_type) ? extrapolation_params->interpolationOrder :
+                                                                       extrapolation_params->extrapolationOrder;
 
-            if (EXTRAPOLATING == isInterExtrapol || INTEREXTRAPOLATING == isInterExtrapol) {
-                    size_t memFilterHist = MemoryFilterHistorySize(info, params->extrapolationOrder);
+            if (EXTRAPOLATING == inter_extrapolating_type || INTEREXTRAPOLATING == inter_extrapolating_type) {
+                    size_t memFilterHist = MemoryFilterHistorySize(sourceComp, targetComp, extrapolation_params->extrapolationOrder, connString);
                     if (0 != memFilterHist) {
-                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
+                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, channel_type, memFilterHist);
                         if (!filter) {
                             return NULL;
                         }
-                    } else if (INTEREXTRAPOLATING == isInterExtrapol) {
+                    } else if (INTEREXTRAPOLATING == inter_extrapolating_type) {
                         IntExtFilter * intExtFilter = (IntExtFilter *)object_create(IntExtFilter);
                         filter = (ChannelFilter *)intExtFilter;
                         mcx_log(LOG_DEBUG, "    Setting up dynamic filter. (%p)", filter);
-                        mcx_log(LOG_DEBUG, "    Interpolation order: %d, extrapolation order: %d", params->interpolationOrder, params->extrapolationOrder);
-                        size_t buffSize = DetermineFilterBufferSize(info);
-                        retVal = intExtFilter->Setup(intExtFilter, params->extrapolationOrder, params->interpolationOrder, buffSize);
+                        mcx_log(LOG_DEBUG, "    Interpolation order: %d, extrapolation order: %d", extrapolation_params->interpolationOrder, extrapolation_params->extrapolationOrder);
+                        size_t buffSize = DetermineFilterBufferSize(sourceComp, targetComp, connString);
+                        retVal = intExtFilter->Setup(intExtFilter, extrapolation_params->extrapolationOrder, extrapolation_params->interpolationOrder, buffSize);
                         if (RETURN_OK != retVal) {
                             return NULL;
                         }
@@ -1017,9 +1008,9 @@ ChannelFilter * FilterFactory(Connection * connection) {
                         }
                     }
             } else {
-                size_t memFilterHist = MemoryFilterHistorySize(info, degree);
+                size_t memFilterHist = MemoryFilterHistorySize(sourceComp, targetComp, degree, connString);
                 if (0 != memFilterHist) {
-                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
+                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, channel_type, memFilterHist);
                     if (!filter) {
                         return NULL;
                     }
@@ -1028,7 +1019,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
                     filter = (ChannelFilter*)intFilter;
                     mcx_log(LOG_DEBUG, "    Setting up coupling step interpolation filter. (%p)", filter);
                     mcx_log(LOG_DEBUG, "    Interpolation order: %d", degree);
-                    size_t buffSize = DetermineFilterBufferSize(info);
+                    size_t buffSize = DetermineFilterBufferSize(sourceComp, targetComp, connString);
                     retVal = intFilter->Setup(intFilter, degree, buffSize);
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Connection: Filter: Could not setup");
@@ -1045,28 +1036,28 @@ ChannelFilter * FilterFactory(Connection * connection) {
     } else {
         DiscreteFilter * discreteFilter = NULL;
 
-        if (!(0 == params->extrapolationOrder &&
-              0 == params->interpolationOrder &&
-              INTERVAL_COUPLING == params->interpolationInterval &&
-              INTERVAL_SYNCHRONIZATION == params->extrapolationInterval
+        if (!(0 == extrapolation_params->extrapolationOrder &&
+              0 == extrapolation_params->interpolationOrder &&
+              INTERVAL_COUPLING == extrapolation_params->interpolationInterval &&
+              INTERVAL_SYNCHRONIZATION == extrapolation_params->extrapolationInterval
         )) {
             mcx_log(LOG_WARNING, "Invalid inter/extrapolation settings for non-double connection detected");
         }
         mcx_log(LOG_DEBUG, "Using constant synchronization step extrapolation for non-double connection");
 
         discreteFilter = (DiscreteFilter *) object_create(DiscreteFilter);
-        discreteFilter->Setup(discreteFilter, ConnectionInfoGetType(info));
+        discreteFilter->Setup(discreteFilter, channel_type);
 
 
         filter = (ChannelFilter *) discreteFilter;
     }
 
-    if (NULL == filter && ChannelTypeEq(ConnectionInfoGetType(info), &ChannelTypeDouble)) {
+    if (NULL == filter && ChannelTypeEq(channel_type, &ChannelTypeDouble)) {
         // TODO: add a check to avoid filters for non-multirate cases
 
-        size_t memFilterHist = MemoryFilterHistorySize(info, 0);
+        size_t memFilterHist = MemoryFilterHistorySize(sourceComp, targetComp, 0, connString);
         if (0 != memFilterHist) {
-            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
+            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, channel_type, memFilterHist);
             if (!filter) {
                 return NULL;
             }
@@ -1077,7 +1068,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
         }
     }
 
-    filter->AssignState(filter, &connection->state_);
+    filter->AssignState(filter, state);
 
     return filter;
 }
