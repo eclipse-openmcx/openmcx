@@ -134,9 +134,13 @@ static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, Channel
             mcx_log(LOG_ERROR, "Port %s: Set inport reference: Port not set up", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
-        if (!ChannelTypeMatch(info->type, type)) {
-            mcx_log(LOG_ERROR, "Port %s: Set inport reference: Mismatching types", ChannelInfoGetLogName(info));
-            return RETURN_ERROR;
+        if (!ChannelTypeEq(info->type, type)) {
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
+                // ok
+            } else {
+                mcx_log(LOG_ERROR, "Port %s: Set inport reference: Mismatching types", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
+            }
         }
     }
 
