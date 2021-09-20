@@ -160,8 +160,6 @@ int ChannelTypeEq(ChannelType * a, ChannelType * b) {
             }
         }
         return 1;
-    } else if ((a->con == CHANNEL_BINARY || a->con == CHANNEL_BINARY_REFERENCE) &&
-        (b->con == CHANNEL_BINARY || b->con == CHANNEL_BINARY_REFERENCE)) {
     } else {
         return a->con == b->con;
     }
@@ -744,8 +742,9 @@ const char * ChannelTypeToString(ChannelType * type) {
     case CHANNEL_STRING:
         return "String";
     case CHANNEL_BINARY:
-    case CHANNEL_BINARY_REFERENCE:
         return "Binary";
+    case CHANNEL_BINARY_REFERENCE:
+        return "BinaryReference";
     case CHANNEL_ARRAY:
         return "Array";
     default:
