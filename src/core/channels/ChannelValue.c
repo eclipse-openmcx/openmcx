@@ -338,7 +338,13 @@ char * ChannelValueToString(ChannelValue * value) {
             size_t i = 0;
 
             for (i = 0; i < value->value.b.len; i++) {
-                sprintf(buffer + (4 * i), "\\x%02x", value->value.b.data[i]);
+                // specifier: x (hex integer) -----+
+                // length: 2 (unsigned char) -----+|
+                // width: 2 --------------------+ ||
+                // flag: 0-padded -------------+| ||
+                //                             || ||
+                // string literal "\x" ------+ || ||
+                sprintf(buffer + (4 * i), "\\x%02hhx", value->value.b.data[i]);
             }
         }
         break;
