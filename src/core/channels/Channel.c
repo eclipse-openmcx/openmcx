@@ -10,6 +10,7 @@
 
 #include "CentralParts.h"
 #include "core/Config.h"
+#include "core/channels/ChannelValue.h"
 #include "core/connections/Connection.h"
 #include "core/Conversion.h"
 
@@ -110,6 +111,9 @@ static void ChannelInDataDestructor(ChannelInData * data) {
     if (data->rangeConversion) {
         object_destroy(data->rangeConversion);
     }
+    if (data->type) {
+        ChannelTypeDestructor(data->type);
+    }
 }
 
 OBJECT_CLASS(ChannelInData, Object);
@@ -145,6 +149,7 @@ static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, Channel
     }
 
     in->data->reference = reference;
+    in->data->type = ChannelTypeClone(type);
 
     return RETURN_OK;
 }
@@ -253,7 +258,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
     }
 
-    if (RETURN_OK != ChannelValueDataSetFromReference(in->data->reference, info->type, channel->GetValueReference(channel))) {
+    if (RETURN_OK != ChannelValueDataSetFromReference(in->data->reference, in->data->type, channel->GetValueReference(channel))) {
         return RETURN_ERROR;
     }
 

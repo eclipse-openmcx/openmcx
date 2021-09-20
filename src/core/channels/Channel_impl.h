@@ -44,6 +44,7 @@ typedef struct ChannelInData {
     int isDiscrete;
 
     void * reference;
+    ChannelType * type;
 } ChannelInData;
 
 // ----------------------------------------------------------------------
