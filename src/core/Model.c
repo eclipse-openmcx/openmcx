@@ -677,7 +677,6 @@ static void ModelDestructor(void * self) {
     object_destroy(model->initialSubModelGenerator);
     object_destroy(model->subModel);
     object_destroy(model->initialSubModel);
-
 }
 
 static McxStatus ModelReadComponents(void * self, ComponentsInput * input) {
