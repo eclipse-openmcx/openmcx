@@ -222,6 +222,40 @@ size_t mcx_array_num_elements(mcx_array * a) {
     return n;
 }
 
+McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element) {
+    size_t num_elems = mcx_array_num_elements(a);
+
+    if (idx >= num_elems) {
+        mcx_log(LOG_ERROR, "mcx_array_get_elem: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
+        return RETURN_ERROR;
+    }
+
+    switch (a->type->con) {
+        case CHANNEL_DOUBLE:
+            ChannelValueDataSetFromReference(element, a->type, ((double*)a->data) + idx);
+            break;
+        case CHANNEL_INTEGER:
+        case CHANNEL_BOOL:
+            ChannelValueDataSetFromReference(element, a->type, ((int *) a->data) + idx);
+            break;
+        case CHANNEL_STRING:
+            ChannelValueDataSetFromReference(element, a->type, ((char **) a->data) + idx);
+            break;
+        case CHANNEL_BINARY:
+        case CHANNEL_BINARY_REFERENCE:
+            ChannelValueDataSetFromReference(element, a->type, ((binary_string *) a->data) + idx);
+            break;
+        case CHANNEL_ARRAY:
+            ChannelValueDataSetFromReference(element, a->type, ((mcx_array *) a->data) + idx);
+            break;
+        default:
+            mcx_log(LOG_ERROR, "mcx_array_get_elem: Unknown array type");
+            return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
 void ChannelValueInit(ChannelValue * value, ChannelType * type) {
     value->type = type;
     ChannelValueDataInit(&value->value, type);
@@ -617,77 +651,82 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
     return RETURN_OK;
 }
 
-McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
-    switch (value->type->con) {
-    case CHANNEL_DOUBLE:
-        * (double *) reference = value->value.d;
-        break;
-    case CHANNEL_INTEGER:
-        * (int *) reference = value->value.i;
-        break;
-    case CHANNEL_BOOL:
-        * (int *) reference = value->value.i;
-        break;
-    case CHANNEL_STRING:
-        if (* (char **) reference) {
-            mcx_free(* (char **) reference);
-            * (char **) reference = NULL;
-        }
-        if (value->value.s) {
-            * (char **) reference = (char *) mcx_calloc(strlen(value->value.s) + 1, sizeof(char));
-            if (* (char **) reference) {
-                strncpy(* (char **) reference, value->value.s, strlen(value->value.s) + 1);
+McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            *(double *) reference = value->d;
+            break;
+        case CHANNEL_INTEGER:
+            *(int *) reference = value->i;
+            break;
+        case CHANNEL_BOOL:
+            *(int *) reference = value->i;
+            break;
+        case CHANNEL_STRING:
+            if (*(char **) reference) {
+                mcx_free(*(char **) reference);
+                *(char **) reference = NULL;
             }
-        }
-        break;
-    case CHANNEL_BINARY:
-        if (NULL != reference && NULL != ((binary_string *) reference)->data) {
-            mcx_free(((binary_string *) reference)->data);
-            ((binary_string *) reference)->data = NULL;
-        }
-        if (value->value.b.data) {
-            ((binary_string *) reference)->len = value->value.b.len;
-            ((binary_string *) reference)->data = (char *) mcx_calloc(value->value.b.len, 1);
-            if (((binary_string *) reference)->data) {
-                memcpy(((binary_string *) reference)->data, value->value.b.data, value->value.b.len);
-            }
-        }
-        break;
-    case CHANNEL_BINARY_REFERENCE:
-        if (NULL != reference) {
-            ((binary_string *) reference)->len = value->value.b.len;
-            ((binary_string *) reference)->data = value->value.b.data;
-        }
-        break;
-    case CHANNEL_ARRAY:
-        if (NULL != reference) {
-            mcx_array * a = (mcx_array *) reference;
-
-            // First Set fixes the dimensions
-            if (value->value.a.numDims && !a->numDims) {
-                if (RETURN_OK != mcx_array_init(a, value->value.a.numDims, value->value.a.dims, value->value.a.type)) {
-                    return RETURN_ERROR;
+            if (value->s) {
+                *(char **) reference = (char *) mcx_calloc(strlen(value->s) + 1, sizeof(char));
+                if (*(char **) reference) {
+                    strncpy(*(char **) reference, value->s, strlen(value->s) + 1);
                 }
             }
-
-            // Arrays do not support multiplexing (yet)
-            if (!mcx_array_dims_match(a, &value->value.a)) {
-                return RETURN_ERROR;
+            break;
+        case CHANNEL_BINARY:
+            if (NULL != reference && NULL != ((binary_string *) reference)->data) {
+                mcx_free(((binary_string *) reference)->data);
+                ((binary_string *) reference)->data = NULL;
             }
-
-            if (value->value.a.data == NULL || a->data == NULL) {
-                return RETURN_ERROR;
+            if (value->b.data) {
+                ((binary_string *) reference)->len = value->b.len;
+                ((binary_string *) reference)->data = (char *) mcx_calloc(value->b.len, 1);
+                if (((binary_string *) reference)->data) {
+                    memcpy(((binary_string *) reference)->data, value->b.data, value->b.len);
+                }
             }
+            break;
+        case CHANNEL_BINARY_REFERENCE:
+            if (NULL != reference) {
+                ((binary_string *) reference)->len = value->b.len;
+                ((binary_string *) reference)->data = value->b.data;
+            }
+            break;
+        case CHANNEL_ARRAY:
+            if (NULL != reference) {
+                mcx_array * a = (mcx_array *) reference;
 
-            memcpy(a->data, value->value.a.data, ChannelValueTypeSize(a->type) * mcx_array_num_elements(a));
-        }
-        break;
-    case CHANNEL_UNKNOWN:
-    default:
-        break;
+                // First Set fixes the dimensions
+                if (value->a.numDims && !a->numDims) {
+                    if (RETURN_OK != mcx_array_init(a, value->a.numDims, value->a.dims, value->a.type)) {
+                        return RETURN_ERROR;
+                    }
+                }
+
+                // Arrays do not support multiplexing (yet)
+                if (!mcx_array_dims_match(a, &value->a)) {
+                    return RETURN_ERROR;
+                }
+
+                if (value->a.data == NULL || a->data == NULL) {
+                    return RETURN_ERROR;
+                }
+
+                memcpy(a->data, value->a.data, ChannelValueTypeSize(a->type) * mcx_array_num_elements(a));
+            }
+            break;
+        case CHANNEL_UNKNOWN:
+        default:
+            break;
     }
 
     return RETURN_OK;
+
+}
+
+McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
+    return ChannelValueDataSetToReference(&value->value, value->type, reference);
 }
 
 #ifdef __cplusplus

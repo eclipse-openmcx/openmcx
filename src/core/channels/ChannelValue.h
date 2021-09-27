@@ -104,6 +104,7 @@ McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelTy
 void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
 size_t mcx_array_num_elements(mcx_array * a);
+McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element);
 
 // TODO: change concrete types to McxDouble, McxInteger, etc
 union ChannelValueData {
@@ -133,6 +134,7 @@ void *      ChannelValueReference(ChannelValue * value);
 void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
 void ChannelValueDataInit(ChannelValueData * data, ChannelType * type);
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
+McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference);
 
 McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
 McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference);
