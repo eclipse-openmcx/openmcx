@@ -61,6 +61,23 @@ ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
     }
 }
 
+const char * Fmi2TypeToString(fmi2_base_type_enu_t type) {
+    switch (type) {
+    case fmi2_base_type_real:
+        return "fmi2Real";
+    case fmi2_base_type_int:
+        return "fmi2Integer";
+    case fmi2_base_type_bool:
+        return "fmi2Bool";
+    case fmi2_base_type_str:
+        return "fmi2String";
+    case fmi2_base_type_enum:
+        return "fmi2Enum";
+    }
+    return "fmi2Unknown";
+}
+
+
 McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->fmiImport = NULL;
 
