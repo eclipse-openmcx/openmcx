@@ -20,7 +20,7 @@ extern "C" {
 
 MapStringInt storeLevelMapping[] = {
     {"none",            STORE_NONE},
-    {"micro",           STORE_COUPLING},       // fall back to COUPLING for now
+    {"micro",           STORE_MICRO},
     {"coupling",        STORE_COUPLING},
     {"synchronization", STORE_SYNCHRONIZATION},
     {NULL, 0}

@@ -150,6 +150,7 @@ typedef enum StoreLevel {
     STORE_NONE  = 1,
     STORE_SYNCHRONIZATION = 2,
     STORE_COUPLING = 3,
+    STORE_MICRO = 4,
 } StoreLevel;
 
 typedef enum {
