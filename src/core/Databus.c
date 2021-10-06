@@ -736,16 +736,6 @@ size_t DatabusInfoGetChannelNum(DatabusInfo * info) {
     return info->data->infos->Size(info->data->infos);
 }
 
-// Only returns SIZE_T_ERROR if info was NULL
-size_t DatabusInfoGetVectorChannelNum(DatabusInfo * info) {
-    if (!info) {
-        mcx_log(LOG_ERROR, "Ports: Get vector port number: Invalid structure");
-        return SIZE_T_ERROR;
-    }
-
-    return info->data->infos->Size(info->data->infos);
-}
-
 ChannelInfo * DatabusInfoGetChannel(DatabusInfo * info, size_t i) {
     if (!info) {
         mcx_log(LOG_ERROR, "Ports: Get port info: Invalid structure");
