@@ -468,6 +468,7 @@ static ChannelIn * ChannelInCreate(ChannelIn * in) {
 
 static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
     data->valueFunction = NULL;
+    ChannelValueInit(&data->valueFunctionRes, ChannelTypeClone(&ChannelTypeUnknown));
     data->rangeConversion = NULL;
     data->linearConversion = NULL;
 
@@ -499,6 +500,8 @@ static void ChannelOutDataDestructor(ChannelOutData * data) {
         object_destroy(conns->elements[i]);
     }
     object_destroy(data->connections);
+
+    ChannelValueDestructor(&data->valueFunctionRes);
 }
 
 OBJECT_CLASS(ChannelOutData, Object);
@@ -678,6 +681,9 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
     // Save channel procedure
     out->data->valueFunction = (const proc *) reference;
 
+    // Initialize (and allocate necessary memory)
+    ChannelValueInit(&out->data->valueFunctionRes, ChannelTypeClone(type));
+
     // Setup value reference to point to internal value
     channel->internalValue = ChannelValueReference(&channel->value);
 
@@ -716,17 +722,20 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         if (out->GetFunction(out)) {
             // function value
             proc * p = (proc *) out->GetFunction(out);
-            ChannelValueData val = { 0 };
-            if (p->fn(time, p->env, &val) != 0) {
+            if (p->fn(time, p->env, &out->data->valueFunctionRes) != 0) {
                 mcx_log(LOG_ERROR, "Port %s: Update outport: Function failed", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
-                MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, val.d);
+                MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)",
+                              time->startTime,
+                              ChannelInfoGetLogName(info),
+                              time->startTime,
+                              out->data->valueFunctionRes.value.d);
             }
 #endif // MCX_DEBUG
-            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, &val)) {
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, ChannelValueReference(&out->data->valueFunctionRes))) {
                 return RETURN_ERROR;
             }
         } else {
