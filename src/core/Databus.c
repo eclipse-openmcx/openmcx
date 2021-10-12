@@ -736,6 +736,24 @@ size_t DatabusInfoGetChannelNum(DatabusInfo * info) {
     return info->data->infos->Size(info->data->infos);
 }
 
+size_t DatabusInfoGetChannelElemNum(DatabusInfo * info) {
+    size_t numInfos = info->data->infos->Size(info->data->infos);
+    size_t i = 0;
+    size_t numElems = 0;
+
+    for (i = 0; i < numInfos; i++) {
+        ChannelInfo * chInfo = (ChannelInfo*)info->data->infos->At(info->data->infos, i);
+        if (chInfo->dimension) {
+            // array
+            numElems += ChannelDimensionNumElements(chInfo->dimension);
+        } else {
+            numElems += 1;
+        }
+    }
+
+    return numElems;
+}
+
 ChannelInfo * DatabusInfoGetChannel(DatabusInfo * info, size_t i) {
     if (!info) {
         mcx_log(LOG_ERROR, "Ports: Get port info: Invalid structure");
@@ -880,6 +898,14 @@ size_t DatabusGetRTFactorChannelsNum(Databus * db) {
     }
 
     return DatabusInfoGetChannelNum(DatabusGetRTFactorInfo(db));
+}
+
+size_t DatabusGetOutChannelsElemNum(Databus * db) {
+    return DatabusInfoGetChannelElemNum(DatabusGetOutInfo(db));
+}
+
+size_t DatabusGetInChannelsElemNum(Databus * db) {
+    return DatabusInfoGetChannelElemNum(DatabusGetInInfo(db));
 }
 
 
