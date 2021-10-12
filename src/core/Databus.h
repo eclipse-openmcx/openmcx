@@ -69,6 +69,9 @@ size_t DatabusGetInChannelsNum(struct Databus * db);
  */
 size_t DatabusGetLocalChannelsNum(struct Databus * db);
 
+size_t DatabusGetInChannelsElemNum(Databus * db);
+size_t DatabusGetOutChannelsElemNum(Databus * db);
+
 /**
  * \return The number of rtfactor channels of \a db or -1 if \a db is not initialized
  * correctly.
