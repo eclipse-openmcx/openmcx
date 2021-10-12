@@ -57,6 +57,9 @@ typedef struct ChannelOutData {
     // Function pointer that provides the value of the channel when called
     const proc * valueFunction;
 
+    // Used to store results of channel-internal valueFunction calls
+    ChannelValue valueFunctionRes;
+
     // ----------------------------------------------------------------------
     // Conversion
 
