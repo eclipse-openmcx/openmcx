@@ -24,7 +24,7 @@ static FilteredConnectionData * FilteredConnectionDataCreate(FilteredConnectionD
     data->filters = NULL;
     data->numFilters = 0;
 
-    ChannelValueInit(&data->fnResBuffer, ChannelTypeClone(&ChannelTypeUnknown));
+    ChannelValueInit(&data->updateBuffer, ChannelTypeClone(&ChannelTypeUnknown));
     ChannelValueInit(&data->store, ChannelTypeClone(&ChannelTypeUnknown));
 
     return data;
@@ -32,7 +32,7 @@ static FilteredConnectionData * FilteredConnectionDataCreate(FilteredConnectionD
 
 static void FilteredConnectionDataDestructor(FilteredConnectionData * data) {
     ChannelValueDestructor(&data->store);
-    ChannelValueDestructor(&data->fnResBuffer);
+    ChannelValueDestructor(&data->updateBuffer);
 
     if (data->filters) {
         size_t i = 0;
@@ -71,9 +71,7 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     connection->value_ = ChannelValueReference(&filteredConnection->data->store);
 
     // initialize the buffer for channel function calls
-    if (out->GetFunction(out)) {
-        ChannelValueInit(&filteredConnection->data->fnResBuffer, sourceInfo->type);
-    }
+    ChannelValueInit(&filteredConnection->data->updateBuffer, ChannelTypeClone(sourceInfo->type));
 
     // Connection::Setup()
     // this has to be done last as it connects the channels
@@ -200,12 +198,12 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
     if (out->GetFunction(out)) {
         proc * p = (proc *) out->GetFunction(out);
 
-        if (p->fn(time, p->env, &filteredConnection->data->fnResBuffer) != 0) {
+        if (p->fn(time, p->env, &filteredConnection->data->updateBuffer) != 0) {
             mcx_log(LOG_ERROR, "FilteredConnection: Function failed");
             return RETURN_ERROR;
         }
 
-        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, ChannelValueReference(&filteredConnection->data->fnResBuffer))) {
+        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, ChannelValueReference(&filteredConnection->data->updateBuffer))) {
             mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
             return RETURN_ERROR;
         }
@@ -227,10 +225,8 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
                 size_t numFilters = FilteredConnectionGetNumFilters(filteredConnection);
                 ChannelType * type = info->type;
 
-                mcx_array elements = {0};
-                mcx_array_init(&elements, type->ty.a.numDims, type->ty.a.dims, type->ty.a.inner);
-
-                char * dest = (char *) elements.data;
+                mcx_array * elements = (mcx_array *) ChannelValueReference(&filteredConnection->data->updateBuffer);
+                char * dest = (char *) elements->data;
                 for (i = 0; i < numFilters; i++) {
                     filter = filteredConnection->GetReadFilter(filteredConnection, i);
                     value = filter->GetValue(filter, time->startTime);
@@ -239,7 +235,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
                     dest += ChannelValueTypeSize(ChannelTypeBaseType(type));
                 }
 
-                if (RETURN_OK != filteredConnection->SetResult(filteredConnection, &elements)) {
+                if (RETURN_OK != filteredConnection->SetResult(filteredConnection, elements)) {
                     mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
                     return RETURN_ERROR;
                 }
