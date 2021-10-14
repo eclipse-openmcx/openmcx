@@ -87,6 +87,7 @@ static Channel * ChannelCreate(Channel * channel) {
 static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
     data->connection = NULL;
     data->reference  = NULL;
+    data->type = ChannelTypeClone(&ChannelTypeUnknown);
 
     data->unitConversion = NULL;
     data->typeConversion = NULL;
