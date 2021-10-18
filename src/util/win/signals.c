@@ -22,6 +22,8 @@
  * running inside the signal-handled block. */
 __declspec( thread ) static const char * _signalThreadName = NULL;
 __declspec( thread ) static const char * _signalFunctionName = NULL;
+__declspec( thread ) static const char * _signalFunctionNameStack1 = NULL;
+__declspec( thread ) static const char * _signalFunctionNameStack2 = NULL;
 
 #ifdef __cplusplus
 extern "C" {
@@ -118,11 +120,31 @@ void mcx_signal_handler_unset_name(void) {
 }
 
 void mcx_signal_handler_set_function(const char * functionName) {
+    if (_signalFunctionNameStack2 != NULL) {
+        mcx_log(LOG_ERROR, "Signal handler function callstack overflow!");
+        exit(1); // I guess there is a better way to handle this
+    }
+    if (_signalFunctionNameStack1 != NULL) {
+        _signalFunctionNameStack2 = _signalFunctionNameStack1;
+    }
+    if (_signalFunctionName != NULL) {
+        _signalFunctionNameStack1 = _signalFunctionName;
+    }
     _signalFunctionName = functionName;
 }
 
 void mcx_signal_handler_unset_function(void) {
-    _signalFunctionName = NULL;
+    if (_signalFunctionName == NULL) {
+        mcx_log(LOG_WARNING, "Signal handler function callstack empty. Cannot pop non-existing element.");
+    }
+    if (_signalFunctionNameStack1 != NULL) {
+        _signalFunctionName = _signalFunctionNameStack1;
+        if (_signalFunctionNameStack2 != NULL) {
+            _signalFunctionNameStack1 = _signalFunctionNameStack2;
+        }
+    } else {
+        _signalFunctionName = NULL;
+    }
 }
 
 void mcx_signal_handler_enable(void) {
