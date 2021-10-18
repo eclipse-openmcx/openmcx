@@ -21,6 +21,7 @@
 /* Thread local variable to store the name of the element which is
  * running inside the signal-handled block. */
 __declspec( thread ) static const char * _signalThreadName = NULL;
+__declspec( thread ) static const char * _signalFunctionName = NULL;
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +29,11 @@ extern "C" {
 
 static LONG WINAPI HandleException(PEXCEPTION_POINTERS exception) {
     if (_signalThreadName) {
-        mcx_log(LOG_ERROR, "The element %s caused an unrecoverable error.", _signalThreadName);
+        if (_signalFunctionName) {
+            mcx_log(LOG_ERROR, "The element %s caused an unrecoverable error in %s.", _signalThreadName, _signalFunctionName);
+        } else {
+            mcx_log(LOG_ERROR, "The element %s caused an unrecoverable error.", _signalThreadName);
+        }
     } else {
         mcx_log(LOG_ERROR, "An element caused an unrecoverable error.");
     }
@@ -110,6 +115,14 @@ void mcx_signal_handler_set_name(const char * threadName) {
 
 void mcx_signal_handler_unset_name(void) {
     _signalThreadName = NULL;
+}
+
+void mcx_signal_handler_set_function(const char * functionName) {
+    _signalFunctionName = functionName;
+}
+
+void mcx_signal_handler_unset_function(void) {
+    _signalFunctionName = NULL;
 }
 
 void mcx_signal_handler_enable(void) {
