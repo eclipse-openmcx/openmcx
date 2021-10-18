@@ -50,6 +50,7 @@ typedef struct ConnectionInfo {
     int decouplePriority;
 
     ChannelDimension * sourceDimension;
+    ChannelDimension * targetDimension;
 } ConnectionInfo;
 
 
