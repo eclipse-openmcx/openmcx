@@ -42,6 +42,7 @@ typedef struct ConnectionInfoData {
     int targetChannel;
 
     ChannelDimension * sourceDimension;
+    ChannelDimension * targetDimension;
 
     // Decouple Info: If this connection is decoupled because of an algebraic loop
     // in the model (this means that the value of the source for the target is

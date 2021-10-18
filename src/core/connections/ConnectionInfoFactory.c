@@ -114,7 +114,29 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             goto cleanup;
         }
 
-        // TODO: multiplexing here?
+        // arrays/multiplexing: source slice dimensions
+        if (connInput->fromType == ENDPOINT_VECTOR) {
+            ChannelDimension* sourceDimension = (ChannelDimension*)object_create(ChannelDimension);
+            if (!sourceDimension) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
+                mcx_log(LOG_ERROR, "Source port %s: Could not set number of dimensions", strFromChannel);
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, connInput->from.vectorEndpoint->startIndex, connInput->from.vectorEndpoint->endIndex)) {
+                mcx_log(LOG_ERROR, "Source port %s: Could not set dimension boundaries", strFromChannel);
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            info->sourceDimension = sourceDimension;
+        }
+
         info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
         if (info->sourceChannel < 0) {
             // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
@@ -152,6 +174,33 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             databusInfo = DatabusGetOutInfo(databus);
         }
 
+        // arrays/multiplexing: target slice dimensions
+        if (connInput->toType == ENDPOINT_VECTOR) {
+            ChannelDimension * targetDimension = (ChannelDimension *) object_create(ChannelDimension);
+            if (!targetDimension) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetup(targetDimension, 1)) {
+                mcx_log(LOG_ERROR, "Target port %s: Could not set number of dimensions", strToChannel);
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetDimension(targetDimension,
+                                                          0,
+                                                          (size_t) connInput->to.vectorEndpoint->startIndex,
+                                                          (size_t) connInput->to.vectorEndpoint->endIndex))
+            {
+                mcx_log(LOG_ERROR, "Target port %s: Could not set dimension boundaries", strToChannel);
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            info->targetDimension = targetDimension;
+        }
+
         info->targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
         if (info->targetChannel < 0) {
             if (0 == connectionInverted) {
@@ -170,12 +219,16 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
     if (connectionInverted) {
         int tmp = info->sourceChannel;
         Component * tmpCmp = info->sourceComponent;
+        ChannelDimension * tmpDim = info->sourceDimension;
 
         info->sourceChannel = info->targetChannel;
         info->targetChannel = tmp;
 
         info->sourceComponent = info->targetComponent;
         info->targetComponent = tmpCmp;
+
+        info->sourceDimension = info->targetDimension;
+        info->targetDimension = tmpDim;
 
         mcx_log(LOG_DEBUG, "Connection: Inverted connection (%s, %s) -- (%s, %s)",
             info->targetComponent->GetName(info->targetComponent), strFromChannel, info->sourceComponent->GetName(info->sourceComponent), strToChannel);
