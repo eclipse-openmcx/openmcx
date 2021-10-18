@@ -323,7 +323,6 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
     McxStatus retVal;
 
     in->data->connection = connection;
-    channel->internalValue = connection->GetValueReference(connection);
 
     // setup unit conversion
     inInfo = &channel->info;
@@ -388,7 +387,6 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
         }
 
         channel->SetDefinedDuringInit(channel);
-        channel->internalValue = ChannelValueReference(&channel->value);
     }
 
     // unit conversion is setup when a connection is set
