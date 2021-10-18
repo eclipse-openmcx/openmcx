@@ -23,6 +23,9 @@ void mcx_signal_handler_enable(void);
 void mcx_signal_handler_set_name(const char * threadName);
 void mcx_signal_handler_unset_name(void);
 
+void mcx_signal_handler_set_function(const char * functionName);
+void mcx_signal_handler_unset_function(void);
+
 /**
  * Deletes the handler for SIGSEGV
  */
