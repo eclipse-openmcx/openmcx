@@ -47,6 +47,7 @@ void mcx_signal_handler_sigint(int param);
  */
 int mcx_signal_handler_is_interrupted(void);
 
+const char * mcx_signal_handler_get_function_name(void);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

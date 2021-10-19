@@ -159,6 +159,10 @@ void mcx_signal_handler_disable(void) {
     _signalThreadName = NULL;
 }
 
+const char * mcx_signal_handler_get_function_name(void) {
+    return _signalFunctionName;
+}
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
