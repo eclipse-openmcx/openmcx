@@ -119,7 +119,7 @@ void mcx_signal_handler_unset_name(void) {
     _signalThreadName = NULL;
 }
 
-void mcx_signal_handler_set_function(const char * functionName) {
+void mcx_signal_handler_set_function_internal(const char * functionName) {
     if (_signalFunctionNameStack2 != NULL) {
         mcx_log(LOG_ERROR, "Signal handler function callstack overflow!");
         exit(1); // I guess there is a better way to handle this
