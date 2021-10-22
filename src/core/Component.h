@@ -22,7 +22,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-
 typedef enum ComponentFinishState {
     COMP_IS_FINISHED,
     COMP_IS_NOT_FINISHED,

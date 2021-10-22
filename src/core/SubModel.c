@@ -18,8 +18,9 @@
 #include "core/channels/Channel.h"
 
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif /* __cplusplus */
+
 
 static McxStatus SubModelGeneratorSetComponents(SubModelGenerator * subModelGenerator, ObjectContainer * comps,
                                                 DependencyType depType);
