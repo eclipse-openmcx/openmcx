@@ -28,8 +28,8 @@ void mcx_signal_handler_unset_name(void);
  *
  * Note: __func__ is part of C99 standard (ISO/IEC 9899:1999), section 6.4.2.2
  */
-#define mcx_signal_handler_set_function() mcx_signal_handler_set_function_internal(__func__)
-void mcx_signal_handler_set_function_internal(const char * functionName);
+#define mcx_signal_handler_set_this_function() mcx_signal_handler_set_function(__func__)
+void mcx_signal_handler_set_function(const char * functionName);
 void mcx_signal_handler_unset_function(void);
 
 /**
