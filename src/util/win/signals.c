@@ -124,27 +124,18 @@ void mcx_signal_handler_set_function(const char * functionName) {
         mcx_log(LOG_ERROR, "Signal handler function callstack overflow!");
         exit(1); // I guess there is a better way to handle this
     }
-    if (_signalFunctionNameStack1 != NULL) {
-        _signalFunctionNameStack2 = _signalFunctionNameStack1;
-    }
-    if (_signalFunctionName != NULL) {
-        _signalFunctionNameStack1 = _signalFunctionName;
-    }
+    _signalFunctionNameStack2 = _signalFunctionNameStack1;
+    _signalFunctionNameStack1 = _signalFunctionName;
     _signalFunctionName = functionName;
 }
 
 void mcx_signal_handler_unset_function(void) {
     if (_signalFunctionName == NULL) {
-        mcx_log(LOG_WARNING, "Signal handler function callstack empty. Cannot pop non-existing element.");
+        mcx_log(LOG_WARNING, "Signal handler function callstack in element %s empty. Cannot pop non-existing element.", _signalThreadName);
     }
-    if (_signalFunctionNameStack1 != NULL) {
-        _signalFunctionName = _signalFunctionNameStack1;
-        if (_signalFunctionNameStack2 != NULL) {
-            _signalFunctionNameStack1 = _signalFunctionNameStack2;
-        }
-    } else {
-        _signalFunctionName = NULL;
-    }
+    _signalFunctionName = _signalFunctionNameStack1;
+    _signalFunctionNameStack1 = _signalFunctionNameStack2;
+    _signalFunctionNameStack2 = NULL;
 }
 
 void mcx_signal_handler_enable(void) {
