@@ -503,7 +503,9 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
 
     if (comp->DoStep) {
         mcx_signal_handler_set_name(comp->GetName(comp));
+        mcx_signal_handler_set_this_function();
         retVal = comp->DoStep(comp, group, time, deltaTime, endTime, isNewStep);
+        mcx_signal_handler_unset_function();
         mcx_signal_handler_unset_name();
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_DEBUG, "Component specific DoStep failed");

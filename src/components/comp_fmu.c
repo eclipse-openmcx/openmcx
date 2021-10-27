@@ -21,6 +21,7 @@
 #include "objects/Map.h"
 #include "reader/model/components/specific_data/FmuInput.h"
 #include "util/string.h"
+#include "util/signals.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -987,7 +988,9 @@ static McxStatus Fmu2DoStep(Component * comp, size_t group, double time, double 
     TimeSnapshotEnd(&comp->data->rtData.funcTimings.rtInput);
 
     // Do calculations
+    mcx_signal_handler_set_function("fmi2_import_do_step");
     status = fmi2_import_do_step(fmu2->fmiImport, compFmu->lastCommunicationTimePoint, deltaTime, fmi2_true);
+    mcx_signal_handler_unset_function();
     if (fmi2_status_ok == status) {
         // fine
     } else if (fmi2_status_discard == status) {
