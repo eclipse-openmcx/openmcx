@@ -689,27 +689,59 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                 // initial inputs are always exact
                 if (info->initialValue) {
                     //check if connection exists (cosim init values are not deoupling connections, they only have lower priority than connection values)
-                    ConnectionInfo * info = GetInConnectionInfo(targetComp, targetInChannelID);
-                    if (NULL != info) {
-                        if (ConnectionInfoIsDecoupled(info)) {//decoupled connection
+                    ObjectContainer * infos = GetInConnectionInfos(targetComp, targetInChannelID);
+                    size_t numInfos = infos->Size(infos);
+                    size_t i = 0;
+
+                    if (numInfos == 0) {        // no connections
+                        dependency = DEP_INDEPENDENT;
+                    } else {
+                        int allDecoupled = TRUE;
+                        for (i = 0; i < numInfos; i++) {
+                            ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, i);
+                            if (!ConnectionInfoIsDecoupled(info)) {
+                                allDecoupled = FALSE;
+                            }
+                        }
+
+                        if (allDecoupled) {     // decoupled connections
                             dependency = DEP_INDEPENDENT;
                         }
-                    } else {//no connection
-                        dependency = DEP_INDEPENDENT;
                     }
                 }
             }
 
             if (DEP_INDEPENDENT != dependency) {
-                ConnectionInfo * info = GetInConnectionInfo(targetComp, targetInChannelID);
-                Connection * conn = GetInConnection(targetComp, targetInChannelID);
+                ObjectContainer * infos = GetInConnectionInfos(targetComp, targetInChannelID);
+                ObjectContainer * conns = GetInConnections(targetComp, targetInChannelID);
+                size_t numInfos = infos->Size(infos);
+                size_t numConns = conns->Size(conns);
+                size_t i = 0;
 
-                if (info
-                    && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED))
-                    && (!ConnectionInfoIsDecoupled(info))
-                    && conn
-                    && conn->IsActiveDependency(conn))
-                {
+                int isDecoupled = TRUE;
+                size_t decoupleType = (size_t) -1;
+                int isActiveDependency = FALSE;
+
+                for (i = 0; i < numInfos; i++) {
+                    ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, i);
+                    if (!ConnectionInfoIsDecoupled(info)) {
+                        isDecoupled = FALSE;
+                    }
+
+                    decoupleType &= info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED);
+                }
+
+                for (i = 0; i < numConns; i++) {
+                    Connection * conn = (Connection *) conns->At(conns, i);
+                    if (conn->IsActiveDependency(conn)) {
+                        isActiveDependency = TRUE;
+                        break;
+                    }
+                }
+
+                if (numInfos > 0 && decoupleType && !isDecoupled && numConns > 0 && isActiveDependency) {
+                    ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, 0);
+
                     Component * sourceComp = info->sourceComponent;
                     size_t sourceOutGroup, sourceNode;
                     Databus * db = targetComp->GetDatabus(targetComp);

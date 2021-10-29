@@ -1345,7 +1345,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
         return RETURN_ERROR;
     }
 
-    retVal = in->SetConnection(in, connection, outInfo->unitString, outInfo->type);
+    retVal = in->RegisterConnection(in, connection, outInfo->unitString, outInfo->type);
     if (RETURN_OK != retVal) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Setup connection: Could not register with inport", buffer);

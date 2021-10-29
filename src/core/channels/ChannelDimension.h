@@ -33,6 +33,7 @@ McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t num,
 ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
 size_t ChannelDimensionNumElements(ChannelDimension * dimension);
 ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
+int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

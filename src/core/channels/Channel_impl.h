@@ -28,7 +28,9 @@ extern "C" {
 typedef struct ChannelInData {
     Object _; // base class
 
-    struct Connection * connection;
+    ObjectContainer * connections;      // connections (non-overlapping) going into the channel
+    ObjectContainer * valueReferences;  // references to non-overlapping parts of ChannelData::value, where
+                                        // values gotten from connections are going to be stored
 
     // ----------------------------------------------------------------------
     // Conversions
