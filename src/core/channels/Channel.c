@@ -15,6 +15,7 @@
 #include "core/Conversion.h"
 
 #include "core/channels/ChannelInfo.h"
+#include "core/channels/ChannelValueReference.h"
 #include "core/channels/Channel.h"
 #include "core/channels/ChannelValue.h"
 #include "core/channels/Channel_impl.h"
@@ -85,7 +86,16 @@ static Channel * ChannelCreate(Channel * channel) {
 
 
 static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
-    data->connection = NULL;
+    data->connections = (ObjectContainer *) object_create(ObjectContainer);
+    if (!data->connections) {
+        return NULL;
+    }
+
+    data->valueReferences = (ObjectContainer *) object_create(ObjectContainer);
+    if (!data->valueReferences) {
+        return NULL;
+    }
+
     data->reference  = NULL;
     data->type = ChannelTypeClone(&ChannelTypeUnknown);
 
@@ -115,6 +125,8 @@ static void ChannelInDataDestructor(ChannelInData * data) {
     if (data->type) {
         ChannelTypeDestructor(data->type);
     }
+
+    // TODO destroy connections/valueReference ????
 }
 
 OBJECT_CLASS(ChannelInData, Object);
@@ -177,34 +189,37 @@ static const void * ChannelInGetValueReference(Channel * channel) {
 static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     ChannelIn * in = (ChannelIn *) channel;
     ChannelInfo * info = &channel->info;
-    Connection * conn = in->data->connection;
 
     McxStatus retVal = RETURN_OK;
 
     /* if no connection is present we have nothing to update*/
-    if (conn) {
-        ConnectionInfo * connInfo = NULL;
-        ChannelValue * val = &channel->value;
+    size_t i = 0;
+    size_t numConns = in->data->connections->Size(in->data->connections);
+    for (i = 0; i < numConns; i++) {
+        Connection * conn = (Connection *) in->data->connections->At(in->data->connections, i);
+        ChannelValueRef * valueRef = (ChannelValueRef *) in->data->valueReferences->At(in->data->valueReferences, i);
+        ConnectionInfo * connInfo = &conn->info;
+        char * connString = ConnectionInfoConnectionString(connInfo);
 
-        connInfo = &conn->info;
-
-        ChannelValueDestructor(val);
-        ChannelValueInit(val, ChannelTypeClone(ConnectionInfoGetType(connInfo)));
+        // TODO do we need this Init ???
+        /*ChannelValueDestructor(val);
+        ChannelValueInit(val, ChannelTypeClone(connInfo->GetType(connInfo)));*/
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
-            mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection failed", ChannelInfoGetLogName(info));
+            mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection %s failed", ChannelInfoGetLogName(info), connString);
             return RETURN_ERROR;
         }
-        if (RETURN_OK != ChannelValueSetFromReference(val, conn->GetValueReference(conn))) {
-            mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueSetFromReference failed", ChannelInfoGetLogName(info));
+        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn))) {  // TODO conn->GetValueReference - let it maybe return our reference
+            mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueRefSetFromReference for connection %s failed", ChannelInfoGetLogName(info), connString);
             return RETURN_ERROR;
         }
 
-        //type
+        // type
+        // TODO per connection
         if (in->data->typeConversion) {
             Conversion * conversion = (Conversion *) in->data->typeConversion;
-            retVal = conversion->convert(conversion, val);
+            retVal = conversion->convert(conversion, valueRef->ref.value);  // TODO convert valueRef directly
             if (RETURN_OK != retVal) {
                 mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute type conversion", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
@@ -292,7 +307,7 @@ static int ChannelInIsConnected(Channel * channel) {
         return TRUE;
     } else {
         ChannelIn * in = (ChannelIn *) channel;
-        if (NULL != in->data->connection) {
+        if (in->data->connections->Size(in->data->connections) > 0) {
             return TRUE;
         }
     }
@@ -300,32 +315,68 @@ static int ChannelInIsConnected(Channel * channel) {
     return FALSE;
 }
 
-static ConnectionInfo * ChannelInGetConnectionInfo(ChannelIn * in) {
-    if (in->data->connection) {
-        return &in->data->connection->info;
-    } else {
+static ObjectContainer * ChannelInGetConnectionInfos(ChannelIn * in) {
+    ObjectContainer * infos = (ObjectContainer *) object_create(ObjectContainer);
+    size_t numConns = in->data->connections->Size(in->data->connections);
+    size_t i = 0;
+
+    if (!infos) {
         return NULL;
     }
-}
 
-static Connection * ChannelInGetConnection(ChannelIn * in) {
-    if (in->data->connection) {
-        return in->data->connection;
-    } else {
-        return NULL;
+    for (i = 0; i < numConns; i++) {
+        Connection * conn = in->data->connections->At(in->data->connections, i);
+        ConnectionInfo * connInfo = &conn->info;
+        if (RETURN_ERROR == infos->PushBack(infos, (Object *) connInfo)) {
+            object_destroy(infos);
+            return NULL;
+        }
     }
+
+    return infos;
 }
 
-static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType * type) {
+static ObjectContainer * ChannelInGetConnections(ChannelIn * in) {
+    return in->data->connections;
+}
+
+static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType * type) {
+    ConnectionInfo * connInfo = &connection->info;
+    char * connString = ConnectionInfoConnectionString(connInfo);
     Channel * channel = (Channel *) in;
-    ChannelInfo * inInfo = NULL;
+    ChannelInfo * inInfo = &channel->info;
 
-    McxStatus retVal;
+    McxStatus retVal = RETURN_OK;
 
-    in->data->connection = connection;
+    retVal = in->data->connections->PushBack(in->data->connections, (Object *) connection);
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "Port %s: Register inport connection %s: Could not register connection", ChannelInfoGetLogName(inInfo), connString);
+        mcx_free(connString);
+        return RETURN_ERROR;
+    }
 
-    // setup unit conversion
-    inInfo = &channel->info;
+    // TODO setup valueReference
+    ChannelValueRef * valRef = (ChannelValueRef *) object_create(ChannelValueRef);
+    if (!valRef) {
+        return RETURN_ERROR;
+    }
+
+    ChannelDimension * dimension = connInfo->targetDimension;
+    // TODO check ret values
+    // TODO do we need some plausibility checks?
+    // TODO is it fine to use connInfo here?
+    if (dimension && !ChannelDimensionEq(dimension, inInfo->dimension)) {
+        valRef->type = CHANNEL_VALUE_REF_SLICE;
+        valRef->ref.slice = (ArraySlice *) mcx_calloc(1, sizeof(ArraySlice));
+        valRef->ref.slice->ref = &channel->value;
+        valRef->ref.slice->dimension = ChannelDimensionClone(dimension);
+    } else {
+        valRef->type = CHANNEL_VALUE_REF_VALUE;
+        valRef->ref.value = &channel->value;
+    }
+
+    retVal = in->data->valueReferences->PushBack(in->data->valueReferences, (Object *) valRef);
+    // TODO check retVal
 
     if (ChannelTypeEq(inInfo->type, &ChannelTypeDouble)) {
         in->data->unitConversion = (UnitConversion *) object_create(UnitConversion);
@@ -342,6 +393,7 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
         }
     }
 
+    // TODO - array
     // setup type conversion
     if (!ChannelTypeEq(inInfo->type, type)) {
         in->data->typeConversion = (TypeConversion *) object_create(TypeConversion);
@@ -354,8 +406,14 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
         }
     }
 
-    return RETURN_OK;
+cleanup:
+    if (RETURN_ERROR == retVal) {
+        if (connString) {
+            mcx_free(connString);
+        }
+    }
 
+    return retVal;
 }
 
 static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
@@ -450,10 +508,10 @@ static ChannelIn * ChannelInCreate(ChannelIn * in) {
     in->Setup        = ChannelInSetup;
     in->SetReference = ChannelInSetReference;
 
-    in->GetConnectionInfo = ChannelInGetConnectionInfo;
+    in->GetConnectionInfos = ChannelInGetConnectionInfos;
 
-    in->GetConnection = ChannelInGetConnection;
-    in->SetConnection = ChannelInSetConnection;
+    in->GetConnections = ChannelInGetConnections;
+    in->RegisterConnection = ChannelInRegisterConnection;
 
     in->IsDiscrete = ChannelInIsDiscrete;
     in->SetDiscrete = ChannelInSetDiscrete;

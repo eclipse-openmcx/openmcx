@@ -840,22 +840,22 @@ static void ComponentSetModel(Component * comp, Model * model) {
     comp->data->model = model;
 }
 
-ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID) {
+ObjectContainer * GetInConnectionInfos(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
 
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
-        return in->GetConnectionInfo(in);
+        return in->GetConnectionInfos(in);
     }
 
     return NULL;
 }
 
-Connection * GetInConnection(const Component * comp, size_t channelID) {
+ObjectContainer * GetInConnections(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
-        return in->GetConnection(in);
+        return in->GetConnections(in);
     }
 
     return NULL;

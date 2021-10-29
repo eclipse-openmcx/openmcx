@@ -115,14 +115,11 @@ typedef McxStatus  (* fChannelInSetReference) (ChannelIn   * in,
                                                void        * reference,
                                                ChannelType * type);
 
-typedef struct ConnectionInfo * (* fChannelInGetConnectionInfo)(ChannelIn * in);
+typedef struct ObjectContainer * (* fChannelInGetConnectionInfos)(ChannelIn * in);
 
-typedef struct Connection * (* fChannelInGetConnection)(ChannelIn * in);
+typedef struct ObjectContainer * (* fChannelInGetConnections)(ChannelIn * in);
 
-typedef McxStatus (* fChannelInSetConnection)(ChannelIn * in,
-                                              struct Connection * connection,
-                                              const char * unit,
-                                              ChannelType * type);
+typedef McxStatus (*fChannelInRegisterConnection)(ChannelIn * in, struct Connection * connection, const char * unit, ChannelType * type);
 
 typedef int (*fChannelInIsDiscrete)(ChannelIn * in);
 typedef void (*fChannelInSetDiscrete)(ChannelIn * in);
@@ -150,15 +147,15 @@ struct ChannelIn {
     /**
      * Returns the ConnectionInfo of the incoming connection.
      */
-    fChannelInGetConnectionInfo GetConnectionInfo;
+    fChannelInGetConnectionInfos GetConnectionInfos;
 
-    fChannelInGetConnection GetConnection;
+    fChannelInGetConnections GetConnections;
 
     /**
      * Set the connection from which the channel retrieves the values in the
      * specified unit.
      */
-    fChannelInSetConnection SetConnection;
+    fChannelInRegisterConnection RegisterConnection;
 
     /**
     * Returns true if a channel value is discrete

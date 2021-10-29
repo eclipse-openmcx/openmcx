@@ -250,8 +250,8 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, struct St
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time);
 McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
-ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID);
-struct Connection * GetInConnection(const Component * comp, size_t channelID);
+struct ObjectContainer * GetInConnectionInfos(const Component * comp, size_t channelID);
+struct ObjectContainer * GetInConnections(const Component * comp, size_t channelID);
 
 size_t ComponentGetNumOutGroups(const Component * comp);
 size_t ComponentGetNumInitialOutGroups(const Component * comp);
