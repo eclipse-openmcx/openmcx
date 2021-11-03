@@ -36,7 +36,7 @@ typedef enum ChannelValueRefType {
 extern const struct ObjectClass _ChannelValueRef;
 
 typedef struct ChannelValueRef {
-    Object * _;
+    Object _;
 
     ChannelValueRefType type;
     union {
