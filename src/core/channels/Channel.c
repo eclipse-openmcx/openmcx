@@ -20,9 +20,78 @@
 #include "core/channels/ChannelValue.h"
 #include "core/channels/Channel_impl.h"
 
+#include <stdarg.h>
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+
+static McxStatus ReportConnStringError(ChannelInfo * chInfo, const char * prefixFmt, ConnectionInfo * connInfo, const char * fmt, ...) {
+    // create format string
+    const char * portPrefix = "Port %s: ";
+    char * connString = NULL;
+    char * formatString = NULL;
+    char * prefix = NULL;
+
+    if (connInfo) {
+        char * connString = ConnectionInfoConnectionString(connInfo);
+
+        prefix = (char *) mcx_calloc(strlen(portPrefix) - 2 /* format specifier %s */ +
+                                     strlen(prefixFmt) - (connInfo == NULL ? 0 : 2 /* format specifier %s */) +
+                                     (connInfo == NULL ? 0 : connString ? strlen(connString) : strlen("(null)")) +
+                                     strlen(ChannelInfoGetLogName(chInfo)) + 1 /* \0 at the end of the string */,
+                                     sizeof(char));
+        if (!prefix) {
+            goto cleanup;
+        }
+
+        sprintf(prefix, portPrefix, ChannelInfoGetLogName(chInfo));
+        sprintf(prefix + strlen(prefix), prefixFmt, connString);
+    } else {
+        prefix = (char *) mcx_calloc(strlen(portPrefix) - 2 /* format specifier %s */ + strlen(prefixFmt) +
+                                     strlen(ChannelInfoGetLogName(chInfo)) + 1 /* \0 at the end of the string */,
+                                     sizeof(char));
+        if (!prefix) {
+            goto cleanup;
+        }
+
+        sprintf(prefix, portPrefix, ChannelInfoGetLogName(chInfo));
+    }
+
+    formatString = (char *) mcx_calloc(strlen(fmt) + strlen(prefix) + 1, sizeof(char));
+    if (!formatString) {
+        goto cleanup;
+    }
+
+    strcat(formatString, prefix);
+    strcat(formatString, fmt);
+
+    // log error message
+    va_list args;
+    va_start(args, fmt);
+
+    mcx_vlog(LOG_ERROR, formatString, args);
+
+    va_end(args);
+
+cleanup:
+    // free connection string
+    if (connString) {
+        mcx_free(connString);
+    }
+
+    if (prefix) {
+        mcx_free(prefix);
+    }
+
+    if (formatString) {
+        mcx_free(formatString);
+    }
+
+    return RETURN_ERROR;
+}
 
 // ----------------------------------------------------------------------
 // Channel
@@ -202,21 +271,18 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     size_t numConns = in->data->connections->Size(in->data->connections);
     for (i = 0; i < numConns; i++) {
         Connection * conn = (Connection *) in->data->connections->At(in->data->connections, i);
+        ConnectionInfo * connInfo = &conn->info;
         TypeConversion * typeConv = (TypeConversion *) in->data->typeConversions->At(in->data->typeConversions, i);
         ChannelValueRef * valueRef = (ChannelValueRef *) in->data->valueReferences->At(in->data->valueReferences, i);
-        ConnectionInfo * connInfo = &conn->info;
-        char * connString = ConnectionInfoConnectionString(connInfo);
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
-            mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection %s failed", ChannelInfoGetLogName(info), connString);
-            return RETURN_ERROR;
+            return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "UpdateToOutput failed");
         }
 
         // TODO: ideally make conn->GetValueReference return ChannelValueRef
         if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), typeConv)) {
-            mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueRefSetFromReference for connection %s failed", ChannelInfoGetLogName(info), connString);
-            return RETURN_ERROR;
+            return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "ChannelValueRefSetFromReference failed");
         }
     }
 
@@ -335,7 +401,6 @@ static ObjectContainer * ChannelInGetConnections(ChannelIn * in) {
 
 static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType * type) {
     ConnectionInfo * connInfo = &connection->info;
-    char * connString = ConnectionInfoConnectionString(connInfo);
     Channel * channel = (Channel *) in;
     ChannelInfo * inInfo = &channel->info;
 
@@ -343,9 +408,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
 
     retVal = in->data->connections->PushBack(in->data->connections, (Object *) connection);
     if (RETURN_OK != retVal) {
-        mcx_log(LOG_ERROR, "Port %s: Register inport connection %s: Could not register connection", ChannelInfoGetLogName(inInfo), connString);
-        mcx_free(connString);
-        return RETURN_ERROR;
+        return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not register connection");
     }
 
     // TODO setup valueReference
@@ -377,8 +440,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
                                                  unit,
                                                  inInfo->unitString);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Set inport connection: Could not setup unit conversion", ChannelInfoGetLogName(inInfo));
-            return RETURN_ERROR;
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up unit conversion");
         }
 
         if (in->data->unitConversion->IsEmpty(in->data->unitConversion)) {
@@ -392,28 +454,18 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
         retVal = typeConv->Setup(typeConv, type, inInfo->type);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Register inport connection: Could not set up type conversion", ChannelInfoGetLogName(inInfo));
-            return RETURN_ERROR;
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up type conversion");
         }
 
 
         retVal = in->data->typeConversions->PushBack(in->data->typeConversions, (Object *) typeConv);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Register inport connection: Could not add type conversion", ChannelInfoGetLogName(inInfo));
-            return RETURN_ERROR;
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add type conversion");
         }
     } else {
         retVal = in->data->typeConversions->PushBack(in->data->typeConversions, NULL);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Register inport connection: Could not add empty type conversion", ChannelInfoGetLogName(inInfo));
-            return RETURN_ERROR;
-        }
-    }
-
-cleanup:
-    if (RETURN_ERROR == retVal) {
-        if (connString) {
-            mcx_free(connString);
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add empty type conversion");
         }
     }
 
