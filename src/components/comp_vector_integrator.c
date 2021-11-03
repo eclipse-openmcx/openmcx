@@ -72,7 +72,7 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
         ChannelInfo * info = outInfo;
         ChannelType * type = info->type;
 
-        if (!ChannelTypeEq(type, &ChannelTypeDouble) || ChannelTypeIsArray(type)) {
+        if (!ChannelTypeEq(ChannelTypeBaseType(type), &ChannelTypeDouble)) {
             ComponentLog(comp, LOG_ERROR, "Inport %s: Invalid type", ChannelInfoGetName(info));
             return RETURN_ERROR;
         }
@@ -124,14 +124,14 @@ static McxStatus DoStep(Component * comp, size_t group, double time, double delt
 
             size_t j = 0;
             for (j = 0; j < mcx_array_num_elements(state); j++) {
-                ((double *)state->data)[j] = ((double *)state->data)[j] * ((double *)deriv->data)[j] + deltaTime;
+                ((double *)state->data)[j] = ((double *)state->data)[j] + ((double *)deriv->data)[j] * deltaTime;
             }
 
         } else {
             double * state = (double *) ChannelValueReference(&integrator->state[i]);
             double * deriv = (double *) ChannelValueReference(&integrator->deriv[i]);
 
-            (*state) = (*state) * (*deriv) + deltaTime;
+            (*state) = (*state) + (*deriv) * deltaTime;
         }
     }
 
