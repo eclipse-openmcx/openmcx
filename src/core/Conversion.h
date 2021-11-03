@@ -13,6 +13,7 @@
 
 #include "units/Units.h"
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -112,18 +113,21 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 // ----------------------------------------------------------------------
 // Type Conversion
 
+typedef struct ChannelValueRef ChannelValueRef;
+
+
 typedef struct TypeConversion TypeConversion;
 
-typedef McxStatus (* fTypeConversionSetup)(TypeConversion * conversion, ChannelType * fromType, ChannelType * toType);
-typedef int (* fTypeConversionIsEmpty)(TypeConversion * conversion);
+typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion, const ChannelType * fromType, const ChannelType * toType);
+typedef McxStatus (*fTypeConversionConvert)(TypeConversion * conversion, ChannelValueRef * dest, void * src);
 
 extern const struct ObjectClass _TypeConversion;
 
 struct TypeConversion {
-    Conversion _;
+    Object _;
 
     fTypeConversionSetup Setup;
-    fTypeConversionIsEmpty IsEmpty;
+    fTypeConversionConvert Convert;
 };
 
 McxStatus ConvertType(ChannelType * fromType, ChannelType * toType, ChannelValue * value);

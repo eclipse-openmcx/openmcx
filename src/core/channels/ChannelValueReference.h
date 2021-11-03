@@ -14,6 +14,8 @@
 #include "CentralParts.h"
 #include "core/channels/ChannelDimension.h"
 
+#include "core/Conversion.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,8 +45,8 @@ typedef struct ChannelValueRef {
     } ref;
 } ChannelValueRef;
 
-
-McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference);
+McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, TypeConversion * typeConv);
+ChannelType * ChannelValueRefGetType(const ChannelValueRef * ref);
 
 
 #ifdef __cplusplus

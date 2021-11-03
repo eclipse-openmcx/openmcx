@@ -210,21 +210,21 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
             mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection %s failed", ChannelInfoGetLogName(info), connString);
             return RETURN_ERROR;
         }
-        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn))) {  // TODO conn->GetValueReference - let it maybe return our reference
+        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), in->data->typeConversion)) {  // TODO conn->GetValueReference - let it maybe return our reference
             mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueRefSetFromReference for connection %s failed", ChannelInfoGetLogName(info), connString);
             return RETURN_ERROR;
         }
 
-        // type
-        // TODO per connection
-        if (in->data->typeConversion) {
-            Conversion * conversion = (Conversion *) in->data->typeConversion;
-            retVal = conversion->convert(conversion, valueRef->ref.value);  // TODO convert valueRef directly
-            if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute type conversion", ChannelInfoGetLogName(info));
-                return RETURN_ERROR;
-            }
-        }
+        //// type
+        //// TODO per connection
+        //if (in->data->typeConversion) {
+        //    Conversion * conversion = (Conversion *) in->data->typeConversion;
+        //    retVal = conversion->convert(conversion, valueRef->ref.value);  // TODO convert valueRef directly
+        //    if (RETURN_OK != retVal) {
+        //        mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute type conversion", info->GetLogName(info));
+        //        return RETURN_ERROR;
+        //    }
+        //}
     }
 
 
@@ -397,9 +397,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     // setup type conversion
     if (!ChannelTypeEq(inInfo->type, type)) {
         in->data->typeConversion = (TypeConversion *) object_create(TypeConversion);
-        retVal = in->data->typeConversion->Setup(in->data->typeConversion,
-                                                 type,
-                                                 inInfo->type);
+        retVal = in->data->typeConversion->Setup(in->data->typeConversion, type, inInfo->type);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Port %s: Set connection: Could not setup type conversion", ChannelInfoGetLogName(inInfo));
             return RETURN_ERROR;
