@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "core/channels/ChannelValueReference.h"
+#include "common/logging.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,9 +30,12 @@ ChannelValueRef * ChannelValueRefCreate(ChannelValueRef * ref) {
 OBJECT_CLASS(ChannelValueRef, Object);
 
 
-McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference) {
+McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, TypeConversion * conv) {
     if (ref->type == CHANNEL_VALUE_REF_VALUE) {
-        // value
+        if (conv) {
+            return conv->Convert(conv, ref, reference);
+        }
+
         return ChannelValueDataSetFromReference(&ref->ref.value->value, ref->ref.value->type, reference);
     } else {
         // slice
@@ -40,6 +44,19 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
     }
 
     return RETURN_OK;
+}
+
+ChannelType * ChannelValueRefGetType(ChannelValueRef * ref) {
+    switch (ref->type) {
+        case CHANNEL_VALUE_REF_VALUE:
+            return ChannelValueType(ref->ref.value);
+        case CHANNEL_VALUE_REF_SLICE:
+            mcx_log(LOG_ERROR, "TODO - change the dimension in ArraySlice to a type and return that to avoid memory allocation");
+            return NULL;
+        default:
+            mcx_log(LOG_ERROR, "Invalid internal channel value reference type (%d)", ref->type);
+            return NULL;
+    }
 }
 
 

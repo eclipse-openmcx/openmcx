@@ -10,6 +10,7 @@
 
 #include "CentralParts.h"
 #include "core/Conversion.h"
+#include "core/channels/ChannelValueReference.h"
 #include "units/Units.h"
 
 #ifdef __cplusplus
@@ -545,122 +546,114 @@ cleanup:
     return retVal;
 }
 
-static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeInteger)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeInteger));
+static McxStatus CheckTypesValidForConversion(ChannelType * destType,
+                                              ChannelType * expectedDestType)
+{
+    if (!ChannelTypeEq(destType, expectedDestType)) {
+        mcx_log(LOG_ERROR,
+                "Type conversion: Destination value has wrong type %s, expected: %s",
+                ChannelTypeToString(ChannelValueType(destType)),
+                ChannelTypeToString(expectedDestType));
         return RETURN_ERROR;
     }
 
-    value->type = &ChannelTypeDouble;
-    value->value.d = (double)value->value.i;
-
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeDouble)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
+static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
 
-    value->type = &ChannelTypeInteger;
-    value->value.i = (int)floor(value->value.d + 0.5);
+    dest->ref.value->value.d = (double) *((int *) src);
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeBool)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeBool));
+static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
 
-    value->type = &ChannelTypeDouble;
-    value->value.d = (value->value.i != 0) ? 1. : 0.;
+    dest->ref.value->value.i = (int) floor(*((double *) src) + 0.5);
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeDouble)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
+static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
 
-    value->type = &ChannelTypeBool;
-    value->value.i = (value->value.d > 0) ? 1 : 0;
+    dest->ref.value->value.d = *((int *) src) != 0 ? 1. : 0.;
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeBool)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeBool));
+static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
 
-    value->type = &ChannelTypeInteger;
-    value->value.i = (value->value.i != 0) ? 1 : 0;
+    dest->ref.value->value.i = *((double *) src) > 0 ? 1 : 0;
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, ChannelValue * value) {
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeInteger)) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeInteger));
+static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
 
-    value->type = &ChannelTypeBool;
-    value->value.i = (value->value.i != 0) ? 1 : 0;
+    dest->ref.value->value.i = *((int *) src) != 0 ? 1 : 0;
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertSingletonDoubleToDouble(Conversion * conversion, ChannelValue * value) {
-    if (!(ChannelTypeIsArray(ChannelValueType(value)) && value->value.a.type, &ChannelTypeDouble)) {
-        ChannelType * array = ChannelTypeArray(&ChannelTypeDouble, 0, NULL);
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), array);
-        ChannelTypeDestructor(array);
+static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
 
-    double val = *(double *)value->value.a.data;
-
-    ChannelValueDataDestructor(&value->value, value->type);
-    ChannelTypeDestructor(value->type);
-    value->type = &ChannelTypeDouble;
-
-    value->value.d = val;
+    dest->ref.value->value.i = *((int *) src) != 0 ? 1 : 0;
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertId(Conversion * conversion, ChannelValue * value) {
+static McxStatus TypeConversionConvertSingletonDoubleToDouble(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueRefGetType(dest), &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    dest->ref.value->value.d = *(double *) ((mcx_array*)src)->data;
+
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionSetup(TypeConversion * typeConversion,
+static McxStatus TypeConversionConvertId(Conversion * conversion, ChannelValueRef * dest, void * src) {
+    return ChannelValueRefSetFromReference(dest, src, NULL);
+}
+
+static McxStatus TypeConversionSetup(TypeConversion * conversion,
                                      ChannelType * fromType,
                                      ChannelType * toType) {
-    Conversion * conversion = (Conversion *) typeConversion;
 
     if (ChannelTypeEq(fromType, toType)) {
-        conversion->convert = TypeConversionConvertId;
+        conversion->Convert = TypeConversionConvertId;
     } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
-        conversion->convert = TypeConversionConvertIntDouble;
+        conversion->Convert = TypeConversionConvertIntDouble;
     } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
-        conversion->convert = TypeConversionConvertDoubleInt;
+        conversion->Convert = TypeConversionConvertDoubleInt;
     } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
-        conversion->convert = TypeConversionConvertBoolDouble;
+        conversion->Convert = TypeConversionConvertBoolDouble;
     } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeBool)) {
-        conversion->convert = TypeConversionConvertDoubleBool;
+        conversion->Convert = TypeConversionConvertDoubleBool;
     } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
-        conversion->convert = TypeConversionConvertBoolInteger;
+        conversion->Convert = TypeConversionConvertBoolInteger;
     } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeBool)) {
-        conversion->convert = TypeConversionConvertIntegerBool;
+        conversion->Convert = TypeConversionConvertIntegerBool;
     } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
-        conversion->convert = TypeConversionConvertSingletonDoubleToDouble;
+        conversion->Convert = TypeConversionConvertSingletonDoubleToDouble;
     } else {
         mcx_log(LOG_ERROR, "Setup type conversion: Illegal conversion selected");
         return RETURN_ERROR;
@@ -669,28 +662,18 @@ static McxStatus TypeConversionSetup(TypeConversion * typeConversion,
     return RETURN_OK;
 }
 
-static int TypeConversionIsEmpty(TypeConversion * typeConversion) {
-    Conversion * conversion = (Conversion *) typeConversion;
-
-    return (conversion->convert == TypeConversionConvertId);
-}
-
 static void TypeConversionDestructor(TypeConversion * conversion) {
 
 }
 
-static TypeConversion * TypeConversionCreate(TypeConversion * typeConversion) {
-    Conversion * conversion = (Conversion *) typeConversion;
+static TypeConversion * TypeConversionCreate(TypeConversion * conversion) {
+    conversion->Setup = TypeConversionSetup;
+    conversion->Convert = NULL;
 
-    conversion->convert = TypeConversionConvertId;
-
-    typeConversion->Setup   = TypeConversionSetup;
-    typeConversion->IsEmpty = TypeConversionIsEmpty;
-
-    return typeConversion;
+    return conversion;
 }
 
-OBJECT_CLASS(TypeConversion, Conversion);
+OBJECT_CLASS(TypeConversion, Object);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
