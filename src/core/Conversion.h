@@ -119,6 +119,9 @@ typedef struct ChannelValueRef ChannelValueRef;
 typedef struct TypeConversion TypeConversion;
 
 typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion, const ChannelType * fromType, const ChannelType * toType);
+
+// TODO: Ideally the `src` argument would also be ChannelValueRef, but that requires quite of lot of changes
+//       in the API of databus definition (i.e. DatabusSetIn(Out)Reference)
 typedef McxStatus (*fTypeConversionConvert)(TypeConversion * conversion, ChannelValueRef * dest, void * src);
 
 extern const struct ObjectClass _TypeConversion;

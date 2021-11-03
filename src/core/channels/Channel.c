@@ -99,8 +99,12 @@ static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
     data->reference  = NULL;
     data->type = ChannelTypeClone(&ChannelTypeUnknown);
 
+    data->typeConversions = (ObjectContainer *) object_create(ObjectContainer);
+    if (!data->typeConversions) {
+        return NULL;
+    }
+
     data->unitConversion = NULL;
-    data->typeConversion = NULL;
     data->linearConversion = NULL;
     data->rangeConversion = NULL;
 
@@ -110,11 +114,12 @@ static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
 }
 
 static void ChannelInDataDestructor(ChannelInData * data) {
+    // clean up conversion objects
+    data->typeConversions->DestroyObjects(data->typeConversions);
+    object_destroy(data->typeConversions);
+
     if (data->unitConversion) {
         object_destroy(data->unitConversion);
-    }
-    if (data->typeConversion) {
-        object_destroy(data->typeConversion);
     }
     if (data->linearConversion) {
         object_destroy(data->linearConversion);
@@ -197,34 +202,22 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     size_t numConns = in->data->connections->Size(in->data->connections);
     for (i = 0; i < numConns; i++) {
         Connection * conn = (Connection *) in->data->connections->At(in->data->connections, i);
+        TypeConversion * typeConv = (TypeConversion *) in->data->typeConversions->At(in->data->typeConversions, i);
         ChannelValueRef * valueRef = (ChannelValueRef *) in->data->valueReferences->At(in->data->valueReferences, i);
         ConnectionInfo * connInfo = &conn->info;
         char * connString = ConnectionInfoConnectionString(connInfo);
-
-        // TODO do we need this Init ???
-        /*ChannelValueDestructor(val);
-        ChannelValueInit(val, ChannelTypeClone(connInfo->GetType(connInfo)));*/
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
             mcx_log(LOG_ERROR, "Port %s: Update inport: UpdateToOutput of connection %s failed", ChannelInfoGetLogName(info), connString);
             return RETURN_ERROR;
         }
-        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), in->data->typeConversion)) {  // TODO conn->GetValueReference - let it maybe return our reference
+
+        // TODO: ideally make conn->GetValueReference return ChannelValueRef
+        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), typeConv)) {
             mcx_log(LOG_ERROR, "Port %s: Update inport: ChannelValueRefSetFromReference for connection %s failed", ChannelInfoGetLogName(info), connString);
             return RETURN_ERROR;
         }
-
-        //// type
-        //// TODO per connection
-        //if (in->data->typeConversion) {
-        //    Conversion * conversion = (Conversion *) in->data->typeConversion;
-        //    retVal = conversion->convert(conversion, valueRef->ref.value);  // TODO convert valueRef directly
-        //    if (RETURN_OK != retVal) {
-        //        mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute type conversion", info->GetLogName(info));
-        //        return RETURN_ERROR;
-        //    }
-        //}
     }
 
 
@@ -396,10 +389,23 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     // TODO - array
     // setup type conversion
     if (!ChannelTypeEq(inInfo->type, type)) {
-        in->data->typeConversion = (TypeConversion *) object_create(TypeConversion);
-        retVal = in->data->typeConversion->Setup(in->data->typeConversion, type, inInfo->type);
+        TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
+        retVal = typeConv->Setup(typeConv, type, inInfo->type);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Set connection: Could not setup type conversion", ChannelInfoGetLogName(inInfo));
+            mcx_log(LOG_ERROR, "Port %s: Register inport connection: Could not set up type conversion", ChannelInfoGetLogName(inInfo));
+            return RETURN_ERROR;
+        }
+
+
+        retVal = in->data->typeConversions->PushBack(in->data->typeConversions, (Object *) typeConv);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Port %s: Register inport connection: Could not add type conversion", ChannelInfoGetLogName(inInfo));
+            return RETURN_ERROR;
+        }
+    } else {
+        retVal = in->data->typeConversions->PushBack(in->data->typeConversions, NULL);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Port %s: Register inport connection: Could not add empty type conversion", ChannelInfoGetLogName(inInfo));
             return RETURN_ERROR;
         }
     }
