@@ -46,12 +46,40 @@ static void FilteredConnectionDataDestructor(FilteredConnectionData * data) {
 OBJECT_CLASS(FilteredConnectionData, Object);
 
 
+static ChannelType * SliceDimensionToType(ChannelType * sourceType, ChannelDimension * dimension) {
+    if (dimension) {
+        // source data is an array
+        size_t i = 0;
+        ChannelType * type = NULL;
+        size_t * dims = (size_t *) mcx_calloc(sizeof(size_t), dimension->num);
+
+        if (!dims) {
+            mcx_log(LOG_ERROR, "DetermineSliceType: Not enough memory for dimension calculation");
+            return NULL;
+        }
+
+        for (i = 0; i < dimension->num; i++) {
+            dims[i] = dimension->endIdxs[i] - dimension->startIdxs[i] + 1;    // indices are inclusive
+        }
+
+        type = ChannelTypeArray(ChannelTypeClone(ChannelTypeBaseType(sourceType)), dimension->num, dims);
+        mcx_free(dims);
+        return type;
+    } else {
+        // source data is a scalar
+        return ChannelTypeClone(sourceType);
+    }
+}
+
+
 static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * out,
                                          ChannelIn * in, ConnectionInfo * info) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
 
     ChannelInfo * sourceInfo = &((Channel *)out)->info;
     ChannelInfo * targetInfo = &((Channel *)in)->info;
+
+    ChannelType * storeType = NULL;
 
     McxStatus retVal = RETURN_OK;
 
@@ -64,14 +92,19 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     filteredConnection->data->filters = NULL;
     filteredConnection->data->numFilters = 0;
 
+    storeType = SliceDimensionToType(sourceInfo->type, info->sourceDimension);
+    if (!storeType) {
+        return RETURN_ERROR;
+    }
+
     // value store
-    ChannelValueInit(&filteredConnection->data->store, ChannelTypeClone(sourceInfo->type));
+    ChannelValueInit(&filteredConnection->data->store, storeType);  // steals ownership of storeType -> no clone needed
 
     // value reference
     connection->value_ = ChannelValueReference(&filteredConnection->data->store);
 
     // initialize the buffer for channel function calls
-    ChannelValueInit(&filteredConnection->data->updateBuffer, ChannelTypeClone(sourceInfo->type));
+    ChannelValueInit(&filteredConnection->data->updateBuffer, ChannelTypeClone(storeType));
 
     // Connection::Setup()
     // this has to be done last as it connects the channels
@@ -144,6 +177,18 @@ static McxStatus FilteredConnectionSetResult(FilteredConnection * connection, co
     return ChannelValueSetFromReference(&connection->data->store, value);
 }
 
+static size_t GetSliceShift(Connection * connection) {
+    Channel * channel = (Channel *) connection->GetSource(connection);
+    ChannelInfo * channelInfo = &channel->info;
+    ChannelDimension * sourceDimension = channelInfo->dimension;
+
+    ConnectionInfo * connInfo = connection->GetInfo(connection);
+    ChannelDimension * sliceDimension = connInfo->sourceDimension;
+
+    // only 1D at the moment
+    return sliceDimension->startIdxs[0] - sourceDimension->startIdxs[0];
+}
+
 static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInterval * time) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
     Channel * channel = (Channel *) connection->GetSource(connection);
@@ -155,8 +200,6 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
     }
 #endif
 
-    // TODO: copy only sourceDimension slice
-
     if (ChannelTypeIsScalar(info->type)) {
         ChannelFilter * filter = filteredConnection->GetWriteFilter(filteredConnection, 0);
         if (filter && time->startTime >= 0) {
@@ -165,6 +208,7 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
         }
     } else {
         size_t i = 0;
+        size_t shift = GetSliceShift(connection);
         ChannelValueData element;
         ChannelValueDataInit(&element, ChannelTypeBaseType(info->type));
 
@@ -173,7 +217,7 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
 
             if (filter && time->startTime >= 0) {
                 ChannelValueData value = *(ChannelValueData *) channel->GetValueReference(channel);
-                mcx_array_get_elem(&value.a, i, &element);
+                mcx_array_get_elem(&value.a, i + shift, &element);
                 filter->SetValue(filter, time->startTime, element);
             }
         }
@@ -198,6 +242,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
     if (out->GetFunction(out)) {
         proc * p = (proc *) out->GetFunction(out);
 
+        // TODO: Update functions to only update the slices ?
         if (p->fn(time, p->env, &filteredConnection->data->updateBuffer) != 0) {
             mcx_log(LOG_ERROR, "FilteredConnection: Function failed");
             return RETURN_ERROR;
