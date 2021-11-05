@@ -34,6 +34,8 @@ ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
 size_t ChannelDimensionNumElements(ChannelDimension * dimension);
 ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
 int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second);
+int ChannelDimensionIncludedIn(const ChannelDimension * first, const ChannelDimension * second);
+char * ChannelDimensionString(const ChannelDimension * dimension);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
