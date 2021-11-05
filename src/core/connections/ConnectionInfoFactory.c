@@ -104,6 +104,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
     {
         Databus * databus = info->sourceComponent->GetDatabus(info->sourceComponent);
         DatabusInfo * databusInfo = DatabusGetOutInfo(databus);
+        ChannelInfo * sourceInfo = NULL;
 
         char * inputFromChannel = connInput->fromType == ENDPOINT_SCALAR ? connInput->from.scalarEndpoint->channel :
                                                                            connInput->from.vectorEndpoint->channel;
@@ -137,6 +138,29 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             info->sourceDimension = sourceDimension;
         }
 
+        // check that the source endpoint "fits" into the channel
+        sourceInfo = DatabusInfoGetChannel(databusInfo, info->sourceChannel);
+        if (!ChannelDimensionIncludedIn(info->sourceDimension, sourceInfo->dimension)) {
+            char* channelDimString = ChannelDimensionString(sourceInfo->dimension);
+            char* connDimString = ChannelDimensionString(info->sourceDimension);
+            mcx_log(LOG_ERROR,
+                    "Connection: Dimension index mismatch between source port %s of element %s and the connection endpoint: %s vs %s",
+                    strFromChannel,
+                    info->sourceComponent->GetName(info->sourceComponent),
+                    channelDimString,
+                    connDimString);
+            retVal = RETURN_ERROR;
+
+            if (channelDimString) {
+                mcx_free(channelDimString);
+            }
+            if (connDimString) {
+                mcx_free(connDimString);
+            }
+
+            goto cleanup;
+        }
+
         info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
         if (info->sourceChannel < 0) {
             // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
@@ -159,6 +183,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
     {
         Databus * databus = info->targetComponent->GetDatabus(info->targetComponent);
         DatabusInfo * databusInfo = NULL;
+        ChannelInfo * targetInfo = NULL;
 
         char * inputToChannel = connInput->toType == ENDPOINT_SCALAR ? connInput->to.scalarEndpoint->channel :
                                                                        connInput->to.vectorEndpoint->channel;
@@ -199,6 +224,29 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             }
 
             info->targetDimension = targetDimension;
+        }
+
+        // check that the target endpoint "fits" into the channel
+        targetInfo = DatabusInfoGetChannel(databusInfo, info->targetChannel);
+        if (!ChannelDimensionIncludedIn(info->targetDimension, targetInfo->dimension)) {
+            char * channelDimString = ChannelDimensionString(targetInfo->dimension);
+            char * connDimString = ChannelDimensionString(info->targetDimension);
+            mcx_log(LOG_ERROR,
+                    "Connection: Dimension index mismatch between connection endpoint and the target port %s of element %s: %s vs %s",
+                    strToChannel,
+                    info->targetComponent->GetName(info->targetComponent),
+                    connDimString,
+                    channelDimString);
+            retVal = RETURN_ERROR;
+
+            if (channelDimString) {
+                mcx_free(channelDimString);
+            }
+            if (connDimString) {
+                mcx_free(connDimString);
+            }
+
+            goto cleanup;
         }
 
         info->targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
@@ -261,6 +309,21 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             }
 
             info->sourceDimension = sourceDimension;
+        }
+    }
+
+    {
+        // check that connection endpoint dimensions match
+        ChannelDimension * sourceDim = info->sourceDimension;
+        ChannelDimension * targetDim = info->targetDimension;
+
+        size_t numSourceElems = sourceDim ? ChannelDimensionNumElements(sourceDim) : 1;
+        size_t numTargetElems = targetDim ? ChannelDimensionNumElements(targetDim) : 1;
+
+        if (numSourceElems != numTargetElems) {
+            mcx_log(LOG_ERROR, "Connection: Lengths of vectors do not match");
+            retVal = RETURN_ERROR;
+            goto cleanup;
         }
     }
 

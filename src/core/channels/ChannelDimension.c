@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "core/channels/ChannelDimension.h"
+#include "util/stdlib.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,6 +134,73 @@ int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second) {
 
     return TRUE;
 }
+
+int ChannelDimensionIncludedIn(const ChannelDimension* first, const ChannelDimension* second) {
+    size_t i = 0;
+
+    if (!first && !second) {
+        return TRUE;
+    } else if (!first || !second) {
+        return FALSE;
+    }
+
+    if (first->num != second->num) {
+        return FALSE;  // only same number of dimensions is comparable
+    }
+
+    for (i = 0; i < first->num; i++) {
+        if (first->startIdxs[i] < second->startIdxs[i] || first->startIdxs[i] > second->endIdxs[i]) {
+            return FALSE;
+        }
+
+        if (first->endIdxs[i] > second->endIdxs[i] || first->endIdxs[i] < second->startIdxs[i]) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+char * ChannelDimensionString(const ChannelDimension * dimension) {
+    char * str = NULL;
+    size_t length = 0;
+    size_t i = 0;
+    int n = 0;
+
+    if (!dimension) {
+        return NULL;
+    }
+
+    for (i = 0; i < dimension->num; i++) {
+        length += 1;                                        // '('
+        length += mcx_digits10(dimension->startIdxs[i]);    // a
+        length += 2;                                        // ', '
+        length += mcx_digits10(dimension->endIdxs[i]);      // b
+        length += 1;                                        // ')'
+    }
+
+    length += dimension->num - 1;                           // spaces between dimensions
+    length += 2;                                            // '[' at the beginning and ']' at the end
+    length += 1;                                            // '\0'
+
+    str = (char *) mcx_calloc(sizeof(char), length);
+    if (!str) {
+        mcx_log(LOG_ERROR, "ChannelDimensionString: Not enough memory");
+        return NULL;
+    }
+
+    n += sprintf(str, "[");
+    for (i = 0; i < dimension->num; i++) {
+        if (i > 0) {
+            n += sprintf(str + n, " ");
+        }
+        n += sprintf(str + n, "(%zu, %zu)", dimension->startIdxs[i], dimension->endIdxs[i]);
+    }
+    sprintf(str + n, "]");
+
+    return str;
+}
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
