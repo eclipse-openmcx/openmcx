@@ -124,19 +124,19 @@ ChannelType * ChannelTypeArrayInner(ChannelType * array) {
     return array->ty.a.inner;
 }
 
-int ChannelTypeIsValid(ChannelType * a) {
+int ChannelTypeIsValid(const ChannelType * a) {
     return a->con != CHANNEL_UNKNOWN;
 }
 
-int ChannelTypeIsScalar(ChannelType * a) {
+int ChannelTypeIsScalar(const ChannelType * a) {
     return a->con != CHANNEL_ARRAY;
 }
 
-int ChannelTypeIsArray(ChannelType * a) {
+int ChannelTypeIsArray(const ChannelType * a) {
     return a->con == CHANNEL_ARRAY;
 }
 
-int ChannelTypeIsBinary(ChannelType * a) {
+int ChannelTypeIsBinary(const ChannelType * a) {
     return a->con == CHANNEL_BINARY || a->con == CHANNEL_BINARY_REFERENCE;
 }
 
@@ -148,7 +148,7 @@ ChannelType * ChannelTypeBaseType(ChannelType * a) {
     }
 }
 
-size_t ChannelTypeNumElements(ChannelType * type) {
+size_t ChannelTypeNumElements(const ChannelType * type) {
     if (ChannelTypeIsArray(type)) {
         size_t i = 0;
         size_t num_elems = 1;

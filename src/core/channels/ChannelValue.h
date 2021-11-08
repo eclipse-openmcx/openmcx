@@ -60,12 +60,12 @@ void ChannelTypeDestructor(ChannelType * type);
 
 ChannelType * ChannelTypeArrayInner(ChannelType * array);
 
-int ChannelTypeIsValid(ChannelType * a);
-int ChannelTypeIsScalar(ChannelType * a);
-int ChannelTypeIsArray(ChannelType * a);
-int ChannelTypeIsBinary(ChannelType * a);
+int ChannelTypeIsValid(const ChannelType * a);
+int ChannelTypeIsScalar(const ChannelType * a);
+int ChannelTypeIsArray(const ChannelType * a);
+int ChannelTypeIsBinary(const ChannelType * a);
 
-size_t ChannelTypeNumElements(ChannelType * type);
+size_t ChannelTypeNumElements(const ChannelType * type);
 
 ChannelType * ChannelTypeBaseType(ChannelType * a);
 
