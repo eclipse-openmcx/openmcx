@@ -426,6 +426,11 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         valRef->ref.slice = (ArraySlice *) mcx_calloc(1, sizeof(ArraySlice));
         valRef->ref.slice->ref = &channel->value;
         valRef->ref.slice->dimension = ChannelDimensionClone(dimension);
+        retVal = ChannelDimensionNormalize(valRef->ref.slice->dimension, inInfo->dimension);
+        if (retVal == RETURN_ERROR) {
+            ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Normalizing array slice dimension failed");
+            return RETURN_ERROR;
+        }
     } else {
         valRef->type = CHANNEL_VALUE_REF_VALUE;
         valRef->ref.value = &channel->value;
@@ -450,9 +455,15 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
 
     // TODO - array
     // setup type conversion
+
+    ChannelType * connType = ChannelDimensionToChannelType(connInfo->sourceDimension, type);
+    if (!connType) {
+        return RETURN_ERROR;
+    }
+
     if (!ChannelTypeEq(inInfo->type, type)) {
         TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
-        retVal = typeConv->Setup(typeConv, type, inInfo->type);
+        retVal = typeConv->Setup(typeConv, connType, inInfo->type);
         if (RETURN_ERROR == retVal) {
             return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up type conversion");
         }
@@ -468,6 +479,8 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
             return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add empty type conversion");
         }
     }
+
+    ChannelTypeDestructor(connType);
 
     return retVal;
 }
