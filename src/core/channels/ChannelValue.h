@@ -65,6 +65,8 @@ int ChannelTypeIsScalar(ChannelType * a);
 int ChannelTypeIsArray(ChannelType * a);
 int ChannelTypeIsBinary(ChannelType * a);
 
+size_t ChannelTypeNumElements(ChannelType * type);
+
 ChannelType * ChannelTypeBaseType(ChannelType * a);
 
 int ChannelTypeEq(ChannelType * a, ChannelType * b);
