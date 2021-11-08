@@ -148,6 +148,21 @@ ChannelType * ChannelTypeBaseType(ChannelType * a) {
     }
 }
 
+size_t ChannelTypeNumElements(ChannelType * type) {
+    if (ChannelTypeIsArray(type)) {
+        size_t i = 0;
+        size_t num_elems = 1;
+
+        for (i = 0; i < type->ty.a.numDims; i++) {
+            num_elems *= type->ty.a.dims[i];
+        }
+
+        return num_elems;
+    } else {
+        return 1;
+    }
+}
+
 int ChannelTypeEq(ChannelType * a, ChannelType * b) {
     if (a->con == CHANNEL_ARRAY && b->con == CHANNEL_ARRAY) {
         size_t i = 0;
