@@ -41,6 +41,12 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
         // slice
 
         // TODO
+
+        if (conv) {
+            return conv->Convert(conv, ref, reference);
+        }
+
+        return ChannelValueDataSetFromReference(&ref->ref.slice->ref, ref->ref.value->type, reference);
     }
 
     return RETURN_OK;
