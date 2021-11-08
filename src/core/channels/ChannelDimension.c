@@ -201,6 +201,51 @@ char * ChannelDimensionString(const ChannelDimension * dimension) {
     return str;
 }
 
+McxStatus ChannelDimensionNormalize(ChannelDimension * target, ChannelDimension * base) {
+    size_t i = 0;
+    if (!target && !base) {
+        return RETURN_OK;
+    } else if (!target || !base) {
+        return RETURN_ERROR;
+    }
+
+    if (target->num != base->num) {
+        return RETURN_ERROR;
+    }
+
+    for (i = 0; i < target->num; i++) {
+        target->startIdxs[i] -= base->startIdxs[i];
+        target->endIdxs[i] -= base->startIdxs[i];
+    }
+
+    return RETURN_OK;
+}
+
+ChannelType * ChannelDimensionToChannelType(ChannelDimension * dimension, ChannelType * sourceType) {
+    if (dimension) {
+        // source data is an array
+        size_t i = 0;
+        ChannelType * type = NULL;
+        size_t * dims = (size_t *) mcx_calloc(sizeof(size_t), dimension->num);
+
+        if (!dims) {
+            mcx_log(LOG_ERROR, "ChannelDimensionToChannelType: Not enough memory for dimension calculation");
+            return NULL;
+        }
+
+        for (i = 0; i < dimension->num; i++) {
+            dims[i] = dimension->endIdxs[i] - dimension->startIdxs[i] + 1;    // indices are inclusive
+        }
+
+        type = ChannelTypeArray(ChannelTypeClone(ChannelTypeBaseType(sourceType)), dimension->num, dims);
+        mcx_free(dims);
+        return type;
+    } else {
+        // source data is a scalar
+        return ChannelTypeClone(sourceType);
+    }
+}
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

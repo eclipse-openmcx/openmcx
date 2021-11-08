@@ -36,6 +36,8 @@ ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
 int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second);
 int ChannelDimensionIncludedIn(const ChannelDimension * first, const ChannelDimension * second);
 char * ChannelDimensionString(const ChannelDimension * dimension);
+McxStatus ChannelDimensionNormalize(ChannelDimension * target, ChannelDimension * base);
+ChannelType * ChannelDimensionToChannelType(ChannelDimension * dimension, ChannelType * sourceType);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
