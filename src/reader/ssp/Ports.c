@@ -239,18 +239,9 @@ cleanup_1:
                         goto cleanup;
                     }
 
-                    {
-                        size_t n = 0;
-                        retVal = xml_attr_bool_vec(vectorNode, "writeResults", &n, &vectorPortInput->writeResults, SSD_OPTIONAL);
-                        if (RETURN_ERROR == retVal) {
-                            goto cleanup;
-                        } else if (RETURN_OK == retVal) {
-                            if (n != num) {
-                                mcx_log(LOG_ERROR, "xml_attr_vec_len: Expected length (%d) does not match actual length (%d)", num, n);
-                                retVal = RETURN_ERROR;
-                                goto cleanup;
-                            }
-                        }
+                    retVal = xml_opt_attr_bool(vectorNode, "writeResults", &vectorPortInput->writeResults);
+                    if (RETURN_ERROR == retVal) {
+                        goto cleanup;
                     }
                 }
             }
