@@ -690,6 +690,61 @@ void ChannelValueDataInit(ChannelValueData * data, ChannelType * type) {
     }
 }
 
+McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data,
+                                                         ChannelType * type,
+                                                         const void * reference,
+                                                         fChannelValueDataSetterPredicate predicate) {
+    if (!reference) {
+        return RETURN_OK;
+    }
+
+    if (ChannelTypeIsArray(type)) {
+        mcx_array * a = (mcx_array *) reference;
+        size_t i = 0;
+        ChannelValueData first = {0};
+        ChannelValueData second = {0};
+
+        if (!mcx_array_dims_match(&data->a, a)) {
+            mcx_log(LOG_ERROR, "ChannelValueDataSetFromReferenceIfElemwisePred: Mismatching array dimensions");
+            return RETURN_ERROR;
+        }
+
+        if (a->data == NULL || data->a.data == NULL) {
+            mcx_log(LOG_ERROR, "ChannelValueDataSetFromReferenceIfElemwisePred: Array data not initialized");
+            return RETURN_ERROR;
+        }
+
+        for (i = 0; i < mcx_array_num_elements(&data->a); i++) {
+            if (RETURN_OK != mcx_array_get_elem(&data->a, i, &first)) {
+                mcx_log(LOG_ERROR, "ChannelValueDataSetFromReferenceIfElemwisePred: Getting destination element %zu failed", i);
+                return RETURN_ERROR;
+            }
+
+            if (RETURN_OK != mcx_array_get_elem(a, i, &second)) {
+                mcx_log(LOG_ERROR, "ChannelValueDataSetFromReferenceIfElemwisePred: Getting source element %zu failed", i);
+                return RETURN_ERROR;
+            }
+
+            if (predicate(&first, &second, a->type)) {
+                mcx_array_set_elem(&data->a, i, &second);
+            }
+        }
+
+        return RETURN_OK;
+    } else {
+
+    }
+    switch (type->con) {
+        default:
+            if (predicate(data, reference, type)) {
+                return ChannelValueDataSetFromReference(data, type, reference);
+            }
+            break;
+    }
+
+    return RETURN_OK;
+}
+
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference) {
     if (!reference) { return RETURN_OK; }
 

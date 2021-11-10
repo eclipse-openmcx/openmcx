@@ -141,6 +141,11 @@ void *      ChannelValueReference(ChannelValue * value);
 void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
 void ChannelValueDataInit(ChannelValueData * data, ChannelType * type);
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
+typedef int (*fChannelValueDataSetterPredicate)(void * first, void * second, ChannelType * type);
+McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data,
+                                                         ChannelType * type,
+                                                         const void * reference,
+                                                         fChannelValueDataSetterPredicate predicate);
 McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference);
 
 McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
