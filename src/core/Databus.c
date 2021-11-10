@@ -115,40 +115,52 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
             goto vector_cleanup_0;
         }
 
-        info->min = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->min);
-        if (!info->min) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
+        if (vectorPortInput->min) {
+            info->min = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->min);
+            if (!info->min) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        info->max = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->max);
-        if (!info->max) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
+        if (vectorPortInput->max) {
+            info->max = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->max);
+            if (!info->max) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        info->scale = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->scale);
-        if (!info->scale) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
+        if (vectorPortInput->scale) {
+            info->scale = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->scale);
+            if (!info->scale) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        info->offset = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->offset);
-        if (!info->offset) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
+        if (vectorPortInput->offset) {
+            info->offset = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->offset);
+            if (!info->offset) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        info->initialValue = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->initial);
-        if (!info->initialValue) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
+        if (vectorPortInput->initial) {
+            info->initialValue = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->initial);
+            if (!info->initialValue) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        info->defaultValue = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->default_);
-        if (!info->defaultValue) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
+        if (vectorPortInput->default_) {
+            info->defaultValue = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->default_);
+            if (!info->defaultValue) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
         if (vectorPortInput->writeResults.defined) {
