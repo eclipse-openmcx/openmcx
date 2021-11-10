@@ -107,6 +107,7 @@ void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
 size_t mcx_array_num_elements(mcx_array * a);
 McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element);
+McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * element);
 
 // TODO: change concrete types to McxDouble, McxInteger, etc
 union ChannelValueData {
