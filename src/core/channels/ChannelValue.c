@@ -1011,6 +1011,8 @@ int ChannelValueLeq(ChannelValue * val1, ChannelValue * val2) {
         return val1->value.d <= val2->value.d;
     case CHANNEL_INTEGER:
         return val1->value.i <= val2->value.i;
+    case CHANNEL_ARRAY:
+        return mcx_array_leq(&val1->value.a, &val2->value.a);
     default:
         return 0;
     }

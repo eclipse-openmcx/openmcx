@@ -519,8 +519,8 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
     // unit conversion is setup when a connection is set
 
     // min/max conversions are only used for double types
-    if (ChannelTypeEq(info->type, &ChannelTypeDouble)
-        || ChannelTypeEq(info->type, &ChannelTypeInteger))
+    if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble) ||
+        ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger))
     {
         ChannelValue * min = info->min;
         ChannelValue * max = info->max;
@@ -661,8 +661,8 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 
 
     // min/max conversions are only used for double types
-    if (ChannelTypeEq(info->type, &ChannelTypeDouble)
-        || ChannelTypeEq(info->type, &ChannelTypeInteger))
+    if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble)
+        || ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger))
     {
         out->data->rangeConversion = (RangeConversion *) object_create(RangeConversion);
         retVal = out->data->rangeConversion->Setup(out->data->rangeConversion, min, max);
@@ -885,8 +885,8 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         }
 
         // Apply conversion
-        if (ChannelTypeEq(info->type, &ChannelTypeDouble) ||
-            ChannelTypeEq(info->type, &ChannelTypeInteger)) {
+        if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble) ||
+            ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger)) {
             ChannelValue * val = &channel->value;
 
             // range
