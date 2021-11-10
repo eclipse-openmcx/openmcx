@@ -203,6 +203,54 @@ void mcx_array_destroy(mcx_array * a) {
     if (a->type) { ChannelTypeDestructor(a->type); }
 }
 
+int mcx_array_all(mcx_array * a, mcx_array_predicate_f_ptr predicate) {
+    size_t i = 0;
+    ChannelValueData element = {0};
+
+    for (i = 0; i < mcx_array_num_elements(a); i++) {
+        if (RETURN_OK != mcx_array_get_elem(a, i, &element)) {
+            mcx_log(LOG_WARNING, "mcx_array_all: Getting element %zu failed", i);
+            return 0;
+        }
+
+        if (!predicate(&element, a->type)) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+int mcx_array_leq(const mcx_array * left, const mcx_array * right) {
+    size_t numElems = 0;
+    size_t i = 0;
+
+    if (!ChannelTypeEq(left->type, right->type)) {
+        return 0;
+    }
+
+    numElems = mcx_array_num_elements(left);
+
+    for (i = 0; i < numElems; i++) {
+        switch (left->type->con) {
+            case CHANNEL_DOUBLE:
+                if (((double *)left->data)[i] > ((double*)right->data)[i]) {
+                    return 0;
+                }
+                break;
+            case CHANNEL_INTEGER:
+                if (((int *) left->data)[i] > ((int *) right->data)[i]) {
+                    return 0;
+                }
+                break;
+            default:
+                return 0;
+        }
+    }
+
+    return 1;
+}
+
 int mcx_array_dims_match(mcx_array * a, mcx_array * b) {
     size_t i = 0;
 
