@@ -104,24 +104,56 @@ cleanup:
     return retVal;
 }
 
+static int RangeConversionElemwiseLeq(void * first, void * second, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) first <= *(double *) second;
+        case CHANNEL_INTEGER:
+            return *(int *) first <= *(int *) second;
+        default:
+            return 0;
+    }
+}
+
+static int RangeConversionElemwiseGeq(void * first, void * second, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) first >= *(double *) second;
+        case CHANNEL_INTEGER:
+            return *(int *) first >= *(int *) second;
+        default:
+            return 0;
+    }
+}
+
 static McxStatus RangeConversionConvert(Conversion * conversion, ChannelValue * value) {
     RangeConversion * rangeConversion = (RangeConversion *) conversion;
-
     McxStatus retVal = RETURN_OK;
 
     if (!ChannelTypeEq(ChannelValueType(value), rangeConversion->type)) {
-        mcx_log(LOG_ERROR, "Range conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(rangeConversion->type));
+        mcx_log(LOG_ERROR,
+                "Range conversion: Value has wrong type %s, expected: %s",
+                ChannelTypeToString(ChannelValueType(value)),
+                ChannelTypeToString(rangeConversion->type));
         return RETURN_ERROR;
     }
 
-    if (rangeConversion->min && ChannelValueLeq(value, rangeConversion->min)) {
-        retVal = ChannelValueSet(value, rangeConversion->min);
+    if (rangeConversion->min) {
+        retVal = ChannelValueDataSetFromReferenceIfElemwisePred(&value->value,
+                                                                value->type,
+                                                                &rangeConversion->min->value,
+                                                                RangeConversionElemwiseLeq);
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "Range conversion: Set value to min failed");
             return RETURN_ERROR;
         }
-    } else if (rangeConversion->max && ChannelValueGeq(value, rangeConversion->max)) {
-        retVal = ChannelValueSet(value, rangeConversion->max);
+    }
+
+    if (rangeConversion->max) {
+        retVal = ChannelValueDataSetFromReferenceIfElemwisePred(&value->value,
+                                                                value->type,
+                                                                &rangeConversion->max->value,
+                                                                RangeConversionElemwiseGeq);
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "Range conversion: Set value to max failed");
             return RETURN_ERROR;
@@ -146,15 +178,11 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
         return RETURN_ERROR;
     }
 
-    if (min) {
-        conversion->type = ChannelValueType(min);
-    } else {
-        conversion->type = ChannelValueType(max);
-    }
+    conversion->type = ChannelTypeClone(ChannelValueType(min ? min : max));
 
-    if (!(ChannelTypeEq(conversion->type, &ChannelTypeDouble)
-          || ChannelTypeEq(conversion->type, &ChannelTypeInteger)
-          || ChannelTypeIsArray(conversion->type))) {
+    if (!(ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeDouble) ||
+          ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeInteger)))
+    {
         mcx_log(LOG_ERROR, "Range conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -165,22 +193,49 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
     return RETURN_OK;
 }
 
+static int RangeConversionElementEqualsMin(void * element, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == (-DBL_MAX);
+        case CHANNEL_INTEGER:
+            return *(int *) element == INT_MIN;
+        default:
+            return 0;
+    }
+}
+
+static int RangeConversionElementEqualsMax(void * element, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == DBL_MAX;
+        case CHANNEL_INTEGER:
+            return *(int *) element == INT_MAX;
+        default:
+            return 0;
+    }
+}
+
 static int RangeConversionIsEmpty(RangeConversion * conversion) {
     switch (conversion->type->con) {
-    case CHANNEL_DOUBLE:
-        return
-            (!conversion->min || * (double *) ChannelValueReference(conversion->min) == (-DBL_MAX)) &&
-            (!conversion->max || * (double *) ChannelValueReference(conversion->max) ==   DBL_MAX);
-    case CHANNEL_INTEGER:
-        return
-            (!conversion->min || * (int *) ChannelValueReference(conversion->min) == INT_MIN) &&
-            (!conversion->max || * (int *) ChannelValueReference(conversion->max) == INT_MAX);
-    default:
-        return 1;
+        case CHANNEL_DOUBLE:
+            return (!conversion->min || *(double *) ChannelValueReference(conversion->min) == (-DBL_MAX)) &&
+                   (!conversion->max || *(double *) ChannelValueReference(conversion->max) == DBL_MAX);
+        case CHANNEL_INTEGER:
+            return (!conversion->min || *(int *) ChannelValueReference(conversion->min) == INT_MIN) &&
+                   (!conversion->max || *(int *) ChannelValueReference(conversion->max) == INT_MAX);
+        case CHANNEL_ARRAY:
+            return (!conversion->min || mcx_array_all(&conversion->min->value.a, RangeConversionElementEqualsMin)) &&
+                   (!conversion->max || mcx_array_all(&conversion->max->value.a, RangeConversionElementEqualsMax));
+        default:
+            return 1;
     }
 }
 
 static void RangeConversionDestructor(RangeConversion * rangeConversion) {
+    if (rangeConversion->type) {
+        ChannelTypeDestructor(rangeConversion->type);
+    }
+
     if (rangeConversion->min) {
         mcx_free(rangeConversion->min);
     }
