@@ -501,20 +501,18 @@ static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelVal
     }
 
     if (factor && offset && !ChannelTypeEq(ChannelValueType(factor), ChannelValueType(offset))) {
-        mcx_log(LOG_WARNING, "Linear conversion: Types of factor value (%s) and offset value (%s) do not match",
-            ChannelTypeToString(ChannelValueType(factor)), ChannelTypeToString(ChannelValueType(offset)));
+        mcx_log(LOG_WARNING,
+                "Linear conversion: Types of factor value (%s) and offset value (%s) do not match",
+                ChannelTypeToString(ChannelValueType(factor)),
+                ChannelTypeToString(ChannelValueType(offset)));
         return RETURN_ERROR;
     }
 
-    if (factor) {
-        conversion->type = ChannelValueType(factor);
-    } else {
-        conversion->type = ChannelValueType(offset);
-    }
+    conversion->type = ChannelTypeClone(ChannelValueType(factor ? factor : offset));
 
-    if (!(ChannelTypeEq(conversion->type, &ChannelTypeDouble)
-          || ChannelTypeEq(conversion->type, &ChannelTypeInteger)
-          || ChannelTypeIsArray(conversion->type))) {
+    if (!(ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeDouble) ||
+          ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeInteger)))
+    {
         mcx_log(LOG_WARNING, "Linear conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -523,6 +521,28 @@ static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelVal
     conversion->offset = offset ? ChannelValueClone(offset) : NULL;
 
     return RETURN_OK;
+}
+
+static int LinearConversionElementEqualsOne(void* element, ChannelType* type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == 1.0;
+        case CHANNEL_INTEGER:
+            return *(int *) element == 1;
+        default:
+            return 0;
+    }
+}
+
+static int LinearConversionElementEqualsZero(void * element, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == 0.0;
+        case CHANNEL_INTEGER:
+            return *(int *) element == 0;
+        default:
+            return 0;
+    }
 }
 
 static int LinearConversionIsEmpty(LinearConversion * conversion) {
@@ -535,12 +555,19 @@ static int LinearConversionIsEmpty(LinearConversion * conversion) {
         return
             (!conversion->factor || * (int *) ChannelValueReference(conversion->factor) == 1) &&
             (!conversion->offset || * (int *) ChannelValueReference(conversion->offset) == 0);
+    case CHANNEL_ARRAY:
+        return (!conversion->factor || mcx_array_all(&conversion->factor->value.a, LinearConversionElementEqualsOne)) &&
+               (!conversion->offset || mcx_array_all(&conversion->offset->value.a, LinearConversionElementEqualsZero));
     default:
         return 1;
     }
 }
 
 static void LinearConversionDestructor(LinearConversion * linearConversion) {
+    if (linearConversion->type) {
+        ChannelTypeDestructor(linearConversion->type);
+    }
+
     if (linearConversion->factor) {
         mcx_free(linearConversion->factor);
     }
