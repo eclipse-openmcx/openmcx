@@ -214,8 +214,8 @@ McxStatus ChannelDimensionNormalize(ChannelDimension * target, ChannelDimension 
     }
 
     for (i = 0; i < target->num; i++) {
-        target->startIdxs[i] -= base->startIdxs[i];
         target->endIdxs[i] -= base->startIdxs[i];
+        target->startIdxs[i] -= base->startIdxs[i];
     }
 
     return RETURN_OK;
