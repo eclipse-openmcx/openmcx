@@ -271,6 +271,72 @@ McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * eleme
     return RETURN_OK;
 }
 
+McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * element) {
+    size_t num_elems = mcx_array_num_elements(a);
+
+    if (idx >= num_elems) {
+        mcx_log(LOG_ERROR, "mcx_array_set_elem: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
+        return RETURN_ERROR;
+    }
+
+    switch (a->type->con) {
+        case CHANNEL_DOUBLE:
+            *((double *) a->data + idx) = element->d;
+            break;
+        case CHANNEL_INTEGER:
+            *((int *) a->data + idx) = element->i;
+            break;
+        case CHANNEL_BOOL:
+            *((int *) a->data + idx) = element->i != 0 ? 1 : 0;
+            break;
+        case CHANNEL_STRING:
+            {
+                char ** elements = (char **) a->data;
+
+                if (elements[idx]) {
+                    mcx_free(elements[idx]);
+                }
+
+                elements[idx] = (char *) mcx_calloc(strlen(element->s) + 1, sizeof(char));
+                if (!elements[idx]) {
+                    mcx_log(LOG_ERROR, "mcx_array_set_elem: Not enough memory");
+                    return RETURN_ERROR;
+                }
+
+                strncpy(elements[idx], element->s, strlen(element->s) + 1);
+                break;
+            }
+        case CHANNEL_BINARY:
+            {
+                binary_string * elements = (binary_string *) a->data;
+                if (elements[idx].data) {
+                    mcx_free(elements[idx].data);
+                }
+
+                elements[idx].len = element->b.len;
+                elements[idx].data = (char *) mcx_calloc(elements[idx].len, 1);
+                if (!elements[idx].data) {
+                    mcx_log(LOG_ERROR, "mcx_array_set_elem: Not enough memory");
+                    return RETURN_ERROR;
+                }
+                memcpy(elements[idx].data, element->b.data, elements[idx].len);
+                break;
+            }
+        case CHANNEL_BINARY_REFERENCE:
+            ((binary_string *) a->data)[idx].len = element->b.len;
+            ((binary_string *) a->data)[idx].data = element->b.data;
+            break;
+        case CHANNEL_ARRAY:
+            mcx_log(LOG_ERROR, "mcx_array_set_elem: Nested arrays are not supported");
+            return RETURN_ERROR;
+        default:
+            mcx_log(LOG_ERROR, "mcx_array_set_elem: Unknown array type");
+            return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
 void ChannelValueInit(ChannelValue * value, ChannelType * type) {
     value->type = type;
     ChannelValueDataInit(&value->value, type);
