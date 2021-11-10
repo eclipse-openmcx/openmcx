@@ -285,6 +285,19 @@ size_t mcx_array_num_elements(mcx_array * a) {
     return n;
 }
 
+McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx) {
+    size_t num_elems = mcx_array_num_elements(a);
+    size_t i = 0;
+
+    for (i = 0; i < num_elems; i++) {
+        if (fn((char *) a->data + i * ChannelValueTypeSize(a->type), i, a->type, ctx)) {
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
 McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element) {
     size_t num_elems = mcx_array_num_elements(a);
 
@@ -1051,6 +1064,24 @@ int ChannelValueEq(ChannelValue * val1, ChannelValue * val2) {
     }
 }
 
+static int ChannelValueArrayElemAddOffset(void * elem, size_t idx, ChannelType * type, void * ctx) {
+    mcx_array * offset = (mcx_array *) ctx;
+
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            *(double *) elem = *(double *) elem + ((double *) offset->data)[idx];
+            break;
+        case CHANNEL_INTEGER:
+            *(int *) elem = *(int *) elem + ((int *) offset->data)[idx];
+            break;
+        default:
+            mcx_log(LOG_ERROR, "ChannelValueArrayElemAddOffset: Type %s not allowed", ChannelTypeToString(type));
+            return 1;
+    }
+
+    return 0;
+}
+
 McxStatus ChannelValueAddOffset(ChannelValue * val, ChannelValue * offset) {
     if (!ChannelTypeEq(val->type, offset->type)) {
         mcx_log(LOG_ERROR, "Port: Add offset: Mismatching types. Value type: %s, offset type: %s",
@@ -1065,10 +1096,30 @@ McxStatus ChannelValueAddOffset(ChannelValue * val, ChannelValue * offset) {
     case CHANNEL_INTEGER:
         val->value.i += offset->value.i;
         return RETURN_OK;
+    case CHANNEL_ARRAY:
+        return mcx_array_map(&val->value.a, ChannelValueArrayElemAddOffset, &offset->value.a);
     default:
         mcx_log(LOG_ERROR, "Port: Add offset: Type %s not allowed", ChannelTypeToString(ChannelValueType(val)));
         return RETURN_ERROR;
     }
+}
+
+static int ChannelValueArrayElemScale(void * elem, size_t idx, ChannelType * type, void * ctx) {
+    mcx_array * factor = (mcx_array *) ctx;
+
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            *(double *) elem = *(double *) elem * ((double *) factor->data)[idx];
+            break;
+        case CHANNEL_INTEGER:
+            *(int *) elem = *(int *) elem * ((int *) factor->data)[idx];
+            break;
+        default:
+            mcx_log(LOG_ERROR, "ChannelValueArrayElemScale: Type %s not allowed", ChannelTypeToString(type));
+            return 1;
+    }
+
+    return 0;
 }
 
 McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor) {
@@ -1085,6 +1136,8 @@ McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor) {
     case CHANNEL_INTEGER:
         val->value.i *= factor->value.i;
         return RETURN_OK;
+    case CHANNEL_ARRAY:
+        return mcx_array_map(&val->value.a, ChannelValueArrayElemScale, &factor->value.a);
     default:
         mcx_log(LOG_ERROR, "Port: Scale: Type %s not allowed", ChannelTypeToString(ChannelValueType(val)));
         return RETURN_ERROR;
