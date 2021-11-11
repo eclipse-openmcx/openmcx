@@ -45,7 +45,8 @@ typedef struct ChannelValueRef {
     } ref;
 } ChannelValueRef;
 
-McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, TypeConversion * typeConv);
+McxStatus
+ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * typeConv);
 ChannelType * ChannelValueRefGetType(ChannelValueRef * ref);
 
 typedef McxStatus (*fChannelValueRefElemMapFunc)(void * element, ChannelType * type, void * ctx);
