@@ -665,7 +665,7 @@ static McxStatus CheckTypesValidForConversion(ChannelType * destType,
     if (!ChannelTypeEq(destType, expectedDestType)) {
         mcx_log(LOG_ERROR,
                 "Type conversion: Destination value has wrong type %s, expected: %s",
-                ChannelTypeToString(ChannelValueType(destType)),
+                ChannelTypeToString(destType),
                 ChannelTypeToString(expectedDestType));
         return RETURN_ERROR;
     }
