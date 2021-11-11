@@ -36,7 +36,7 @@ typedef struct ChannelInData {
     // Conversions
 
     ObjectContainer * typeConversions;  // conversion objects (or NULL) for each connection in `connections`
-    struct UnitConversion * unitConversion;
+    ObjectContainer * unitConversions;  // conversion objects (or NULL) for each connection in `connections`
     struct LinearConversion * linearConversion;
     struct RangeConversion * rangeConversion;
 

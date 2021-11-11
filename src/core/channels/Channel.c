@@ -172,8 +172,10 @@ static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
     if (!data->typeConversions) {
         return NULL;
     }
-
-    data->unitConversion = NULL;
+    data->unitConversions = (ObjectContainer *) object_create(ObjectContainer);
+    if (!data->unitConversions) {
+        return NULL;
+    }
     data->linearConversion = NULL;
     data->rangeConversion = NULL;
 
@@ -182,14 +184,16 @@ static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
     return data;
 }
 
+// TODO fix Create and Destructor to properly free memory in case of failure
+
 static void ChannelInDataDestructor(ChannelInData * data) {
     // clean up conversion objects
     data->typeConversions->DestroyObjects(data->typeConversions);
     object_destroy(data->typeConversions);
 
-    if (data->unitConversion) {
-        object_destroy(data->unitConversion);
-    }
+    data->unitConversions->DestroyObjects(data->unitConversions);
+    object_destroy(data->unitConversions);
+
     if (data->linearConversion) {
         object_destroy(data->linearConversion);
     }
@@ -273,6 +277,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         Connection * conn = (Connection *) in->data->connections->At(in->data->connections, i);
         ConnectionInfo * connInfo = &conn->info;
         TypeConversion * typeConv = (TypeConversion *) in->data->typeConversions->At(in->data->typeConversions, i);
+        UnitConversion * unitConv = (UnitConversion *) in->data->unitConversions->At(in->data->unitConversions, i);
         ChannelValueRef * valueRef = (ChannelValueRef *) in->data->valueReferences->At(in->data->valueReferences, i);
 
         /* Update the connection for the current time */
@@ -284,23 +289,20 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), typeConv)) {
             return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "ChannelValueRefSetFromReference failed");
         }
+
+        // unit conversion
+        if (unitConv) {
+            retVal = unitConv->ConvertValueReference(unitConv, valueRef);
+            if (RETURN_OK != retVal) {
+                return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "Unit conversion failed");
+            }
+        }
     }
 
 
     // Conversions
     {
         ChannelValue * val =  &channel->value;
-
-
-        // unit
-        if (in->data->unitConversion) {
-            Conversion * conversion = (Conversion *) in->data->unitConversion;
-            retVal = conversion->convert(conversion, val);
-            if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute unit conversion", ChannelInfoGetLogName(info));
-                return RETURN_ERROR;
-            }
-        }
 
 
         // linear
@@ -439,17 +441,26 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     retVal = in->data->valueReferences->PushBack(in->data->valueReferences, (Object *) valRef);
     // TODO check retVal
 
-    if (ChannelTypeEq(inInfo->type, &ChannelTypeDouble)) {
-        in->data->unitConversion = (UnitConversion *) object_create(UnitConversion);
-        retVal = in->data->unitConversion->Setup(in->data->unitConversion,
-                                                 unit,
-                                                 inInfo->unitString);
+    if (ChannelTypeEq(ChannelTypeBaseType(inInfo->type), &ChannelTypeDouble)) {
+        UnitConversion * conversion = (UnitConversion *) object_create(UnitConversion);
+
+        retVal = conversion->Setup(conversion, unit, inInfo->unitString);
         if (RETURN_ERROR == retVal) {
             return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up unit conversion");
         }
 
-        if (in->data->unitConversion->IsEmpty(in->data->unitConversion)) {
-            object_destroy(in->data->unitConversion);
+        if (conversion->IsEmpty(conversion)) {
+            object_destroy(conversion);
+        }
+
+        retVal = in->data->unitConversions->PushBack(in->data->unitConversions, (Object *) conversion);
+        if (RETURN_ERROR == retVal) {
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add unit conversion");
+        }
+    } else {
+        retVal = in->data->unitConversions->PushBack(in->data->unitConversions, NULL);
+        if (RETURN_ERROR == retVal) {
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add empty unit conversion");
         }
     }
 
