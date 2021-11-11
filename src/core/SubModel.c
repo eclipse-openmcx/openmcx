@@ -701,6 +701,7 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                             ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, i);
                             if (!ConnectionInfoIsDecoupled(info)) {
                                 allDecoupled = FALSE;
+                                break;
                             }
                         }
 
@@ -714,81 +715,68 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
             if (DEP_INDEPENDENT != dependency) {
                 ObjectContainer * infos = GetInConnectionInfos(targetComp, targetInChannelID);
                 ObjectContainer * conns = GetInConnections(targetComp, targetInChannelID);
-                size_t numInfos = infos->Size(infos);
-                size_t numConns = conns->Size(conns);
                 size_t i = 0;
 
-                int isDecoupled = TRUE;
-                size_t decoupleType = (size_t) -1;
-                int isActiveDependency = FALSE;
+                for (i = 0; i < infos->Size(infos); i++) {
+                    ConnectionInfo * info = infos->At(infos, i);
+                    Connection * conn = conns->At(conns, i);
 
-                for (i = 0; i < numInfos; i++) {
-                    ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, i);
-                    if (!ConnectionInfoIsDecoupled(info)) {
-                        isDecoupled = FALSE;
-                    }
+                    if (info && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED)) && (!ConnectionInfoIsDecoupled(info)) &&
+                        conn && conn->IsActiveDependency(conn))
+                    {
+                        Component * sourceComp = info->sourceComponent;
+                        size_t sourceOutGroup, sourceNode;
+                        Databus * db = targetComp->GetDatabus(targetComp);
+                        DatabusInfo * dbInfo = DatabusGetOutInfo(db);
+                        size_t numOutChannels = DatabusInfoGetChannelNum(dbInfo);
 
-                    decoupleType &= info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED);
-                }
+                        if (INITIAL_DEPENDENCIES == depType) {
+                            sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->sourceChannel);
+                        } else {
+                            sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->sourceChannel);
+                        }
 
-                for (i = 0; i < numConns; i++) {
-                    Connection * conn = (Connection *) conns->At(conns, i);
-                    if (conn->IsActiveDependency(conn)) {
-                        isActiveDependency = TRUE;
-                        break;
-                    }
-                }
+                        sourceNode = SubModelGeneratorGetNodeID(subModelGenerator, sourceComp, sourceOutGroup);
 
-                if (numInfos > 0 && decoupleType && !isDecoupled && numConns > 0 && isActiveDependency) {
-                    ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, 0);
+                        if (SIZE_T_ERROR == sourceNode) {
+                            // source is not part of this submodel
+                            //   -> no dependency -> do nothing
+                            continue;
+                        }
 
-                    Component * sourceComp = info->sourceComponent;
-                    size_t sourceOutGroup, sourceNode;
-                    Databus * db = targetComp->GetDatabus(targetComp);
-                    DatabusInfo * dbInfo = DatabusGetOutInfo(db);
-                    size_t numOutChannels = DatabusInfoGetChannelNum(dbInfo);
-
-                    if (INITIAL_DEPENDENCIES == depType) {
-                        sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->sourceChannel);
-                    } else {
-                        sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->sourceChannel);
-                    }
-
-                    sourceNode = SubModelGeneratorGetNodeID(subModelGenerator, sourceComp, sourceOutGroup);
-
-                    if (SIZE_T_ERROR == sourceNode) {
-                        // source is not part of this submodel
-                        //   -> no dependency -> do nothing
-                        continue;
-                    }
-
-                    if (INITIAL_DEPENDENCIES == depType) {
-                        // check if the target output has an exact initial value
-                        ChannelInfo * info = NULL;
-                        // check if target outputs even exits
-                        if (0 < numOutChannels) {
-                            info = DatabusGetOutChannelInfo(db, targetGroup);
-                            // initial outputs are exact only if specified
-                            if (info->initialValueIsExact && info->initialValue) {
-                                continue;
+                        if (INITIAL_DEPENDENCIES == depType) {
+                            // check if the target output has an exact initial value
+                            ChannelInfo * info = NULL;
+                            // check if target outputs even exits
+                            if (0 < numOutChannels) {
+                                info = DatabusGetOutChannelInfo(db, targetGroup);
+                                // initial outputs are exact only if specified
+                                if (info->initialValueIsExact && info->initialValue) {
+                                    continue;
+                                }
                             }
                         }
-                    }
-                    retVal = SetDependency(A, sourceNode, targetNode, DEP_DEPENDENT);
-                    if (RETURN_ERROR == retVal) {
-                        mcx_log(LOG_ERROR, "SetDependency failed in SubModelGeneratorCreateDependencyMatrix");
-                        mcx_free(A);
-                        return NULL;
-                    }
+                        retVal = SetDependency(A, sourceNode, targetNode, DEP_DEPENDENT);
+                        if (RETURN_ERROR == retVal) {
+                            mcx_log(LOG_ERROR, "SetDependency failed in SubModelGeneratorCreateDependencyMatrix");
+                            mcx_free(A);
+                            return NULL;
+                        }
 
-                    if (0 == numOutChannels && (INITIAL_DEPENDENCIES == depType) ) {
-                        mcx_log(LOG_DEBUG, "(%s,%d) -> (%s,-)",
-                            sourceComp->GetName(sourceComp), sourceOutGroup,
-                            targetComp->GetName(targetComp) );
-                    } else {
-                        mcx_log(LOG_DEBUG, "(%s,%d) -> (%s,%d)",
-                            sourceComp->GetName(sourceComp), sourceOutGroup,
-                            targetComp->GetName(targetComp), targetGroup);
+                        if (0 == numOutChannels && (INITIAL_DEPENDENCIES == depType)) {
+                            mcx_log(LOG_DEBUG,
+                                    "(%s,%d) -> (%s,-)",
+                                    sourceComp->GetName(sourceComp),
+                                    sourceOutGroup,
+                                    targetComp->GetName(targetComp));
+                        } else {
+                            mcx_log(LOG_DEBUG,
+                                    "(%s,%d) -> (%s,%d)",
+                                    sourceComp->GetName(sourceComp),
+                                    sourceOutGroup,
+                                    targetComp->GetName(targetComp),
+                                    targetGroup);
+                        }
                     }
                 }
             }
