@@ -135,6 +135,28 @@ int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second) {
     return TRUE;
 }
 
+int ChannelDimensionConformable(ChannelDimension * first, ChannelDimension * second) {
+    size_t i = 0;
+
+    if (!first && !second) {
+        return TRUE;
+    } else if (!first || !second) {
+        return FALSE;
+    }
+
+    if (first->num != second->num) {
+        return FALSE;
+    }
+
+    for (i = 0; i < first->num; i++) {
+        if (first->endIdxs[i] - first->startIdxs[i] != second->endIdxs[i] - second->startIdxs[i]) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 int ChannelDimensionIncludedIn(const ChannelDimension* first, const ChannelDimension* second) {
     size_t i = 0;
 
