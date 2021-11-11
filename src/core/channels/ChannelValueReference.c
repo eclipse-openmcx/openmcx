@@ -30,23 +30,117 @@ ChannelValueRef * ChannelValueRefCreate(ChannelValueRef * ref) {
 OBJECT_CLASS(ChannelValueRef, Object);
 
 
-McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, TypeConversion * conv) {
+McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * conv) {
+    if (conv) {
+        return conv->Convert(conv, ref, reference);
+    }
+
     if (ref->type == CHANNEL_VALUE_REF_VALUE) {
-        if (conv) {
-            return conv->Convert(conv, ref, reference);
-        }
+        if (ChannelTypeIsArray(ref->ref.value->type)) {
+            mcx_array * destArray = &ref->ref.value->value.a;
+            mcx_array * srcArray = (mcx_array *) reference;
 
-        return ChannelValueDataSetFromReference(&ref->ref.value->value, ref->ref.value->type, reference);
+            if (srcArray->data == NULL || destArray->data == NULL) {
+                mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Empty array data given");
+                return RETURN_ERROR;
+            }
+
+            if (srcArray->numDims == 1) {
+                // if there is only one dimension, values are sequentially stored in memory so we can use memcpy
+                // we could also check if for numDims > 1, values are sequentially stored or not, but there is no
+                // need for that now
+                size_t numBytes = ChannelValueTypeSize(destArray->type) * mcx_array_num_elements(destArray);
+                size_t srcOffset = srcDimension != 0 ? srcDimension->startIdxs[0] * ChannelValueTypeSize(srcArray->type) : 0;
+                void * sourceData = (char *) srcArray->data + srcOffset;
+
+                memcpy(destArray->data, sourceData, numBytes);
+            } else {
+                // copy element by element
+                size_t i = 0;
+                size_t numElems = srcDimension ? ChannelDimensionNumElements(srcDimension) : mcx_array_num_elements(destArray);
+
+                for (i = 0; i < numElems; i++) {
+                    size_t srcIdx = srcDimension ? ChannelDimensionGetIndex(srcDimension, i, srcArray->dims) : i;
+                    void * srcElem = mcx_array_get_elem_reference(srcArray, srcIdx);
+                    void * destElem = mcx_array_get_elem_reference(destArray, i);
+                    memcpy(destElem, srcElem, ChannelValueTypeSize(destArray->type));
+                }
+            }
+
+            return RETURN_OK;
+        } else {
+            if (srcDimension) {
+                mcx_array * src = (mcx_array *) (reference);
+
+                if (ChannelDimensionNumElements(srcDimension) != 1) {
+                    mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Setting scalar value from an array");
+                    return RETURN_ERROR;
+                }
+
+                return ChannelValueDataSetFromReference(
+                    &ref->ref.value->value,
+                    ref->ref.value->type,
+                    mcx_array_get_elem_reference(src, ChannelDimensionGetIndex(srcDimension, 0, src->dims)));
+            } else {
+                return ChannelValueDataSetFromReference(&ref->ref.value->value, ref->ref.value->type, reference);
+            }
+        }
     } else {
-        // slice
+        if (ChannelTypeIsArray(ref->ref.slice->ref->type)) {
+            mcx_array * destArray = &ref->ref.slice->ref->value.a;
+            mcx_array * srcArray = (mcx_array *) reference;
 
-        // TODO
+            ChannelDimension * destDimension = ref->ref.slice->dimension;
 
-        if (conv) {
-            return conv->Convert(conv, ref, reference);
+            if (srcArray->data == NULL || destArray->data == NULL) {
+                mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Empty array data given");
+                return RETURN_ERROR;
+            }
+
+            if (srcArray->numDims == 1) {
+                // if there is only one dimension, values are sequentially stored in memory so we can use memcpy
+                // we could also check if for numDims > 1, values are sequentially stored or not, but there is no
+                // need for that now
+                size_t numBytes = ChannelValueTypeSize(destArray->type) * (destDimension->endIdxs[0] - destDimension->startIdxs[0] + 1);
+                size_t destOffset = destDimension->startIdxs[0] * ChannelValueTypeSize(destArray->type);
+                void * destData = (char *) destArray->data + destOffset;
+                size_t srcOffset = srcDimension != 0 ? srcDimension->startIdxs[0] * ChannelValueTypeSize(srcArray->type) : 0;
+                void * sourceData = (char *) srcArray->data + srcOffset;
+
+                memcpy(destData, sourceData, numBytes);
+            } else {
+                // copy element by element
+                size_t i = 0;
+                size_t numElems = srcDimension ? ChannelDimensionNumElements(srcDimension) : mcx_array_num_elements(destArray);
+
+                for (i = 0; i < numElems; i++) {
+                    size_t srcIdx = srcDimension ? ChannelDimensionGetIndex(srcDimension, i, srcArray->dims) : i;
+                    size_t destIdx = ChannelDimensionGetIndex(destDimension, i, destArray->dims);
+
+                    void * srcElem = mcx_array_get_elem_reference(srcArray, srcIdx);
+                    void * destElem = mcx_array_get_elem_reference(destArray, destIdx);
+                    memcpy(destElem, srcElem, ChannelValueTypeSize(destArray->type));
+                }
+            }
+
+            return RETURN_OK;
+        } else {
+            if (srcDimension) {
+                mcx_array * src = (mcx_array *) (reference);
+
+                if (ChannelDimensionNumElements(srcDimension) != 1) {
+                    mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Setting scalar value from an array");
+                    return RETURN_ERROR;
+                }
+
+                return ChannelValueDataSetFromReference(
+                    &ref->ref.slice->ref->value,
+                    ref->ref.slice->ref->type,
+                    mcx_array_get_elem_reference(src, ChannelDimensionGetIndex(srcDimension, 0, src->dims)));
+            } else {
+                return ChannelValueDataSetFromReference(&ref->ref.slice->ref->value, ref->ref.slice->ref->type, reference);
+            }
         }
-
-        return ChannelValueDataSetFromReference(&ref->ref.slice->ref, ref->ref.value->type, reference);
     }
 
     return RETURN_OK;
