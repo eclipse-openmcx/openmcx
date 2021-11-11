@@ -34,6 +34,7 @@ ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
 size_t ChannelDimensionNumElements(ChannelDimension * dimension);
 ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension);
 int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second);
+int ChannelDimensionConformable(ChannelDimension * first, ChannelDimension * second);
 int ChannelDimensionIncludedIn(const ChannelDimension * first, const ChannelDimension * second);
 size_t ChannelDimensionGetIndex(ChannelDimension * dimension, size_t elem_idx, size_t * sizes);
 char * ChannelDimensionString(const ChannelDimension * dimension);
