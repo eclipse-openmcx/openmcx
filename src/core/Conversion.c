@@ -265,6 +265,12 @@ OBJECT_CLASS(RangeConversion, Conversion);
 
 // ----------------------------------------------------------------------
 // Unit Conversion
+static double UnitConversionConvertValue(UnitConversion * conversion, double value) {
+    value = (value + conversion->source.offset) * conversion->source.factor;
+    value = (value / conversion->target.factor) - conversion->target.offset;
+
+    return value;
+}
 
 McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value) {
     UnitConversion * unitConv = NULL;
@@ -306,12 +312,7 @@ static void UnitConversionConvertVector(UnitConversion * unitConversion, double 
     size_t i;
     if (!unitConversion->IsEmpty(unitConversion)) {
         for (i = 0; i < vectorLength; i++) {
-            double val = vector[i];
-
-            val = (val + unitConversion->source.offset) * unitConversion->source.factor;
-            val = (val / unitConversion->target.factor) - unitConversion->target.offset;
-
-            vector[i] = val;
+            vector[i] = UnitConversionConvertValue(unitConversion, vector[i]);
         }
     }
 }
@@ -319,23 +320,51 @@ static void UnitConversionConvertVector(UnitConversion * unitConversion, double 
 static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * value) {
     UnitConversion * unitConversion = (UnitConversion *) conversion;
 
-    double val = 0.0;
-
-    if (!ChannelTypeEq(ChannelValueType(value), &ChannelTypeDouble)) {
+    if (!ChannelTypeEq(ChannelTypeBaseType(ChannelValueType(value)), &ChannelTypeDouble)) {
         mcx_log(LOG_ERROR, "Unit conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
         return RETURN_ERROR;
     }
 
-    val = * (double *) ChannelValueReference(value);
+    if (ChannelTypeIsArray(value->type)) {
+        size_t i = 0;
 
-    val = (val + unitConversion->source.offset) * unitConversion->source.factor;
-    val = (val / unitConversion->target.factor) - unitConversion->target.offset;
+        for (i = 0; i < mcx_array_num_elements(&value->value.a); i++) {
+            double * elem = (double *)mcx_array_get_elem_reference(&value->value.a, i);
+            if (!elem) {
+                return RETURN_ERROR;
+            }
 
-    if (RETURN_OK != ChannelValueSetFromReference(value, &val)) {
-        return RETURN_ERROR;
+            *elem = UnitConversionConvertValue(conversion, *elem);
+        }
+    } else {
+        double val = UnitConversionConvertValue(unitConversion, *(double *) ChannelValueReference(value));
+        if (RETURN_OK != ChannelValueSetFromReference(value, &val)) {
+            return RETURN_ERROR;
+        }
     }
 
     return RETURN_OK;
+}
+
+McxStatus UnitConversionValueRefConversion(void * element, ChannelType * type, void * ctx) {
+    double * elem = (double *) element;
+    UnitConversion * conversion = (UnitConversion *) ctx;
+
+    *elem = UnitConversionConvertValue(conversion, *elem);
+
+    return RETURN_OK;
+}
+
+static McxStatus UnitConversionConvertValueRef(UnitConversion * conversion, ChannelValueRef * ref) {
+    if (!ChannelTypeEq(ChannelTypeBaseType(ChannelValueRefGetType(ref)), &ChannelTypeDouble)) {
+        mcx_log(LOG_ERROR,
+                "Unit conversion: Value has wrong type %s, expected: %s",
+                ChannelTypeToString(ChannelTypeBaseType(ChannelValueRefGetType(ref))),
+                ChannelTypeToString(&ChannelTypeDouble));
+        return RETURN_ERROR;
+    }
+
+    return ChannelValueRefElemMap(ref, UnitConversionValueRefConversion, conversion);
 }
 
 static McxStatus UnitConversionSetup(UnitConversion * conversion,
@@ -385,6 +414,7 @@ static UnitConversion * UnitConversionCreate(UnitConversion * unitConversion) {
 
     conversion->convert = UnitConversionConvert;
     unitConversion->convertVector = UnitConversionConvertVector;
+    unitConversion->ConvertValueReference = UnitConversionConvertValueRef;
 
     unitConversion->Setup   = UnitConversionSetup;
     unitConversion->IsEmpty = UnitConversionIsEmpty;

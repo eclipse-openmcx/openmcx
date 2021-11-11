@@ -398,6 +398,18 @@ McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * eleme
     return RETURN_OK;
 }
 
+void * mcx_array_get_elem_reference(mcx_array * a, size_t idx) {
+    size_t num_elems = mcx_array_num_elements(a);
+    char * data = (char *) a->data;
+
+    if (idx >= num_elems) {
+        mcx_log(LOG_ERROR, "mcx_array_get_elem_reference: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
+        return RETURN_ERROR;
+    }
+
+    return data + idx * ChannelValueTypeSize(a->type);
+}
+
 void ChannelValueInit(ChannelValue * value, ChannelType * type) {
     value->type = type;
     ChannelValueDataInit(&value->value, type);

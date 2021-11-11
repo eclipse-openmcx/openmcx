@@ -113,6 +113,8 @@ McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx);
 McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element);
 McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * element);
 
+void * mcx_array_get_elem_reference(mcx_array * a, size_t idx);
+
 typedef int (*mcx_array_predicate_f_ptr)(void * element, ChannelType * type);
 int mcx_array_all(mcx_array * a, mcx_array_predicate_f_ptr predicate);
 int mcx_array_leq(const mcx_array * left, const mcx_array * right);

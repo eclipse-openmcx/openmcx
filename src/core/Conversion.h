@@ -18,6 +18,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
+typedef struct ChannelValueRef ChannelValueRef;
+
 typedef struct Conversion Conversion;
 
 typedef McxStatus (* fConversion)(Conversion * conversion, ChannelValue * value);
@@ -66,6 +69,7 @@ typedef void(*fUnitConversionVector)(UnitConversion * conversion, double * value
 
 typedef McxStatus (* fUnitConversionSetup)(UnitConversion * conversion, const char * fromUnit, const char * toUnit);
 typedef int (* fUnitConversionIsEmpty)(UnitConversion * conversion);
+typedef McxStatus (*fUnitConversionConvertValueRef)(UnitConversion * conversion, ChannelValueRef * ref);
 
 extern const struct ObjectClass _UnitConversion;
 
@@ -74,6 +78,7 @@ struct UnitConversion {
 
     fUnitConversionSetup Setup;
     fUnitConversionIsEmpty IsEmpty;
+    fUnitConversionConvertValueRef ConvertValueReference;
 
     si_def source;
     si_def target;
@@ -112,10 +117,6 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 
 // ----------------------------------------------------------------------
 // Type Conversion
-
-typedef struct ChannelValueRef ChannelValueRef;
-
-
 typedef struct TypeConversion TypeConversion;
 
 typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion, const ChannelType * fromType, const ChannelType * toType);
