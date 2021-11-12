@@ -232,6 +232,38 @@ size_t ChannelDimensionGetIndex(ChannelDimension * dimension, size_t elem_idx, s
     return (size_t) -1;
 }
 
+size_t ChannelDimensionGetSliceIndex(ChannelDimension * dimension, size_t slice_idx, size_t * dims) {
+    switch (dimension->num) {
+        case 1:
+            {
+                size_t idx = slice_idx - dimension->startIdxs[0];
+                if (idx > dimension->endIdxs[0]) {
+                    mcx_log(LOG_ERROR, "ChannelDimensionGetSliceIndex: Index out of range");
+                    break;
+                }
+
+                return idx;
+            }
+        case 2:
+            {
+                size_t idx_0 = slice_idx / dims[1];
+                size_t idx_1 = slice_idx - idx_0 * dims[1];
+
+                size_t slice_idx_0 = idx_0 - dimension->startIdxs[0];
+                size_t slice_idx_1 = idx_1 - dimension->startIdxs[1];
+
+                size_t dim_1_slice_size = dimension->endIdxs[1] - dimension->startIdxs[1] + 1;
+
+                return slice_idx_0 * dim_1_slice_size * slice_idx_1;
+            }
+        default:
+            mcx_log(LOG_ERROR, "ChannelDimensionGetSliceIndex: Number of dimensions not supported (%d)", dimension->num);
+            break;
+    }
+
+    return (size_t) -1;
+}
+
 char * ChannelDimensionString(const ChannelDimension * dimension) {
     char * str = NULL;
     size_t length = 0;
