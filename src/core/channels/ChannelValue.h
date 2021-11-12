@@ -18,6 +18,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
+typedef struct ChannelDimension ChannelDimension;
+
 char * CreateIndexedName(const char * name, unsigned i);
 
 // possible types of values that can be put on channels
@@ -70,6 +73,7 @@ size_t ChannelTypeNumElements(const ChannelType * type);
 ChannelType * ChannelTypeBaseType(ChannelType * a);
 
 int ChannelTypeEq(ChannelType * a, ChannelType * b);
+int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB);
 
 typedef struct MapStringChannelType {
     const char * key;
