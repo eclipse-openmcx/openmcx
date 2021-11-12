@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "core/channels/ChannelValue.h"
+#include "core/channels/ChannelDimension.h"
 #include "util/stdlib.h"
 
 #ifdef __cplusplus
@@ -160,6 +161,26 @@ size_t ChannelTypeNumElements(const ChannelType * type) {
         return num_elems;
     } else {
         return 1;
+    }
+}
+
+int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB) {
+    if (a->con == CHANNEL_ARRAY && b->con == CHANNEL_ARRAY) {
+        if (sliceA && sliceB) {
+            return a->ty.a.inner == b->ty.a.inner && ChannelDimensionConformable(sliceA, sliceB);
+        } else if (sliceA && !sliceB) {
+            return a->ty.a.inner == b->ty.a.inner && ChannelDimensionsConform(sliceA, b->ty.a.dims, b->ty.a.numDims);
+        } else if (!sliceA && sliceB) {
+            return a->ty.a.inner == b->ty.a.inner && ChannelDimensionsConform(sliceB, a->ty.a.dims, a->ty.a.numDims);
+        } else {
+            return ChannelTypeEq(a, b);
+        }
+    } else {
+        if (sliceA || sliceB) {
+            return 0;
+        }
+
+        return a->con == b->con;
     }
 }
 
