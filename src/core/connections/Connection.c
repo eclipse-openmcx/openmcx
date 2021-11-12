@@ -1177,7 +1177,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         if (!ChannelTypeEq(inValue->type, store->type)) {
             TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
             Conversion * conv = (Conversion *) typeConv;
-            retVal = typeConv->Setup(typeConv, inValue->type, store->type);
+            retVal = typeConv->Setup(typeConv, inValue->type, NULL, store->type, NULL);
             if (RETURN_ERROR == retVal) {
                 mcx_log(LOG_ERROR, "Could not set up initial type conversion");
                 object_destroy(typeConv);

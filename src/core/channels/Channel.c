@@ -464,21 +464,17 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         }
     }
 
-    // TODO - array
     // setup type conversion
-
-    ChannelType * connType = ChannelDimensionToChannelType(connInfo->sourceDimension, type);
-    if (!connType) {
-        return RETURN_ERROR;
-    }
-
-    if (!ChannelTypeEq(inInfo->type, type)) {
+    if (!ChannelTypeConformable(inInfo->type, inInfo->dimension, connection->GetValueType(connection), connection->GetValueDimension(connection))) {
         TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
-        retVal = typeConv->Setup(typeConv, connType, inInfo->type);
+        retVal = typeConv->Setup(typeConv,
+                                 connection->GetValueType(connection),
+                                 connection->GetValueDimension(connection),
+                                 inInfo->type,
+                                 connInfo->targetDimension);
         if (RETURN_ERROR == retVal) {
             return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up type conversion");
         }
-
 
         retVal = in->data->typeConversions->PushBack(in->data->typeConversions, (Object *) typeConv);
         if (RETURN_ERROR == retVal) {
@@ -490,8 +486,6 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
             return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add empty type conversion");
         }
     }
-
-    ChannelTypeDestructor(connType);
 
     return retVal;
 }
