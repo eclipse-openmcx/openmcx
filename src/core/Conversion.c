@@ -346,7 +346,7 @@ static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * v
     return RETURN_OK;
 }
 
-McxStatus UnitConversionValueRefConversion(void * element, ChannelType * type, void * ctx) {
+McxStatus UnitConversionValueRefConversion(void * element, size_t idx, ChannelType * type, void * ctx) {
     double * elem = (double *) element;
     UnitConversion * conversion = (UnitConversion *) ctx;
 

@@ -49,7 +49,7 @@ McxStatus
 ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * typeConv);
 ChannelType * ChannelValueRefGetType(ChannelValueRef * ref);
 
-typedef McxStatus (*fChannelValueRefElemMapFunc)(void * element, ChannelType * type, void * ctx);
+typedef McxStatus (*fChannelValueRefElemMapFunc)(void * element, size_t idx, ChannelType * type, void * ctx);
 McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapFunc fn, void * ctx);
 
 
