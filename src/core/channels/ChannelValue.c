@@ -405,7 +405,7 @@ void * mcx_array_get_elem_reference(mcx_array * a, size_t idx) {
 
     if (idx >= num_elems) {
         mcx_log(LOG_ERROR, "mcx_array_get_elem_reference: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
-        return RETURN_ERROR;
+        return NULL;
     }
 
     return data + idx * ChannelValueTypeSize(a->type);
