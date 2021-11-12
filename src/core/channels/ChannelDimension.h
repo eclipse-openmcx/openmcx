@@ -38,6 +38,7 @@ int ChannelDimensionConformable(ChannelDimension * first, ChannelDimension * sec
 int ChannelDimensionsConform(ChannelDimension * dimension, size_t * dims, size_t numDims);
 int ChannelDimensionIncludedIn(const ChannelDimension * first, const ChannelDimension * second);
 size_t ChannelDimensionGetIndex(ChannelDimension * dimension, size_t elem_idx, size_t * sizes);
+size_t ChannelDimensionGetSliceIndex(ChannelDimension * dimension, size_t slice_idx, size_t * dims);
 char * ChannelDimensionString(const ChannelDimension * dimension);
 McxStatus ChannelDimensionNormalize(ChannelDimension * target, ChannelDimension * base);
 ChannelType * ChannelDimensionToChannelType(ChannelDimension * dimension, ChannelType * sourceType);
