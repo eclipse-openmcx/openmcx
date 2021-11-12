@@ -174,6 +174,7 @@ int ChannelTypeEq(ChannelType * a, ChannelType * b) {
                 return 0;
             }
         }
+        return a->ty.a.inner == b->ty.a.inner;
         return 1;
     } else {
         return a->con == b->con;
