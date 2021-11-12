@@ -199,8 +199,8 @@ ChannelType * ChannelValueRefGetType(ChannelValueRef * ref) {
         case CHANNEL_VALUE_REF_VALUE:
             return ChannelValueType(ref->ref.value);
         case CHANNEL_VALUE_REF_SLICE:
-            mcx_log(LOG_ERROR, "TODO - change the dimension in ArraySlice to a type and return that to avoid memory allocation");
-            return NULL;
+            // TODO (do we need to adapt the indices wrt. dimension) ?
+            return ChannelValueType(ref->ref.slice->ref);
         default:
             mcx_log(LOG_ERROR, "Invalid internal channel value reference type (%d)", ref->type);
             return NULL;
