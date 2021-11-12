@@ -12,6 +12,7 @@
 #define MCX_CORE_CONVERSION_H
 
 #include "units/Units.h"
+#include "core/channels/ChannelDimension.h"
 
 
 #ifdef __cplusplus
@@ -119,7 +120,11 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 // Type Conversion
 typedef struct TypeConversion TypeConversion;
 
-typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion, const ChannelType * fromType, const ChannelType * toType);
+typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion,
+                                          const ChannelType * fromType,
+                                          ChannelDimension * fromDimension,
+                                          const ChannelType * toType,
+                                          ChannelDimension * toDimension);
 
 // TODO: Ideally the `src` argument would also be ChannelValueRef, but that requires quite of lot of changes
 //       in the API of databus definition (i.e. DatabusSetIn(Out)Reference)
@@ -132,6 +137,8 @@ struct TypeConversion {
 
     fTypeConversionSetup Setup;
     fTypeConversionConvert Convert;
+
+    ChannelDimension * sourceSlice;
 };
 
 McxStatus ConvertType(ChannelType * fromType, ChannelType * toType, ChannelValue * value);
