@@ -157,6 +157,21 @@ int ChannelDimensionConformable(ChannelDimension * first, ChannelDimension * sec
     return TRUE;
 }
 
+int ChannelDimensionsConform(ChannelDimension * dimension, size_t * dims, size_t numDims) {
+    size_t i = 0;
+    if (dimension->num != numDims) {
+        return 0;
+    }
+
+    for (i = 0; i < numDims; i++) {
+        if (dims[i] != (dimension->endIdxs[i] - dimension->startIdxs[i] + 1)) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 int ChannelDimensionIncludedIn(const ChannelDimension* first, const ChannelDimension* second) {
     size_t i = 0;
 
