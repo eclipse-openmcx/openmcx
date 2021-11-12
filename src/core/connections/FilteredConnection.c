@@ -372,6 +372,11 @@ cleanup:
     return RETURN_OK;
 }
 
+static ChannelType * FilteredConnectionGetValueType(Connection * connection) {
+    FilteredConnection * filteredConnection = (FilteredConnection *) connection;
+    return filteredConnection->data->store.type;
+}
+
 static void FilteredConnectionDestructor(FilteredConnection * filteredConnection) {
     object_destroy(filteredConnection->data);
 }
@@ -387,6 +392,7 @@ static FilteredConnection * FilteredConnectionCreate(FilteredConnection * filter
     connection->EnterCouplingStepMode     = FilteredConnectionEnterCouplingStepMode;
 
     connection->AddFilter = AddFilter;
+    connection->GetValueType = FilteredConnectionGetValueType;
 
     filteredConnection->GetReadFilter  = FilteredConnectionGetFilter;
     filteredConnection->GetWriteFilter = FilteredConnectionGetFilter;
