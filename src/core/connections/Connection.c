@@ -1081,6 +1081,19 @@ static void ConnectionSetValueReference(Connection * connection, void * referenc
     connection->value_ = reference;
 }
 
+static ChannelDimension * ConnectionGetValueDimension(Connection * connection) {
+    return NULL;
+}
+
+static ChannelType * ConnectionGetValueType(Connection * connection) {
+    ChannelOut * out = connection->out_;
+    Channel * channel = (Channel *) out;
+    ChannelInfo * channelInfo = &channel->info;
+
+    return channelInfo->type;
+}
+
+
 static void ConnectionDestructor(Connection * connection) {
     ChannelValueDestructor(&connection->store_);
 }
@@ -1366,6 +1379,8 @@ static Connection * ConnectionCreate(Connection * connection) {
 
     connection->GetValueReference = ConnectionGetValueReference;
     connection->SetValueReference = ConnectionSetValueReference;
+    connection->GetValueDimension = ConnectionGetValueDimension;
+    connection->GetValueType = ConnectionGetValueType;
 
     connection->GetInfo   = ConnectionGetInfo;
 

@@ -815,7 +815,7 @@ static McxStatus TypeConversionConvertBoolToArrayDouble(Conversion * conversion,
 }
 
 static McxStatus TypeConversionConvertId(Conversion * conversion, ChannelValueRef * dest, void * src) {
-    return ChannelValueRefSetFromReference(dest, src, NULL);
+    return ChannelValueRefSetFromReference(dest, src, NULL, NULL);
 }
 
 static McxStatus TypeConversionSetup(TypeConversion * conversion,

@@ -51,6 +51,8 @@ typedef struct ChannelIn  * (* fConnectionGetTarget)(Connection * connection);
 
 typedef void * (* fConnectionGetValueReference)(Connection * connection);
 typedef void (* fConnectionSetValueReference)(Connection * connection, void * reference);
+typedef ChannelDimension * (*fConnectionGetValueDimension)(Connection * connection);
+typedef ChannelType * (*fConnectionGetValueType)(Connection * connection);
 
 typedef ConnectionInfo * (* fConnectionGetInfo)(Connection * connection);
 
@@ -131,6 +133,10 @@ struct Connection {
      * updated on each call to UpdateToOutput().
      */
     fConnectionGetValueReference GetValueReference;
+
+    fConnectionGetValueDimension GetValueDimension;
+
+    fConnectionGetValueType GetValueType;
 
     /**
      * Set the reference to the value of the connection. This value will be

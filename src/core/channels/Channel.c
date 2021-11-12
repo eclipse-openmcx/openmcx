@@ -286,7 +286,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         }
 
         // TODO: ideally make conn->GetValueReference return ChannelValueRef
-        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), typeConv)) {
+        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), conn->GetValueDimension(conn), typeConv)) {
             return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "ChannelValueRefSetFromReference failed");
         }
 
