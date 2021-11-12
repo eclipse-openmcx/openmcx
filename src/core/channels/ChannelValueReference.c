@@ -158,14 +158,14 @@ McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapF
                         return RETURN_ERROR;
                     }
 
-                    if (RETURN_ERROR == fn(elem, ChannelValueType(ref->ref.value), ctx)) {
+                    if (RETURN_ERROR == fn(elem, i, ChannelValueType(ref->ref.value), ctx)) {
                         return RETURN_ERROR;
                     }
                 }
 
                 return RETURN_OK;
             } else {
-                return fn(ChannelValueReference(ref->ref.value), ChannelValueType(ref->ref.value), ctx);
+                return fn(ChannelValueReference(ref->ref.value), 0, ChannelValueType(ref->ref.value), ctx);
             }
         case CHANNEL_VALUE_REF_SLICE:
             if (ChannelTypeIsArray(ref->ref.slice->ref->type)) {
@@ -179,14 +179,14 @@ McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapF
                         return RETURN_ERROR;
                     }
 
-                    if (RETURN_ERROR == fn(elem, ChannelValueType(ref->ref.slice->ref), ctx)) {
+                    if (RETURN_ERROR == fn(elem, idx, ChannelValueType(ref->ref.slice->ref), ctx)) {
                         return RETURN_ERROR;
                     }
                 }
 
                 return RETURN_OK;
             } else {
-                return fn(ChannelValueReference(ref->ref.slice->ref), ChannelValueType(ref->ref.slice->ref), ctx);
+                return fn(ChannelValueReference(ref->ref.slice->ref), 0, ChannelValueType(ref->ref.slice->ref), ctx);
             }
         default:
             mcx_log(LOG_ERROR, "ChannelValueRefElemMap: Invalid internal channel value reference type (%d)", ref->type);
