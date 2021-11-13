@@ -192,7 +192,7 @@ typedef McxStatus (* fChannelOutRegisterConnection)(struct ChannelOut * out,
 
 typedef const proc * (* fChannelOutGetFunction)(ChannelOut * out);
 
-typedef ObjectContainer * (* fChannelOutGetConnections)(ChannelOut * out);
+typedef ObjectList * (* fChannelOutGetConnections)(ChannelOut * out);
 
 extern const struct ObjectClass _ChannelOut;
 

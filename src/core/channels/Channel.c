@@ -525,7 +525,7 @@ static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
 
     data->rangeConversionIsActive = TRUE;
 
-    data->connections = (ObjectContainer *) object_create(ObjectContainer);
+    data->connections = (ObjectList *) object_create(ObjectList);
 
     data->nanCheck = NAN_CHECK_ALWAYS;
 
@@ -537,7 +537,7 @@ static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
 }
 
 static void ChannelOutDataDestructor(ChannelOutData * data) {
-    ObjectContainer * conns = data->connections;
+    ObjectList * conns = data->connections;
     size_t i = 0;
 
     if (data->rangeConversion) {
@@ -624,7 +624,7 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 }
 
 static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * connection) {
-    ObjectContainer * conns = out->data->connections;
+    ObjectList * conns = out->data->connections;
 
     return conns->PushBack(conns, (Object *) connection);
 }
@@ -646,7 +646,7 @@ static const proc * ChannelOutGetFunction(ChannelOut * out) {
     return out->data->valueFunction;
 }
 
-static ObjectContainer * ChannelOutGetConnections(ChannelOut * out) {
+static ObjectList * ChannelOutGetConnections(ChannelOut * out) {
     return out->data->connections;
 }
 
@@ -753,7 +753,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     ChannelOut * out = (ChannelOut *)channel;
     ChannelInfo * info = ((Channel *)out)->GetInfo((Channel *)out);
 
-    ObjectContainer * conns = out->data->connections;
+    ObjectList * conns = out->data->connections;
 
     McxStatus retVal = RETURN_OK;
 

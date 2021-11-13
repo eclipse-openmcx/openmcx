@@ -77,7 +77,7 @@ typedef struct Model * (* fComponentGetModel)(const Component * comp);
 typedef size_t (* fComponentGetID)(const Component * comp);
 typedef int (* fComponentGetSequenceNumber)(const Component * comp);
 typedef int (* fComponentGetCPUIdx)(const Component * comp);
-typedef ObjectContainer * (*fComponentGetConnections)(Component * fromComp, Component * toComp);
+typedef ObjectList * (*fComponentGetConnections)(Component * fromComp, Component * toComp);
 
 typedef struct PpdLink * (* fGetPPDLink)(struct Component * comp);
 typedef ChannelMode (* fGetChannelDefaultMode)(struct Component * comp);
@@ -232,7 +232,7 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
 McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, struct StepTypeParams * params);
 
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time);
-McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectContainer * connections, TimeInterval * time);
+McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
 struct ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID);
 struct Connection * GetInConnection(const Component * comp, size_t channelID);

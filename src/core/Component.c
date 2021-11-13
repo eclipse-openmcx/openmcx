@@ -684,7 +684,7 @@ McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time
     return RETURN_OK;
 }
 
-McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectContainer * connections, TimeInterval * time) {
+McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time) {
     McxStatus retVal = RETURN_OK;
 
     mcx_time_init(&comp->data->rtData.stepClock);
@@ -826,13 +826,13 @@ static int ComponentGetSequenceNumber(const Component * comp) {
     return comp->data->triggerSequence;
 }
 
-static ObjectContainer * ComponentGetConnections(Component * fromComp, Component * toComp) {
+static ObjectList * ComponentGetConnections(Component * fromComp, Component * toComp) {
     size_t i = 0;
     size_t j = 0;
     McxStatus retVal = RETURN_OK;
 
     struct Databus * db = fromComp->GetDatabus(fromComp);
-    ObjectContainer * connections = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectList * connections = (ObjectList *) object_create(ObjectList);
 
     if (!connections) {
         return NULL;
@@ -840,7 +840,7 @@ static ObjectContainer * ComponentGetConnections(Component * fromComp, Component
 
     for (i = 0; i < DatabusGetOutChannelsNum(db); i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ObjectList * conns = out->GetConnections(out);
 
         for (j = 0; j < conns->Size(conns); j++) {
             Connection * conn = (Connection *) conns->At(conns, j);
@@ -881,7 +881,7 @@ McxStatus ComponentOutConnectionsEnterInitMode(Component * comp) {
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ObjectList * conns = out->GetConnections(out);
 
         for (j = 0; j < conns->Size(conns); j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
@@ -901,7 +901,7 @@ McxStatus ComponentDoOutConnectionsInitialization(Component * comp, int onlyIfDe
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ObjectList * conns = out->GetConnections(out);
 
         for (j = 0; j < conns->Size(conns); j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
@@ -928,7 +928,7 @@ McxStatus ComponentOutConnectionsExitInitMode(Component * comp, double time) {
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ObjectList * conns = out->GetConnections(out);
 
         for (j = 0; j < conns->Size(conns); j++) {
             Connection * connection = (Connection *) conns->At(conns, j);

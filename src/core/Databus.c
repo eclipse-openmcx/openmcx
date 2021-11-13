@@ -1686,7 +1686,7 @@ McxStatus DatabusEnterCouplingStepMode(Databus * db, double timeStepSize) {
 
     for (i = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
-        ObjectContainer * conns = out->GetConnections(out);
+        ObjectList * conns = out->GetConnections(out);
 
         for (j = 0; j < conns->Size(conns); j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
@@ -1719,7 +1719,7 @@ McxStatus DatabusEnterCommunicationMode(Databus * db, double time) {
 
     for (i = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
-        ObjectContainer * conns = out->GetConnections(out);
+        ObjectList * conns = out->GetConnections(out);
 
         for (j = 0; j < conns->Size(conns); j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
@@ -1739,7 +1739,7 @@ McxStatus DatabusEnterCommunicationMode(Databus * db, double time) {
 }
 
 /* The container connections may only contain connections outgoing from this db */
-McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectContainer * connections, double time) {
+McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time) {
     size_t i = 0;
 
     for (i = 0; i < connections->Size(connections); i++) {

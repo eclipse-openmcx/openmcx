@@ -423,7 +423,7 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
             for (ii = 0; ii < group->nodes.size && decouplePriority < INT_MAX; ii++) {
                 for (jj = 0; jj < group->nodes.size && decouplePriority < INT_MAX; jj++) {
                     int localDecouplePriority = -1;
-                    ObjectContainer * connections = NULL;
+                    ObjectList * connections = NULL;
                     Component * fromComp = (Component *) comps->At(comps, group->nodes.values[ii]);
                     Component * toComp = (Component *) comps->At(comps, group->nodes.values[jj]);
 
@@ -477,7 +477,7 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
 
             // decouple connection with highest priority
             if (decoupleFrom != SIZE_T_ERROR && decoupleTo != SIZE_T_ERROR) {
-                ObjectContainer * connections = NULL;
+                ObjectList * connections = NULL;
                 Component * fromComp = (Component *) comps->At(comps, group->nodes.values[decoupleFrom]);
                 Component * toComp = (Component *) comps->At(comps, group->nodes.values[decoupleTo]);
 

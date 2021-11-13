@@ -95,7 +95,7 @@ typedef struct ChannelOutData {
     // Connections to Consumers
 
     // A list of all input channels that are connected to this output channel
-    ObjectContainer * connections;
+    ObjectList * connections;
 
 } ChannelOutData;
 

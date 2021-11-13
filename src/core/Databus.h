@@ -249,7 +249,7 @@ McxStatus DatabusTriggerInConnections(struct Databus * db, TimeInterval * consum
 
 McxStatus DatabusEnterCouplingStepMode(struct Databus * db, double timeStepSize);
 McxStatus DatabusEnterCommunicationMode(struct Databus * db, double time);
-McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectContainer * connections, double time);
+McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time);
 
 /* private interface for Component, Model, Task */
 
