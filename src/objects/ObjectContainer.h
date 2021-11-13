@@ -89,6 +89,8 @@ typedef struct ObjectContainer {
 
     struct Object ** elements;
     size_t size;
+    size_t capacity;
+    size_t increment;
     struct StringContainer * strToIdx;
 } ObjectContainer;
 

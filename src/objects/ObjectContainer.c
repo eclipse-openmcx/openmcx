@@ -30,14 +30,17 @@ static size_t ObjectContainerSize(const ObjectContainer * container) {
 
 static McxStatus ObjectContainerResize(ObjectContainer * container, size_t size) {
     size_t oldSize = container->size;
+    size_t oldCapacity = container->capacity;
     size_t i = 0;
 
-    container->size     = size;
-    container->elements = (Object * *) mcx_realloc(container->elements,
-                                     size * sizeof(Object *));
-    if (!container->elements && 0 < size) {
-        mcx_log(LOG_ERROR, "ObjectContainer: Resize: Memory allocation failed");
-        return RETURN_ERROR;
+    container->size = size;
+    if (oldCapacity < size) {
+        container->capacity = size + container->increment;
+        container->elements = (Object * *)mcx_realloc(container->elements, container->capacity * sizeof(Object *));
+        if (!container->elements && 0 < size) {
+            mcx_log(LOG_ERROR, "ObjectContainer: Resize: Memory allocation failed");
+            return RETURN_ERROR;
+        }
     }
 
     /* if we make the container larger, init new elements with NULL */
@@ -337,6 +340,8 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
 
     container->elements = NULL;
     container->size = 0;
+    container->capacity = 0;
+    container->increment = 10;
 
     container->strToIdx = (StringContainer *) mcx_malloc(sizeof(StringContainer));
     if (!container->strToIdx) { return NULL; }
