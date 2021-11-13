@@ -198,6 +198,10 @@ static ChannelType ConnectionInfoGetType(ConnectionInfo * info) {
     Databus * db = NULL;
     ChannelInfo * outInfo = NULL;
 
+    if (CHANNEL_UNKNOWN != info->connType) {
+        return info->connType;
+    }
+
     if (NULL == info) {
         mcx_log(LOG_DEBUG, "ConnectionInfo: GetType: no info available");
         return CHANNEL_UNKNOWN;
@@ -223,7 +227,9 @@ static ChannelType ConnectionInfoGetType(ConnectionInfo * info) {
         mcx_free(buffer);
         return CHANNEL_UNKNOWN;
     }
-    return outInfo->GetType(outInfo);
+
+    info->connType = outInfo->GetType(outInfo);
+    return info->connType;
 }
 
 static char * ConnectionInfoConnectionString(ConnectionInfo * info) {
@@ -359,6 +365,7 @@ static ConnectionInfo * ConnectionInfoCreate(ConnectionInfo * info) {
 
     info->SetInterExtraType = ConnectionInfoSetInterExtraType;
 
+    info->connType = CHANNEL_UNKNOWN;
     return info;
 }
 

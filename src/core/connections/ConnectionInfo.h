@@ -128,6 +128,8 @@ struct ConnectionInfo {
     fConnectionInfoSetInterExtraType SetInterExtraType;
 
     struct ConnectionInfoData * data;
+
+    ChannelType connType;
 } ;
 
 #ifdef __cplusplus
