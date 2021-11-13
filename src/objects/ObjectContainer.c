@@ -254,7 +254,7 @@ static Object * ObjectContainerGetByName(const ObjectContainer * container, cons
 static int ObjectContainerContains(ObjectContainer * container,
                                    Object * obj) {
     size_t i = 0;
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         if (container->At(container, i) == obj) {
             return TRUE;
         }
@@ -267,7 +267,7 @@ static ObjectContainer * ObjectContainerFilter(ObjectContainer * container, fObj
 
     size_t i = 0;
 
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         if (predicate(obj)) {
             filtered->PushBack(filtered, obj);
@@ -282,7 +282,7 @@ static ObjectContainer * ObjectContainerFilterCtx(ObjectContainer * container, f
 
     size_t i = 0;
 
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         if (predicate(obj, ctx)) {
             filtered->PushBack(filtered, obj);
@@ -294,7 +294,7 @@ static ObjectContainer * ObjectContainerFilterCtx(ObjectContainer * container, f
 
 static void ObjectContainerIterate(ObjectContainer * container, fObjectIter iter) {
     size_t i = 0;
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         iter(obj);
     }
