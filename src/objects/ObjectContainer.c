@@ -52,14 +52,11 @@ static McxStatus ObjectContainerResize(ObjectContainer * container, size_t size)
 }
 
 static McxStatus ObjectContainerPushBack(ObjectContainer * container, Object * obj) {
-    container->size  += 1;
-    container->elements = (Object * *) mcx_realloc(container->elements,
-                                     container->size * sizeof(Object *));
-    if (!container->elements) {
-        mcx_log(LOG_ERROR, "ObjectContainer: PushBack: Memory allocation failed");
+    McxStatus retVal = container->Resize(container, container->size + 1);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ObjectContainer: PushBack: Resize failed");
         return RETURN_ERROR;
     }
-
     container->elements[container->size - 1] = obj;
 
     return StringContainerResize(container->strToIdx, container->size);
