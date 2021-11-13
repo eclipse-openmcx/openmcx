@@ -841,8 +841,9 @@ static ObjectList * ComponentGetConnections(Component * fromComp, Component * to
     for (i = 0; i < DatabusGetOutChannelsNum(db); i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
         ObjectList * conns = out->GetConnections(out);
+        size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < conns->Size(conns); j++) {
+        for (j = 0; j < connSize; j++) {
             Connection * conn = (Connection *) conns->At(conns, j);
             ConnectionInfo * info = conn->GetInfo(conn);
 
@@ -882,8 +883,9 @@ McxStatus ComponentOutConnectionsEnterInitMode(Component * comp) {
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
         ObjectList * conns = out->GetConnections(out);
+        size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < conns->Size(conns); j++) {
+        for (j = 0; j < connSize; j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
             retVal = connection->EnterInitializationMode(connection);
             if (RETURN_OK != retVal) { // error message in calling function
@@ -902,8 +904,9 @@ McxStatus ComponentDoOutConnectionsInitialization(Component * comp, int onlyIfDe
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
         ObjectList * conns = out->GetConnections(out);
+        size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < conns->Size(conns); j++) {
+        for (j = 0; j < connSize; j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
 
             if (!onlyIfDecoupled || connection->IsDecoupled(connection)) {
@@ -929,8 +932,9 @@ McxStatus ComponentOutConnectionsExitInitMode(Component * comp, double time) {
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
         ObjectList * conns = out->GetConnections(out);
+        size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < conns->Size(conns); j++) {
+        for (j = 0; j < connSize; j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
             retVal = connection->ExitInitializationMode(connection, time);
             if (RETURN_OK != retVal) { // error message in calling function

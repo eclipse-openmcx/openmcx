@@ -32,7 +32,9 @@ extern "C" {
 McxStatus CheckConnectivity(ObjectContainer * connections) {
     size_t i = 0;
 
-    for (i = 0; i < connections->Size(connections); i++) {
+    size_t connSize = connections->Size(connections);
+
+    for (i = 0; i < connSize; i++) {
         ConnectionInfo * connInfo = (ConnectionInfo *) connections->At(connections, i);
         ChannelInfo * info = NULL;
         Component * target = connInfo->GetTargetComponent(connInfo);

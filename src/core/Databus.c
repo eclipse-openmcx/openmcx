@@ -1687,8 +1687,9 @@ McxStatus DatabusEnterCouplingStepMode(Databus * db, double timeStepSize) {
     for (i = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
         ObjectList * conns = out->GetConnections(out);
+        size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < conns->Size(conns); j++) {
+        for (j = 0; j < connSize; j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
             ConnectionInfo * info = connection->GetInfo(connection);
             Component * target = info->GetTargetComponent(info);
@@ -1720,8 +1721,9 @@ McxStatus DatabusEnterCommunicationMode(Databus * db, double time) {
     for (i = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
         ObjectList * conns = out->GetConnections(out);
+        size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < conns->Size(conns); j++) {
+        for (j = 0; j < connSize; j++) {
             Connection * connection = (Connection *) conns->At(conns, j);
             ConnectionInfo * info = connection->GetInfo(connection);
 
@@ -1742,7 +1744,9 @@ McxStatus DatabusEnterCommunicationMode(Databus * db, double time) {
 McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time) {
     size_t i = 0;
 
-    for (i = 0; i < connections->Size(connections); i++) {
+    size_t connSize = connections->Size(connections);
+
+    for (i = 0; i < connSize; i++) {
         Connection * connection = (Connection *) connections->At(connections, i);
         ConnectionInfo * info = connection->GetInfo(connection);
         Component * comp = info->GetSourceComponent(info);
