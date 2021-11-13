@@ -394,7 +394,7 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     McxStatus retVal;
     size_t i = 0;
 
-    ObjectContainer * newContainer = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectContainer * newContainer = (ObjectContainer *)object_create(ObjectContainer);
 
     if (!newContainer) {
         mcx_log(LOG_ERROR, "ObjectContainer: Copy: Memory allocation failed");
@@ -410,7 +410,7 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     for (i = 0; i < newContainer->Size(newContainer); i++) {
         newContainer->elements[i] = container->elements[i];
         retVal = StringContainerSetString(newContainer->strToIdx, i,
-                                          StringContainerGetString(container->strToIdx, i));
+            StringContainerGetString(container->strToIdx, i));
         if (retVal != RETURN_OK) {
             return NULL;
         }
@@ -419,9 +419,7 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     return newContainer;
 }
 
-static McxStatus ObjectContainerAppend(
-    ObjectContainer * container,
-    ObjectContainer * appendee) {
+static McxStatus ObjectContainerAppend(ObjectContainer * container, ObjectContainer * appendee) {
     size_t appendeeSize = 0;
     size_t size = 0;
     size_t i = 0;
@@ -441,7 +439,7 @@ static McxStatus ObjectContainerAppend(
         }
 
         retVal = container->SetElementName(container, container->Size(container) - 1,
-                                           appendee->GetElementName(appendee, i));
+            appendee->GetElementName(appendee, i));
         if (RETURN_OK != retVal) {
             return RETURN_ERROR;
         }
@@ -454,9 +452,7 @@ static Object ** ObjectContainerData(ObjectContainer * container) {
     return container->elements;
 }
 
-static void ObjectContainerAssignArray(ObjectContainer * container,
-                                       size_t            size,
-                                       Object         ** objs) {
+static void ObjectContainerAssignArray(ObjectContainer * container, size_t size, Object ** objs) {
     container->size = size;
 
     if (container->elements) {
@@ -477,8 +473,8 @@ static void ObjectContainerDestroyObjects(ObjectContainer * container) {
 }
 
 static McxStatus ObjectContainerSetElementName(ObjectContainer * container,
-                                               size_t            pos,
-                                               const char      * name) {
+    size_t            pos,
+    const char      * name) {
     if (pos >= container->size) {
         mcx_log(LOG_ERROR, "ObjectContainer: SetElementName: Position %u out of bounds, max is %u", pos, container->size);
         return RETURN_ERROR;
@@ -487,21 +483,18 @@ static McxStatus ObjectContainerSetElementName(ObjectContainer * container,
     return StringContainerSetString(container->strToIdx, pos, name);
 }
 
-static const char * ObjectContainerGetElementName(ObjectContainer * container,
-                                                  size_t pos) {
+static const char * ObjectContainerGetElementName(ObjectContainer * container, size_t pos) {
     return StringContainerGetString(container->strToIdx, pos);
 }
 
-static int ObjectContainerGetNameIndex(ObjectContainer * container,
-                                             const char * name) {
+static int ObjectContainerGetNameIndex(ObjectContainer * container, const char * name) {
     return StringContainerGetIndex(container->strToIdx, name);
 }
 
 static Object * ObjectContainerGetByName(const ObjectContainer * container, const char * name) {
     return container->At(container, container->GetNameIndex((ObjectContainer *)container, name));
 }
-static int ObjectContainerContains(ObjectContainer * container,
-                                   Object * obj) {
+static int ObjectContainerContains(ObjectContainer * container, Object * obj) {
     size_t i = 0;
     for (i = 0; i < container->size; i++) {
         if (container->At(container, i) == obj) {
@@ -512,8 +505,7 @@ static int ObjectContainerContains(ObjectContainer * container,
 }
 
 static ObjectContainer * ObjectContainerFilter(ObjectContainer * container, fObjectPredicate predicate) {
-    ObjectContainer * filtered = (ObjectContainer *) object_create(ObjectContainer);
-
+    ObjectContainer * filtered = (ObjectContainer *)object_create(ObjectContainer);
     size_t i = 0;
 
     for (i = 0; i < container->size; i++) {
@@ -527,7 +519,7 @@ static ObjectContainer * ObjectContainerFilter(ObjectContainer * container, fObj
 }
 
 static ObjectContainer * ObjectContainerFilterCtx(ObjectContainer * container, fObjectPredicateCtx predicate, void * ctx) {
-    ObjectContainer * filtered = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectContainer * filtered = (ObjectContainer *)object_create(ObjectContainer);
 
     size_t i = 0;
 
@@ -589,7 +581,7 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
     container->capacity = 0;
     container->increment = 10;
 
-    container->strToIdx = (StringContainer *) mcx_malloc(sizeof(StringContainer));
+    container->strToIdx = (StringContainer *)mcx_malloc(sizeof(StringContainer));
     if (!container->strToIdx) { return NULL; }
 
     StringContainerInit(container->strToIdx, 0);
@@ -598,6 +590,7 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
 }
 
 OBJECT_CLASS(ObjectContainer, Object);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
