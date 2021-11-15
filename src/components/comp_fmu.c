@@ -1241,13 +1241,30 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
         if (processed_out_channels->Get(processed_out_channels, i) == NULL) {
             Fmu2Value *val = (Fmu2Value *)out_vars->At(out_vars, i);
 
-            if (fmi2_import_get_initial(val->data->data.scalar) != fmi2_initial_enu_exact) {
-                for (k = 0; k < num_in_channels; ++k) {
-                    SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
-                    if (elem) {
-                        ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
-                        if (RETURN_OK != ret_val) {
-                            goto cleanup;
+            if (val->data->type == FMU2_VALUE_ARRAY) {
+                size_t elem_idx = 0;
+                for (elem_idx = 0; elem_idx < val->data->data.array.numDims; elem_idx++) {
+                    if (fmi2_import_get_initial(val->data->data.array.values[elem_idx]) != fmi2_initial_enu_exact) {
+                        for (k = 0; k < num_in_channels; ++k) {
+                            SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
+                            if (elem) {
+                                ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
+                                if (RETURN_OK != ret_val) {
+                                    goto cleanup;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (fmi2_import_get_initial(val->data->data.scalar) != fmi2_initial_enu_exact) {
+                    for (k = 0; k < num_in_channels; ++k) {
+                        SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
+                        if (elem) {
+                            ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
+                            if (RETURN_OK != ret_val) {
+                                goto cleanup;
+                            }
                         }
                     }
                 }
