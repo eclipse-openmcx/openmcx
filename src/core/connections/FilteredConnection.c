@@ -46,32 +46,6 @@ static void FilteredConnectionDataDestructor(FilteredConnectionData * data) {
 OBJECT_CLASS(FilteredConnectionData, Object);
 
 
-static ChannelType * SliceDimensionToType(ChannelType * sourceType, ChannelDimension * dimension) {
-    if (dimension) {
-        // source data is an array
-        size_t i = 0;
-        ChannelType * type = NULL;
-        size_t * dims = (size_t *) mcx_calloc(sizeof(size_t), dimension->num);
-
-        if (!dims) {
-            mcx_log(LOG_ERROR, "DetermineSliceType: Not enough memory for dimension calculation");
-            return NULL;
-        }
-
-        for (i = 0; i < dimension->num; i++) {
-            dims[i] = dimension->endIdxs[i] - dimension->startIdxs[i] + 1;    // indices are inclusive
-        }
-
-        type = ChannelTypeArray(ChannelTypeClone(ChannelTypeBaseType(sourceType)), dimension->num, dims);
-        mcx_free(dims);
-        return type;
-    } else {
-        // source data is a scalar
-        return ChannelTypeClone(sourceType);
-    }
-}
-
-
 static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * out,
                                          ChannelIn * in, ConnectionInfo * info) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
@@ -92,7 +66,7 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     filteredConnection->data->filters = NULL;
     filteredConnection->data->numFilters = 0;
 
-    storeType = SliceDimensionToType(sourceInfo->type, info->sourceDimension);
+    storeType = ChannelTypeFromDimension(sourceInfo->type, info->sourceDimension);
     if (!storeType) {
         return RETURN_ERROR;
     }

@@ -12,6 +12,7 @@
 #include "core/connections/Connection.h"
 #include "core/channels/Channel.h"
 #include "core/channels/ChannelInfo.h"
+#include "core/channels/ChannelValueReference.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/Conversion.h"
 
@@ -1145,6 +1146,10 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
     ChannelInfo * inInfo = &in->info;
     ChannelInfo * outInfo = &out->info;
 
+    ChannelValueRef * storeRef = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
     if (connection->state_ != InInitializationMode) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Update initial value: Cannot update initial value outside of initialization mode", buffer);
@@ -1159,52 +1164,76 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         return RETURN_ERROR;
     }
 
-    if (inInfo->initialValue) {
-        McxStatus retVal = RETURN_OK;
-        ChannelValue * store = &connection->store_;
-        ChannelValue * inChannelValue = inInfo->initialValue;
-        ChannelValue * inValue = ChannelValueClone(inChannelValue);
+    storeRef = (ChannelValueRef *) object_create(ChannelValueRef);
+    if (!storeRef) {
+        mcx_log(LOG_ERROR, "Could not create store reference for initial connection");
+        return RETURN_ERROR;
+    }
+    storeRef->type = CHANNEL_VALUE_REF_VALUE;
+    storeRef->ref.value = &connection->store_;
 
-        if (NULL == inValue) {
-            mcx_log(LOG_ERROR, "Could not clone initial value for initial connection");
-            return RETURN_ERROR;
+    if (inInfo->initialValue) {
+        TypeConversion * typeConv = NULL;
+        ChannelValue * inChannelValue = inInfo->initialValue;
+        ChannelDimension * srcDim = NULL;
+
+        srcDim = ChannelDimensionClone(info->targetDimension);
+        if (srcDim) {
+            mcx_log(LOG_ERROR, "Could not clone source dimension");
+            retVal = RETURN_ERROR;
+            goto cleanup_1;
+        }
+        retVal = ChannelDimensionNormalize(srcDim, inInfo->dimension);
+        if (retVal == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "Dimension normalization failed");
+            goto cleanup_1;
         }
 
         // The type of the stored value of a connection is the type of the out channel.
         // If the value is taken from the in channel, the value must be converted.
         // TODO: It might be a better idea to use the type of the in channel as type of the connection.
         // Such a change might be more complex to implement.
-        if (!ChannelTypeEq(inValue->type, store->type)) {
-            TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
-            Conversion * conv = (Conversion *) typeConv;
-            retVal = typeConv->Setup(typeConv, inValue->type, NULL, store->type, NULL);
+        if (!ChannelTypeConformable(storeRef->ref.value->type, NULL, inChannelValue->type, srcDim)) {
+            typeConv = (TypeConversion *) object_create(TypeConversion);
+            retVal = typeConv->Setup(typeConv, inChannelValue->type, info->targetDimension, storeRef->ref.value->type, NULL);
             if (RETURN_ERROR == retVal) {
                 mcx_log(LOG_ERROR, "Could not set up initial type conversion");
-                object_destroy(typeConv);
-                mcx_free(inValue);
-                return RETURN_ERROR;
-            }
-            retVal = conv->convert(conv, inValue);
-            object_destroy(typeConv);
-
-            if (RETURN_ERROR == retVal) {
-                mcx_log(LOG_ERROR, "Could not convert type of initial value");
-                mcx_free(inValue);
-                return RETURN_ERROR;
+                retVal = RETURN_ERROR;
+                goto cleanup_1;
             }
         }
 
-        retVal = ChannelValueSet(store, inValue);
+        retVal = ChannelValueRefSetFromReference(storeRef, ChannelValueReference(inChannelValue), srcDim, typeConv);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Could not set up initial value in connection");
-            mcx_free(inValue);
-            return RETURN_ERROR;
+            goto cleanup_1;
         }
-        mcx_free(inValue);
 
         connection->useInitialValue_ = TRUE;
+
+cleanup_1:
+        object_destroy(typeConv);
+        object_destroy(srcDim);
+
+        if (retVal == RETURN_ERROR) {
+            goto cleanup;
+        }
     } else if (outInfo->initialValue) {
-        ChannelValueSet(&connection->store_, outInfo->initialValue);
+        ChannelDimension * targetDim = ChannelDimensionClone(info->sourceDimension);
+        if (targetDim) {
+            mcx_log(LOG_ERROR, "Could not clone target dimension");
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
+        retVal = ChannelDimensionNormalize(targetDim, outInfo->dimension);
+        if (retVal == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "Dimension normalization failed");
+            object_destroy(targetDim);
+            goto cleanup;
+        }
+
+        ChannelValueRefSetFromReference(storeRef, outInfo->initialValue, targetDim, NULL);
         connection->useInitialValue_ = TRUE;
     } else {
         {
@@ -1212,10 +1241,21 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
             mcx_log(LOG_WARNING, "Connection %s: No initial values are specified for the ports of the connection", buffer);
             mcx_free(buffer);
         }
-        ChannelValueInit(&connection->store_, ChannelTypeClone(ConnectionInfoGetType(info)));
+
+        ChannelType * storeType = ChannelTypeFromDimension(info->connType_, info->sourceDimension);
+        if (!storeType) {
+            mcx_log(LOG_ERROR, "Creating type from the dimension failed");
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
+        ChannelValueInit(&connection->store_, storeType);
     }
 
-    return RETURN_OK;
+cleanup:
+    object_destroy(storeRef);
+
+    return retVal;
 }
 
 static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * time) {
@@ -1231,6 +1271,7 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
 
 static McxStatus ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
     Channel * channel = (Channel *) connection->out_;
+    ChannelInfo * info = &channel->info;
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
@@ -1240,7 +1281,18 @@ static McxStatus ConnectionInitUpdateTo(Connection * connection, TimeInterval * 
 #endif
 
     if (!connection->useInitialValue_) {
-        if (RETURN_OK != ChannelValueSetFromReference(&connection->store_, channel->GetValueReference(channel))) {
+        ChannelValueRef * storeRef = (ChannelValueRef *) object_create(ChannelValueRef);
+        if (!storeRef) {
+            mcx_log(LOG_ERROR, "Could not create store reference for initial connection");
+            return RETURN_ERROR;
+        }
+        storeRef->type = CHANNEL_VALUE_REF_VALUE;
+        storeRef->ref.value = &connection->store_;
+
+        ConnectionInfo * connInfo = connection->GetInfo(connection);
+        ChannelDimension * clone = ChannelDimensionClone(connInfo->sourceDimension);
+        ChannelDimensionNormalize(clone, info->dimension);
+        if (RETURN_OK != ChannelValueRefSetFromReference(storeRef, channel->GetValueReference(channel), clone, NULL)) {
             return RETURN_ERROR;
         }
         if (channel->IsDefinedDuringInit(channel)) {
@@ -1337,6 +1389,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     Channel * chOut = (Channel *) out;
     ChannelInfo * outInfo = &chOut->info;
+    ChannelType * storeType = NULL;
 
     connection->out_  = out;
     connection->in_   = in;
@@ -1347,7 +1400,12 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     connection->info = *info;
 
-    ChannelValueInit(&connection->store_, ChannelTypeClone(outInfo->type));
+    storeType = ChannelTypeFromDimension(outInfo->type, info->sourceDimension);
+    if (!storeType) {
+        return RETURN_ERROR;
+    }
+
+    ChannelValueInit(&connection->store_, storeType);
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);

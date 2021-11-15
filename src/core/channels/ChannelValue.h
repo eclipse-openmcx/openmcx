@@ -70,6 +70,8 @@ int ChannelTypeIsBinary(const ChannelType * a);
 
 size_t ChannelTypeNumElements(const ChannelType * type);
 
+ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension * dimension);
+
 ChannelType * ChannelTypeBaseType(ChannelType * a);
 
 int ChannelTypeEq(ChannelType * a, ChannelType * b);
