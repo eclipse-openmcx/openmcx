@@ -726,6 +726,30 @@ McxStatus DatabusTriggerOutChannels(Databus *db, TimeInterval * time) {
     return RETURN_OK;
 }
 
+
+McxStatus DatabusTriggerConnectedInConnections(Databus * db, TimeInterval * consumerTime) {
+    if (!db) {
+        mcx_log(LOG_ERROR, "Ports: Trigger inports: Invalid structure");
+        return RETURN_ERROR;
+    }
+    size_t i = 0;
+
+    McxStatus retVal = RETURN_OK;
+
+    for (i = 0; i < db->data->numInConnected; i++) {
+        Channel * channel = (Channel *)db->data->inConnected[i];
+        retVal = channel->Update(channel, consumerTime);
+        if (RETURN_OK != retVal) {
+            ChannelInfo * info = channel->GetInfo(channel);
+            mcx_log(LOG_ERROR, "Could not update inport %s", info->GetName(info));
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+
 McxStatus DatabusTriggerInConnections(Databus * db, TimeInterval * consumerTime) {
     if (!db) {
         mcx_log(LOG_ERROR, "Ports: Trigger inports: Invalid structure");

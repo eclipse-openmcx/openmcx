@@ -246,6 +246,7 @@ struct Connection * DatabusCreateConnection(struct Databus * db, struct Connecti
  * \return \c RETURN_OK on success, or \c RETURN_ERROR otherwise.
  */
 McxStatus DatabusTriggerInConnections(struct Databus * db, TimeInterval * consumerTime);
+McxStatus DatabusTriggerConnectedInConnections(struct Databus * db, TimeInterval * consumerTime);
 
 McxStatus DatabusUpdateInConnected(Databus * db);
 
