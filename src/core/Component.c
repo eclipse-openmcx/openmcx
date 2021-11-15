@@ -201,7 +201,13 @@ McxStatus ComponentSetup(Component * comp) {
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Could not setup real time factor");
         return RETURN_ERROR;
-   }
+    }
+
+    retVal = DatabusUpdateInConnected(comp->data->databus);
+    if (RETURN_OK != retVal) {
+        ComponentLog(comp, LOG_ERROR, "Could not update in connections");
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }
