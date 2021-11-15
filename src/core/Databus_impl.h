@@ -51,6 +51,8 @@ typedef struct DatabusData {
     Object _; // base class
 
     struct ChannelIn ** in;   /**< input channels */
+    struct ChannelIn ** inConnected;   /**< connected input channels */
+    size_t numInConnected;
     struct ChannelOut ** out; /**< output channels */
     struct ChannelLocal ** local; /**< local (non-connectable) channels */
     struct ChannelLocal ** rtfactor; /**< rtfactor (non-connectable) channels */

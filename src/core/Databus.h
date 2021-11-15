@@ -247,6 +247,8 @@ struct Connection * DatabusCreateConnection(struct Databus * db, struct Connecti
  */
 McxStatus DatabusTriggerInConnections(struct Databus * db, TimeInterval * consumerTime);
 
+McxStatus DatabusUpdateInConnected(Databus * db);
+
 McxStatus DatabusEnterCouplingStepMode(struct Databus * db, double timeStepSize);
 McxStatus DatabusEnterCommunicationMode(struct Databus * db, double time);
 McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time);

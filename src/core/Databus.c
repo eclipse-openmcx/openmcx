@@ -527,6 +527,9 @@ static void DatabusDataDestructor(DatabusData * data) {
             }
             mcx_free(data->in);
         }
+        if (data->inConnected) {
+            mcx_free(data->inConnected);
+        }
 
         if (data->out) {
             size_t num = DatabusInfoGetChannelNum(data->outInfo);
@@ -570,6 +573,9 @@ static void DatabusDataDestructor(DatabusData * data) {
 
 static DatabusData * DatabusDataCreate(DatabusData * data) {
     data->in = NULL;
+    data->inConnected = NULL;
+    data->numInConnected = 0;
+
     data->out = NULL;
     data->local = NULL;
     data->rtfactor = NULL;
@@ -599,6 +605,24 @@ static DatabusData * DatabusDataCreate(DatabusData * data) {
 
 OBJECT_CLASS(DatabusData, Object);
 
+McxStatus DatabusUpdateInConnected(Databus * db) {
+    size_t i = 0;
+    size_t numIn = DatabusInfoGetChannelNum(DatabusGetInInfo(db));
+
+    db->data->numInConnected = 0;
+
+    for (i = 0; i < numIn; i++) {
+        ChannelIn * chIn = db->data->in[i];
+        Channel * ch = (Channel *) chIn;
+
+        if (ch->IsConnected(ch)) {
+            db->data->inConnected[db->data->numInConnected] = db->data->in[i];
+            db->data->numInConnected++;
+        }
+    }
+
+    return RETURN_OK;
+}
 
 
 McxStatus DatabusSetup(Databus * db, DatabusInfo * in, DatabusInfo * out, Config * config) {
@@ -617,6 +641,13 @@ McxStatus DatabusSetup(Databus * db, DatabusInfo * in, DatabusInfo * out, Config
             mcx_log(LOG_ERROR, "Ports: Memory allocation for inports failed");
             return RETURN_ERROR;
         }
+
+        db->data->inConnected = (ChannelIn **)mcx_calloc(numIn, sizeof(ChannelIn *));
+        if (db->data->inConnected == NULL) {
+            mcx_log(LOG_ERROR, "Ports: Memory allocation for connected inports failed");
+            return RETURN_ERROR;
+        }
+
         for (i = 0; i < numIn; i++) {
             db->data->in[i] = (ChannelIn *) object_create(ChannelIn);
             if (!db->data->in[i]) {
