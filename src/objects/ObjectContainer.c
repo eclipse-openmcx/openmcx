@@ -52,7 +52,7 @@ static McxStatus ObjectListResize(ObjectList * container, size_t size) {
     if (oldCapacity < size) {
         container->capacity = size + container->increment;
         container->elements = (Object * *)mcx_realloc(container->elements, container->capacity * sizeof(Object *));
-        if (!container->elements && 0 < size) {
+        if (!container->elements) {
             mcx_log(LOG_ERROR, "ObjectList: Resize: Memory allocation failed");
             return RETURN_ERROR;
         }
@@ -299,7 +299,7 @@ static McxStatus ObjectContainerResize(ObjectContainer * container, size_t size)
     if (oldCapacity < size) {
         container->capacity = size + container->increment;
         container->elements = (Object * *)mcx_realloc(container->elements, container->capacity * sizeof(Object *));
-        if (!container->elements && 0 < size) {
+        if (!container->elements) {
             mcx_log(LOG_ERROR, "ObjectContainer: Resize: Memory allocation failed");
             return RETURN_ERROR;
         }
