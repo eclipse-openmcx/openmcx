@@ -1008,22 +1008,6 @@ static McxStatus Fmu2DoStep(Component * comp, size_t group, double time, double 
 
     compFmu->lastCommunicationTimePoint += deltaTime;
 
-    // Get outputs
-    retVal = Fmu2GetVariableArray(fmu2, fmu2->out);
-    if (RETURN_OK != retVal) {
-        ComponentLog(comp, LOG_ERROR, "Retrieving outChannels failed");
-        return RETURN_ERROR;
-    }
-
-    // local variables
-    if (compFmu->localValues) {
-        retVal = Fmu2GetVariableArray(fmu2, fmu2->localValues);
-        if (RETURN_OK != retVal) {
-            ComponentLog(comp, LOG_ERROR, "Retrieving local variables failed");
-            return RETURN_ERROR;
-        }
-    }
-
     return RETURN_OK;
 }
 
