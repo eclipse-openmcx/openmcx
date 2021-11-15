@@ -432,6 +432,31 @@ void * mcx_array_get_elem_reference(mcx_array * a, size_t idx) {
     return data + idx * ChannelValueTypeSize(a->type);
 }
 
+ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension * dimension) {
+    if (dimension) {
+        // source data is an array
+        size_t i = 0;
+        ChannelType * type = NULL;
+        size_t * dims = (size_t *) mcx_calloc(sizeof(size_t), dimension->num);
+
+        if (!dims) {
+            mcx_log(LOG_ERROR, "DetermineSliceType: Not enough memory for dimension calculation");
+            return NULL;
+        }
+
+        for (i = 0; i < dimension->num; i++) {
+            dims[i] = dimension->endIdxs[i] - dimension->startIdxs[i] + 1;    // indices are inclusive
+        }
+
+        type = ChannelTypeArray(ChannelTypeClone(ChannelTypeBaseType(base_type)), dimension->num, dims);
+        mcx_free(dims);
+        return type;
+    } else {
+        // source data is a scalar
+        return ChannelTypeClone(base_type);
+    }
+}
+
 void ChannelValueInit(ChannelValue * value, ChannelType * type) {
     value->type = type;
     ChannelValueDataInit(&value->value, type);
