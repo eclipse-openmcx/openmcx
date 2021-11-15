@@ -65,7 +65,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             tmpTime = interval.startTime;
             interval.startTime = interval.endTime;
 
-            retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+            retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
             if (RETURN_OK != retVal) {
                 mcx_log(LOG_ERROR, "%s: Update inports failed", comp->GetName(comp));
                 return RETURN_ERROR;
@@ -73,7 +73,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
             interval.startTime = tmpTime;
         } else {
-            retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+            retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
             if (RETURN_OK != retVal) {
                 mcx_log(LOG_ERROR, "%s: Update inports failed", comp->GetName(comp));
                 return RETURN_ERROR;
@@ -192,7 +192,7 @@ static McxStatus CompTriggerInputs(CompAndGroup * compGroup, void * param) {
         return RETURN_ERROR;
     }
 
-    retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+    retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "%s: Updating inports failed", comp->GetName(comp));
         return RETURN_ERROR;
