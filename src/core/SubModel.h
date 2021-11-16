@@ -75,6 +75,8 @@ struct SubModel {
 };
 
 
+StringContainer * SubModelGetAllMonitoringChannelsContainer(SubModel * subModel);
+
 extern const struct ObjectClass _SubModelGenerator;
 
 struct SubModelGenerator {

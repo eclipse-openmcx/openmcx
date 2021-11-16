@@ -796,6 +796,39 @@ int OrderedNodesCheckIfLoopsExist(OrderedNodes * nodes) {
     return FALSE;
 }
 
+static size_t SubModelGetNumMonitoringChannels(const SubModel * subModel) {
+    size_t count = 0;
+    ObjectContainer * comps = subModel->components;
+    Component * comp = NULL;
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        comp = (Component *) comps->At(comps, i);
+        count += comp->GetNumMonitoringChannels(comp);
+    }
+
+    return count;
+}
+
+StringContainer * SubModelGetAllMonitoringChannelsContainer(SubModel * subModel) {
+    ObjectContainer * comps = subModel->components;
+    size_t numMonitoringChannels = SubModelGetNumMonitoringChannels(subModel);
+
+    StringContainer * container = StringContainerCreate(numMonitoringChannels);
+    size_t count = 0;
+    size_t i = 0, j = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * comp = (Component *) comps->At(comps, i);
+        // TODO: make composable
+        comp->AddMonitoringChannels(comp, container, &count);
+    }
+
+    StringContainerResize(container, count);
+
+    return container;
+}
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

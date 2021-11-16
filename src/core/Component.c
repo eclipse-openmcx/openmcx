@@ -598,6 +598,73 @@ static size_t ComponentGetNumWriteRTFactorChannels(const Component * comp) {
     return DatabusInfoGetNumWriteChannels(DatabusGetRTFactorInfo(comp->data->databus));
 }
 
+static size_t ComponentGetNumMonitoringChannels(const Component * comp) {
+    size_t num = 0;
+
+    num += DatabusGetOutChannelsNum(comp->data->databus);
+    num += DatabusGetInChannelsNum(comp->data->databus);
+    num += DatabusGetLocalChannelsNum(comp->data->databus);
+    num += DatabusGetRTFactorChannelsNum(comp->data->databus);
+
+    return num;
+}
+
+static McxStatus AddMonitoringChannels(const Component * comp, StringContainer * container, size_t * count) {
+    size_t numOut = comp->GetNumOutChannels(comp);
+    size_t numIn = comp->GetNumInChannels(comp);
+    size_t numLocal = comp->GetNumLocalChannels(comp);
+    size_t numRTFactor = comp->GetNumRTFactorChannels(comp);
+
+    size_t i = 0;
+    Databus * db = comp->GetDatabus(comp);
+
+    for (i = 0; i < numOut; i++) {
+        Channel * channel = (Channel *) DatabusGetOutChannel(db, i);
+        char * id = channel->GetInfo(channel)->id;
+
+        if (NULL != id) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    for (i = 0; i < numIn; i++) {
+        Channel * channel = (Channel *) DatabusGetInChannel(db, i);
+        char * id = channel->GetInfo(channel)->id;
+        int isValid = DatabusChannelInIsValid(db, i);
+
+        if (NULL != id && isValid) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    for (i = 0; i < numLocal; i++) {
+        Channel * channel = (Channel *) DatabusGetLocalChannel(db, i);
+        char * id = channel->GetInfo(channel)->id;
+        int isValid = DatabusChannelLocalIsValid(db, i);
+
+        if (NULL != id && isValid) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    for (i = 0; i < numRTFactor; i++) {
+        Channel * channel = (Channel *) DatabusGetRTFactorChannel(db, i);
+        char * id = channel->GetInfo(channel)->id;
+        int isValid = DatabusChannelRTFactorIsValid(db, i);
+
+        if (NULL != id && isValid) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+
 static size_t ComponentGetNumConnectedOutChannels(const Component * comp) {
     size_t count = 0;
     size_t i = 0;
@@ -1199,6 +1266,9 @@ static Component * ComponentCreate(Component * comp) {
     }
 
     comp->data->typeString = NULL;
+
+    comp->GetNumMonitoringChannels = ComponentGetNumMonitoringChannels;
+    comp->AddMonitoringChannels = AddMonitoringChannels;
 
     return comp;
 }
