@@ -598,7 +598,7 @@ static size_t ComponentGetNumWriteRTFactorChannels(const Component * comp) {
     return DatabusInfoGetNumWriteChannels(DatabusGetRTFactorInfo(comp->data->databus));
 }
 
-static size_t ComponentGetNumMonitoringChannels(const Component * comp) {
+static size_t ComponentGetNumObservableChannels(const Component * comp) {
     size_t num = 0;
 
     num += DatabusGetOutChannelsNum(comp->data->databus);
@@ -609,7 +609,7 @@ static size_t ComponentGetNumMonitoringChannels(const Component * comp) {
     return num;
 }
 
-static McxStatus AddMonitoringChannels(const Component * comp, StringContainer * container, size_t * count) {
+static McxStatus AddObservableChannels(const Component * comp, StringContainer * container, size_t * count) {
     size_t numOut = comp->GetNumOutChannels(comp);
     size_t numIn = comp->GetNumInChannels(comp);
     size_t numLocal = comp->GetNumLocalChannels(comp);
@@ -1267,8 +1267,9 @@ static Component * ComponentCreate(Component * comp) {
 
     comp->data->typeString = NULL;
 
-    comp->GetNumMonitoringChannels = ComponentGetNumMonitoringChannels;
-    comp->AddMonitoringChannels = AddMonitoringChannels;
+
+    comp->GetNumObservableChannels = ComponentGetNumObservableChannels;
+    comp->AddObservableChannels = AddObservableChannels;
 
     return comp;
 }

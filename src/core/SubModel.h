@@ -75,7 +75,7 @@ struct SubModel {
 };
 
 
-StringContainer * SubModelGetAllMonitoringChannelsContainer(SubModel * subModel);
+StringContainer * SubModelGetAllObservableChannelsContainer(SubModel * subModel);
 
 extern const struct ObjectClass _SubModelGenerator;
 

@@ -796,7 +796,7 @@ int OrderedNodesCheckIfLoopsExist(OrderedNodes * nodes) {
     return FALSE;
 }
 
-static size_t SubModelGetNumMonitoringChannels(const SubModel * subModel) {
+static size_t SubModelGetNumObservableChannels(const SubModel * subModel) {
     size_t count = 0;
     ObjectContainer * comps = subModel->components;
     Component * comp = NULL;
@@ -804,24 +804,24 @@ static size_t SubModelGetNumMonitoringChannels(const SubModel * subModel) {
 
     for (i = 0; i < comps->Size(comps); i++) {
         comp = (Component *) comps->At(comps, i);
-        count += comp->GetNumMonitoringChannels(comp);
+        count += comp->GetNumObservableChannels(comp);
     }
 
     return count;
 }
 
-StringContainer * SubModelGetAllMonitoringChannelsContainer(SubModel * subModel) {
+StringContainer * SubModelGetAllObservableChannelsContainer(SubModel * subModel) {
     ObjectContainer * comps = subModel->components;
-    size_t numMonitoringChannels = SubModelGetNumMonitoringChannels(subModel);
+    size_t numObservableChannels = SubModelGetNumObservableChannels(subModel);
 
-    StringContainer * container = StringContainerCreate(numMonitoringChannels);
+    StringContainer * container = StringContainerCreate(numObservableChannels);
     size_t count = 0;
     size_t i = 0, j = 0;
 
     for (i = 0; i < comps->Size(comps); i++) {
         Component * comp = (Component *) comps->At(comps, i);
         // TODO: make composable
-        comp->AddMonitoringChannels(comp, container, &count);
+        comp->AddObservableChannels(comp, container, &count);
     }
 
     StringContainerResize(container, count);

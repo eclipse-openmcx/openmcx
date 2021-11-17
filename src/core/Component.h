@@ -100,7 +100,7 @@ typedef McxStatus (*fComponentSetDouble)(Component * comp, double offset);
 typedef void (*fComponentSetIsPartOfInitCalculation)(Component * comp, int isPartOfInitCalculation);
 
 
-typedef McxStatus (* fAddMonitoringChannels)(const Component * comp, StringContainer * container, size_t * count);
+typedef McxStatus (* fAddObservableChannels)(const Component * comp, StringContainer * container, size_t * count);
 
 extern const struct ObjectClass _Component;
 
@@ -215,8 +215,8 @@ struct Component {
 
     fComponentSetDouble SetResultTimeOffset;
 
-    fComponentGetNumber GetNumMonitoringChannels;
-    fAddMonitoringChannels AddMonitoringChannels;
+    fComponentGetNumber GetNumObservableChannels;
+    fAddObservableChannels AddObservableChannels;
 
     struct ComponentData * data;
 };
