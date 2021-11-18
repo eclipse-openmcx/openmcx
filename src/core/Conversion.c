@@ -370,7 +370,7 @@ static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, Channe
     }
 
     value->type = CHANNEL_DOUBLE;
-    value->value.d = (value->value.d != 0) ? 1. : 0.;
+    value->value.d = (value->value.i != 0) ? 1. : 0.;
 
     return RETURN_OK;
 }
