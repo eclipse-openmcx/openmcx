@@ -51,6 +51,8 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
     vals = fmu1->in;
     for (i = 0; i < numChannels; i++) {
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
+        ChannelDimension * dimension = info->dimension;
+        ChannelType * type = info->type;
 
         if (DatabusChannelInIsValid(db, i)) {
             Fmu1Value * val = NULL;
@@ -63,33 +65,24 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
                 channelName = ChannelInfoGetName(info);
             }
 
-            var = fmi1_import_get_variable_by_name(fmu1->fmiImport, channelName);
-            if (!var) {
-                ComponentLog(comp, LOG_ERROR, "Could not get variable %s", channelName);
-                return RETURN_ERROR;
+            if (dimension) {  // arrays
+                val = Fmu1ValueReadArray(comp->GetName(comp), type, info->channel, channelName, dimension, fmu1->fmiImport);
+            } else {  // scalars
+                val = Fmu1ValueReadScalar(comp->GetName(comp), type, info->channel, channelName, fmu1->fmiImport);
             }
 
-            if (!ChannelTypeEq(info->type, Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var)))) {
-                ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
-                ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
-                return RETURN_ERROR;
-            }
-
-            val = Fmu1ValueMake(channelName, var, info->channel);
             if (!val) {
-                ComponentLog(comp, LOG_ERROR, "Could not set value for channel %s", channelName);
+                ComponentLog(comp, LOG_ERROR, "Could not create value for channel %s", channelName);
                 return RETURN_ERROR;
             }
 
-            retVal = vals->PushBackNamed(vals, (Object *)val, channelName);
+            retVal = vals->PushBackNamed(vals, (Object *) val, channelName);
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not store value for %s", channelName);
                 return RETURN_ERROR;
             }
 
-            retVal = DatabusSetInReference(comp->GetDatabus(comp), i, ChannelValueReference(&val->val),
-                ChannelValueType(&val->val));
+            retVal = DatabusSetInReference(db, i, ChannelValueReference(&val->val), ChannelValueType(&val->val));
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not set reference for channel %s", channelName);
                 return RETURN_ERROR;
@@ -102,6 +95,8 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
     vals = fmu1->out;
     for (i = 0; i < numChannels; i++) {
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
+        ChannelDimension * dimension = info->dimension;
+        ChannelType * type = info->type;
 
         Fmu1Value * val = NULL;
         fmi1_import_variable_t * var = NULL;
@@ -112,33 +107,24 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
             channelName = ChannelInfoGetName(info);
         }
 
-        var = fmi1_import_get_variable_by_name(fmu1->fmiImport, channelName);
-        if (!var) {
-            ComponentLog(comp, LOG_ERROR, "Could not get variable %s", channelName);
-            return RETURN_ERROR;
+        if (dimension) {    // arrays
+            val = Fmu1ValueReadArray(comp->GetName(comp), type, info->channel, channelName, dimension, fmu1->fmiImport);
+        } else {    // scalars
+            val = Fmu1ValueReadScalar(comp->GetName(comp), type, info->channel, channelName, fmu1->fmiImport);
         }
 
-        if (!ChannelTypeEq(info->type, Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var)))) {
-            ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
-            ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
-                ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
-            return RETURN_ERROR;
-        }
-
-        val = Fmu1ValueMake(channelName, var, NULL);
         if (!val) {
-            ComponentLog(comp, LOG_ERROR, "Could not set value for channel %s", channelName);
+            ComponentLog(comp, LOG_ERROR, "Could not create value for channel %s", channelName);
             return RETURN_ERROR;
         }
 
-        retVal = vals->PushBack(vals, (Object *)val);
+        retVal = vals->PushBackNamed(vals, (Object *) val, channelName);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not store value for %s", channelName);
             return RETURN_ERROR;
         }
 
-        retVal = DatabusSetOutReference(comp->GetDatabus(comp), i, ChannelValueReference(&val->val),
-            ChannelValueType(&val->val));
+        retVal = DatabusSetOutReference(db, i, ChannelValueReference(&val->val), ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not set reference for channel %s", channelName);
             return RETURN_ERROR;
