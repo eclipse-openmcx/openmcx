@@ -292,7 +292,7 @@ Fmu1Value * Fmu1ReadParamValue(ScalarParameterInput * input, fmi1_import_t * imp
         return NULL;
     }
 
-    val = Fmu1ValueMake(input->name, var, NULL);
+    val = Fmu1ValueScalarMake(input->name, var, NULL);
     if (!val) {
         return NULL;
     }
@@ -375,7 +375,7 @@ static ObjectContainer * Fmu1ReadArrayParamValues(const char * name,
                 goto cleanup_1;
             }
 
-            val = Fmu1ValueMake(varName, var, NULL);
+            val = Fmu1ValueScalarMake(varName, var, NULL);
             if (!val) {
                 retVal = RETURN_ERROR;
                 goto cleanup_1;
@@ -538,9 +538,6 @@ cleanup:
 McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     fmi1_status_t status = fmi1_status_ok;
 
-    fmi1_import_variable_t * var = fmuVal->var;
-    fmi1_value_reference_t vr[] = { fmuVal->vr };
-
     Channel * channel = fmuVal->channel;
     if (channel && FALSE == channel->IsDefinedDuringInit(channel)) {
         MCX_DEBUG_LOG("Fmu1SetVariable: %s not set: no defined value during initialization", fmuVal->name);
@@ -553,8 +550,9 @@ McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     switch (type->con) {
     case CHANNEL_DOUBLE:
     {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
         double value = chVal->value.d;
-        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {
+        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             value *= -1.;
         }
         status = fmi1_import_set_real(fmu->fmiImport, vr, 1, &value);
@@ -562,8 +560,9 @@ McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     break;
     case CHANNEL_INTEGER:
     {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
         int value = chVal->value.i;
-        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {
+            if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             value *= -1;
         }
         status = fmi1_import_set_integer(fmu->fmiImport, vr, 1, &value);
@@ -571,16 +570,38 @@ McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     break;
     case CHANNEL_BOOL:
     {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
         fmi1_boolean_t value = chVal->value.i;
-        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {
+        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             value = !value;
         }
         status = fmi1_import_set_boolean(fmu->fmiImport, vr, 1, &value);
     }
     break;
     case CHANNEL_STRING:
+    {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
         status = fmi1_import_set_string(fmu->fmiImport, vr, 1, (fmi1_string_t *) &chVal->value.s);
         break;
+    }
+    case CHANNEL_ARRAY:
+    {
+        fmi1_value_reference_t * vrs = fmuVal->data->vr.array.values;
+        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
+
+        size_t num = mcx_array_num_elements(a);
+        void * vals = a->data;
+
+        if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
+            status = fmi1_import_set_real(fmu->fmiImport, vrs, num, vals);
+        } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
+            status = fmi1_import_set_integer(fmu->fmiImport, vrs, num, vals);
+        } else {
+            mcx_log(LOG_ERROR, "FMU: Unsupported array variable type: %s", ChannelTypeToString(a->type));
+            return RETURN_ERROR;
+        }
+        break;
+    }
     default:
         mcx_log(LOG_WARNING, "FMU: Unknown variable type");
         break;
@@ -589,13 +610,13 @@ McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     if (fmi1_status_ok != status) {
         if (fmi1_status_error == status || fmi1_status_fatal == status) {
             fmu->runOk = fmi1_false;
-            mcx_log(LOG_ERROR, "FMU: Setting of variable %s (%d) failed", fmi1_import_get_variable_name(var), vr[0]);
+            mcx_log(LOG_ERROR, "FMU: Setting of variable %s failed", fmuVal->name);
             return RETURN_ERROR;
         } else {
             if (fmi1_status_warning == status) {
-                mcx_log(LOG_WARNING, "FMU: Setting of variable %s (%d) returned with a warning", fmi1_import_get_variable_name(var), vr[0]);
+                mcx_log(LOG_WARNING, "FMU: Setting of variable %s returned with a warning", fmuVal->name);
             } else if (fmi1_status_discard == status) {
-                mcx_log(LOG_WARNING, "FMU: Setting of variable %s (%d) discarded", fmi1_import_get_variable_name(var), vr[0]);
+                mcx_log(LOG_WARNING, "FMU: Setting of variable %s discarded", fmuVal->name);
             }
         }
     } else {
@@ -628,37 +649,62 @@ McxStatus Fmu1SetVariableArray(Fmu1CommonStruct * fmu, ObjectContainer * vals) {
 McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     fmi1_status_t status = fmi1_status_ok;
 
-    fmi1_import_variable_t * var = fmuVal->var;
-    fmi1_value_reference_t vr[] = { fmuVal->vr };
-
     ChannelValue * const chVal = &fmuVal->val;
     ChannelType * type = ChannelValueType(chVal);
 
     switch (type->con) {
     case CHANNEL_DOUBLE:
-        status = fmi1_import_get_real(fmu->fmiImport, vr, 1, (fmi1_real_t *)ChannelValueReference(chVal));
-        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {
+    {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
+        status = fmi1_import_get_real(fmu->fmiImport, vr, 1, (fmi1_real_t *) ChannelValueReference(chVal));
+        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             fmuVal->val.value.d *= -1.;
         }
         break;
+    }
     case CHANNEL_INTEGER:
-        status = fmi1_import_get_integer(fmu->fmiImport, vr, 1, (fmi1_integer_t *)ChannelValueReference(chVal));
-        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {
+    {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
+        status = fmi1_import_get_integer(fmu->fmiImport, vr, 1, (fmi1_integer_t *) ChannelValueReference(chVal));
+        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             fmuVal->val.value.i *= -1;
         }
         break;
+    }
     case CHANNEL_BOOL:
-        status = fmi1_import_get_boolean(fmu->fmiImport, vr, 1, (fmi1_boolean_t *)ChannelValueReference(chVal));
-        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(var)) {
+    {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
+        status = fmi1_import_get_boolean(fmu->fmiImport, vr, 1, (fmi1_boolean_t *) ChannelValueReference(chVal));
+        if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             fmuVal->val.value.i = !fmuVal->val.value.i;
         }
         break;
+    }
     case CHANNEL_STRING:
     {
+        fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
         char * buffer = NULL;
 
         status = fmi1_import_get_string(fmu->fmiImport, vr, 1, (fmi1_string_t *)&buffer);
         if (RETURN_OK != ChannelValueSetFromReference(chVal, &buffer)) {
+            return RETURN_ERROR;
+        }
+        break;
+    }
+    case CHANNEL_ARRAY:
+    {
+        fmi1_value_reference_t * vrs = fmuVal->data->vr.array.values;
+        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
+
+        size_t num = mcx_array_num_elements(a);
+        void * vals = a->data;
+
+        if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
+            status = fmi1_import_get_real(fmu->fmiImport, vrs, num, vals);
+        } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
+            status = fmi1_import_get_integer(fmu->fmiImport, vrs, num, vals);
+        } else {
+            mcx_log(LOG_ERROR, "FMU: Unsupported array variable type: %s", ChannelTypeToString(a->type));
             return RETURN_ERROR;
         }
         break;
@@ -671,7 +717,7 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     if (fmi1_status_ok != status) {
         if (fmi1_status_error == status || fmi1_status_fatal == status) {
             fmu->runOk = fmi1_false;
-            mcx_log(LOG_ERROR, "FMU: Getting of variable %s (%d) failed", fmi1_import_get_variable_name(var), vr[0]);
+            mcx_log(LOG_ERROR, "FMU: Getting of variable %s failed", fmuVal->name);
             return RETURN_ERROR;
         } else {
             // TODO: handle warning
@@ -723,7 +769,7 @@ McxStatus fmi1CreateValuesOutOfVariables(ObjectContainer * vals, fmi1_import_var
         Fmu1Value * val = NULL;
         const char * name = fmi1_import_get_variable_name(actualVar);
 
-        val = Fmu1ValueMake(name, actualVar, NULL);
+        val = Fmu1ValueScalarMake(name, actualVar, NULL);
 
         retVal = vals->PushBack(vals, (Object *)val);
         if (RETURN_ERROR == retVal) {
@@ -745,7 +791,7 @@ McxStatus fmi1AddLocalChannelsFromLocalValues(ObjectContainer * vals, const char
 
     for (i = 0; i < sizeList; i++) {
         Fmu1Value * val = (Fmu1Value *) vals->At(vals, i);
-        fmi1_import_variable_t * actualVar = val->var;
+        fmi1_import_variable_t * actualVar = val->data->var.scalar;  // TODO array
 
         const char * name = NULL;
         fmi1_base_type_enu_t type;
