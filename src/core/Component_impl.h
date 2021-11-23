@@ -33,33 +33,35 @@ struct ComponentRTFactorData {
     int defined;
     int enabled;
 
-    McxTime simClock; /* ticks in doStep since simulation start */
-    McxTime stepClock; /* ticks in the current communication step */
+    McxTime rtCalcSum;        // ticks in doStep since simulation start
+    double rtCalcSum_s;       // time in doSteps since simulation start
 
-    double simTime; /* time in doStep since simulation start */
-    double simTimeTotal; /* time since initialize */
-    double stepTime; /* time in the current communication step */
+    McxTime rtCommStepTime;   // ticks in the current communication step
+    double rtCommStepTime_s;  // time in the current communication step
 
-    double startTime; /* start time of simulation */
-    double commTime; /* simulated time in current communication step */
+    double simCommStepTime;   // simulated time in current communication step
 
-    double rtFactor;
-    double rtFactorAvg;
+    double rtTotalSum_s;      // time since initialize
 
-    McxTime startClock; /* wall clock of start of simulation */
-    McxTime lastDoStepClock; /* wall clock of last DoStep */
+    double simStartTime;      // start time of simulation
 
-    /* wall clock of last DoStep before entering communication mode */
-    McxTime lastCommDoStepClock;
+    double rtFactorCalc;
+    double rtFactorCalcAvg;
 
-    double totalRtFactor;
-    double totalRtFactorAvg;
+    double rtFactorTotal;
+    double rtFactorTotalAvg;
 
-    McxTime lastDoStepStartClock; /* wall clock of last DoStep Start*/
-    McxTime lastDoStepEndClock; /* wall clock of last DoStep End */
+    McxTime rtCompStart; // wall clock of start of simulation
 
-    double calcStartWallClockTime;
-    double calcEndWallClockTime;
+    McxTime rtLastEndCalc; // wall clock of last Calc End
+
+    McxTime rtLastCompEnd; // wall clock of last DoStep before entering communication mode
+
+    McxTime rtCalcStart; // wall clock of last DoStep Start
+    double rtCalcStart_mys;
+
+    McxTime rtCalcEnd;   // wall clock of last DoStep End
+    double rtCalcEnd_mys;
 };
 
 
