@@ -54,6 +54,12 @@ struct ComponentRTFactorData {
 
     double totalRtFactor;
     double totalRtFactorAvg;
+
+    McxTime lastDoStepStartClock; /* wall clock of last DoStep Start*/
+    McxTime lastDoStepEndClock; /* wall clock of last DoStep End */
+
+    double calcStartWallClockTime;
+    double calcEndWallClockTime;
 };
 
 

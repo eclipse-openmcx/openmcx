@@ -282,6 +282,32 @@ static McxStatus ComponentSetupRTFactor(Component * comp) {
             return RETURN_ERROR;
         }
         mcx_free(id);
+
+
+        id = CreateChannelID(comp->GetName(comp), "CalcStartWallClockTime");
+        if (!id) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "CalcStartWallClockTime");
+            return RETURN_ERROR;
+        }
+        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "CalcStartWallClockTime", id, "time~mys", &comp->data->rtData.calcStartWallClockTime, CHANNEL_DOUBLE)) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "CalcStartWallClockTime");
+            mcx_free(id);
+            return RETURN_ERROR;
+        }
+        mcx_free(id);
+
+
+        id = CreateChannelID(comp->GetName(comp), "CalcEndWallClockTime");
+        if (!id) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "CalcEndWallClockTime");
+            return RETURN_ERROR;
+        }
+        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "CalcEndWallClockTime", id, "time~mys", &comp->data->rtData.calcEndWallClockTime, CHANNEL_DOUBLE)) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "CalcEndWallClockTime");
+            mcx_free(id);
+            return RETURN_ERROR;
+        }
+        mcx_free(id);
     }
 
     return RETURN_OK;
@@ -521,6 +547,12 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
         /* total (all components + framework) rt factor */
         rtData->totalRtFactor = mcx_time_to_seconds(&totalDiff) / rtData->commTime;
         rtData->totalRtFactorAvg = mcx_time_to_seconds(&totalDiffAvg) / timeDiff;
+
+        mcx_time_diff(&rtData->startClock, &start, &rtData->lastDoStepStartClock);
+        mcx_time_diff(&rtData->startClock, &end, &rtData->lastDoStepEndClock);
+
+        rtData->calcStartWallClockTime = mcx_time_to_micro_s(&rtData->lastDoStepStartClock);
+        rtData->calcEndWallClockTime = mcx_time_to_micro_s(&rtData->lastDoStepEndClock);
     }
 
     return RETURN_OK;
@@ -1219,6 +1251,9 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
     mcx_time_init(&rtData->startClock);
     mcx_time_init(&rtData->lastDoStepClock);
     mcx_time_init(&rtData->lastCommDoStepClock);
+
+    mcx_time_init(&rtData->lastDoStepStartClock);
+    mcx_time_init(&rtData->lastDoStepEndClock);
 
     rtData->totalRtFactor = 0.;
     rtData->totalRtFactorAvg = 0.;
