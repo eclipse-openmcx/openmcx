@@ -50,7 +50,7 @@ void mcx_time_diff(McxTime * start, McxTime * end, McxTime * result) {
     result->QuadPart = end->QuadPart - start->QuadPart;
 }
 
-double mcx_time_to_seconds(McxTime * time) {
+double mcx_time_to_micro_s(McxTime * time) {
     McxTime freq;
     McxTime micro_secs;
 
@@ -58,7 +58,7 @@ double mcx_time_to_seconds(McxTime * time) {
     micro_secs.QuadPart = time->QuadPart * 1000000;
     micro_secs.QuadPart /= freq.QuadPart;
 
-    return micro_secs.QuadPart / 1000000.0;
+    return micro_secs.QuadPart;
 }
 
 McxTime mcx_seconds_to_time(int seconds) {
