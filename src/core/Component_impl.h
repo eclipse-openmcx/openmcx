@@ -51,7 +51,8 @@ struct ComponentRTFactorData {
     double rtFactorTotal;
     double rtFactorTotalAvg;
 
-    McxTime rtCompStart; // wall clock of start of simulation
+    McxTime rtCompStart;       // wall clock of start of component
+    McxTime rtGlobalSimStart;  // wall clock of start of simulation
 
     McxTime rtLastEndCalc; // wall clock of last Calc End
 

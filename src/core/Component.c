@@ -422,6 +422,9 @@ McxStatus ComponentInitialize(Component * comp, size_t group, double startTime) 
 }
 
 McxStatus ComponentBeforeDoSteps(Component * comp, void * param) {
+    McxTime * rtGlobalSimStart = (McxTime *)param;
+    comp->data->rtData.rtGlobalSimStart = *rtGlobalSimStart;
+
     return RETURN_OK;
 }
 
@@ -546,8 +549,8 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
         rtData->rtFactorTotal = mcx_time_to_seconds(&rtTotal) / rtData->simCommStepTime;
         rtData->rtFactorTotalAvg = mcx_time_to_seconds(&rtTotalSum) / simCalcSum;
 
-        mcx_time_diff(&rtData->rtCompStart, &rtStartCalc, &rtData->rtCalcStart);
-        mcx_time_diff(&rtData->rtCompStart, &rtEndCalc, &rtData->rtCalcEnd);
+        mcx_time_diff(&rtData->rtGlobalSimStart, &rtStartCalc, &rtData->rtCalcStart);
+        mcx_time_diff(&rtData->rtGlobalSimStart, &rtEndCalc, &rtData->rtCalcEnd);
 
         rtData->rtCalcStart_mys = mcx_time_to_micro_s(&rtData->rtCalcStart);
         rtData->rtCalcEnd_mys = mcx_time_to_micro_s(&rtData->rtCalcEnd);
