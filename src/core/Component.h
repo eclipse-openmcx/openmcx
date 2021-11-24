@@ -224,6 +224,7 @@ McxStatus ComponentRegisterStorage(Component* comp, struct ResultsStorage* stora
 
 McxStatus ComponentInitialize(Component * comp, size_t group, double startTime);
 McxStatus ComponentExitInitializationMode(Component * comp);
+McxStatus ComponentBeforeDoSteps(Component * comp, void * param);
 
 McxStatus ComponentUpdateOutChannels(Component * comp, TimeInterval * time);
 

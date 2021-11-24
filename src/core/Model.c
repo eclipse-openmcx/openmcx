@@ -1194,6 +1194,13 @@ static McxStatus ModelInitialize(Model * model) {
             return RETURN_ERROR;
     }
 
+
+    retVal = subModel->LoopComponents(subModel, ComponentBeforeDoSteps, NULL);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Initialization of elements failed");
+        return retVal;
+    }
+
     return RETURN_OK;
 }
 
