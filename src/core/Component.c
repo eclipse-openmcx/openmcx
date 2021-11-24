@@ -420,15 +420,17 @@ McxStatus ComponentInitialize(Component * comp, size_t group, double startTime) 
     comp->data->time = startTime;
 
     comp->data->rtData.simStartTime = startTime;
-    mcx_time_get(&comp->data->rtData.rtCompStart);
-    comp->data->rtData.rtLastEndCalc = comp->data->rtData.rtCompStart;
-    comp->data->rtData.rtLastCompEnd = comp->data->rtData.rtCompStart;
+
     return RETURN_OK;
 }
 
 McxStatus ComponentBeforeDoSteps(Component * comp, void * param) {
     McxTime * rtGlobalSimStart = (McxTime *)param;
     comp->data->rtData.rtGlobalSimStart = *rtGlobalSimStart;
+
+    mcx_time_get(&comp->data->rtData.rtCompStart);
+    comp->data->rtData.rtLastEndCalc = comp->data->rtData.rtCompStart;
+    comp->data->rtData.rtLastCompEnd = comp->data->rtData.rtCompStart;
 
     return RETURN_OK;
 }
