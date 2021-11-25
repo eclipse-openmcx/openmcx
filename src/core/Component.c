@@ -207,109 +207,114 @@ McxStatus ComponentSetup(Component * comp) {
 }
 
 static McxStatus ComponentSetupRTFactor(Component * comp) {
-    // Add rt factor
     if (comp->data->rtData.enabled) {
         char * id = NULL;
+        const char * chName = NULL;
+        McxStatus retVal = RETURN_OK;
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Clock");
+        chName = "RealTime Clock";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Clock");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Clock", id, GetTimeUnitString(), &comp->data->rtData.rtTotalSum_s, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Clock");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, GetTimeUnitString(), &comp->data->rtData.rtTotalSum_s, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Clock Calc");
+        chName = "RealTime Clock Calc";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Clock Calc");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Clock Calc", id, GetTimeUnitString(), &comp->data->rtData.rtCalcSum_s, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Clock Calc");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, GetTimeUnitString(), &comp->data->rtData.rtCalcSum_s, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor Calc");
+        chName = "RealTime Factor Calc";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Factor Calc");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor Calc", id, "-", &comp->data->rtData.rtFactorCalc, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Factor Calc");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "-", &comp->data->rtData.rtFactorCalc, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor Calc (Avg)");
+        chName = "RealTime Factor Calc (Avg)";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Factor Calc (Avg)");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor Calc (Avg)", id, "-", &comp->data->rtData.rtFactorCalcAvg, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Factor Calc (Avg)");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "-", &comp->data->rtData.rtFactorCalcAvg, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor");
+        chName = "RealTime Factor";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Factor");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor", id, "-", &comp->data->rtData.rtFactorTotal, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Factor");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "-", &comp->data->rtData.rtFactorTotal, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor (Avg)");
+        chName = "RealTime Factor (Avg)";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Clock Calc");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor (Avg)", id, "-", &comp->data->rtData.rtFactorTotalAvg, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Clock Calc");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "-", &comp->data->rtData.rtFactorTotalAvg, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-
-
-
-        id = CreateChannelID(comp->GetName(comp), "CalcStartWallClockTime");
+        chName = "CalcStartWallClockTime";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "CalcStartWallClockTime");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "CalcStartWallClockTime", id, "time~mys", &comp->data->rtData.rtCalcStart_mys, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "CalcStartWallClockTime");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "time~mys", &comp->data->rtData.rtCalcStart_mys, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
 
-
-        id = CreateChannelID(comp->GetName(comp), "CalcEndWallClockTime");
+        chName = "CalcEndWallClockTime";
+        id = CreateChannelID(comp->GetName(comp), chName);
         if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "CalcEndWallClockTime");
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "CalcEndWallClockTime", id, "time~mys", &comp->data->rtData.rtCalcEnd_mys, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "CalcEndWallClockTime");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "time~mys", &comp->data->rtData.rtCalcEnd_mys, CHANNEL_DOUBLE);
         mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
     }
 
     return RETURN_OK;
