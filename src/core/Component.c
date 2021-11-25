@@ -552,7 +552,7 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
         // Sum  = from simulation begin
 
         rtData->rtFactorTotal = mcx_time_to_seconds(&rtTotal) / rtData->simCommStepTime;
-        rtData->rtFactorTotalAvg = mcx_time_to_seconds(&rtTotalSum) / simCalcSum;
+        rtData->rtFactorTotalAvg = rtData->rtTotalSum_s / simCalcSum;
 
         mcx_time_diff(&rtData->rtGlobalSimStart, &rtStartCalc, &rtData->rtCalcStart);
         mcx_time_diff(&rtData->rtGlobalSimStart, &rtEndCalc, &rtData->rtCalcEnd);
