@@ -51,6 +51,7 @@ typedef McxStatus (* fComponentUpdateInChannels)(Component * comp);
 typedef struct ComponentStorage * (* fComponentGetStorage)(const Component * comp);
 typedef McxStatus (* fComponentDoStep)(Component * comp, size_t group, double time,
     double deltaTime, double endTime, int isNewStep);
+typedef McxStatus (*fComponentPostDoStep)(Component * comp);
 
 typedef McxStatus (* fComponentFinish)(Component * comp, FinishState * finishState);
 typedef size_t (* fComponentGetNumber)(const Component * comp);
@@ -135,6 +136,7 @@ struct Component {
     fComponentStore Store;
 
     fComponentDoStep DoStep;
+    fComponentPostDoStep PostDoStep;
     fComponentFinish Finish;
 
     // Read and Setup Channels

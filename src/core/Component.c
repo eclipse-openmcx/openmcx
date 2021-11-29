@@ -1119,6 +1119,7 @@ static Component * ComponentCreate(Component * comp) {
     comp->Store = ComponentStore;
 
     comp->DoStep = NULL;
+    comp->PostDoStep = NULL;
     comp->Finish = NULL;
 
     comp->GetNumInChannels = ComponentGetNumInChannels;

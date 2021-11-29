@@ -121,6 +121,14 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             return RETURN_ERROR;
         }
 
+        if (comp->PostDoStep) {
+            retVal = comp->PostDoStep(comp);
+            if (RETURN_ERROR == retVal) {
+                mcx_log(LOG_ERROR, "%s: PostDoStep failed", comp->GetName(comp));
+                return RETURN_ERROR;
+            }
+        }
+
         /* the last coupling step is the new synchronization step */
         if (double_geq(comp->GetTime(comp), stepEndTime)) {
             level = STORE_SYNCHRONIZATION;
