@@ -793,7 +793,6 @@ McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time
         ComponentLog(comp, LOG_ERROR, "Cannot enter communication mode at time %.17g s", time->startTime);
         return RETURN_ERROR;
     }
-    ComponentUpdateOutChannels(comp, time);
 
     return RETURN_OK;
 }
@@ -810,7 +809,6 @@ McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, Objec
         ComponentLog(comp, LOG_ERROR, "Cannot enter communication mode for connections at time %.17g s", time->startTime);
         return RETURN_ERROR;
     }
-    ComponentUpdateOutChannels(comp, time);
 
     return RETURN_OK;
 }
