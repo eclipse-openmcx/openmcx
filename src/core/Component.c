@@ -315,6 +315,32 @@ static McxStatus ComponentSetupRTFactor(Component * comp) {
             ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
             return RETURN_ERROR;
         }
+
+        chName = "SyncStartWallClockTime";
+        id = CreateChannelID(comp->GetName(comp), chName);
+        if (!id) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
+            return RETURN_ERROR;
+        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "time~mys", &comp->data->rtData.rtSyncStart_mys, CHANNEL_DOUBLE);
+        mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
+
+        chName = "SyncEndWallClockTime";
+        id = CreateChannelID(comp->GetName(comp), chName);
+        if (!id) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", chName);
+            return RETURN_ERROR;
+        }
+        retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, "time~mys", &comp->data->rtData.rtSyncEnd_mys, CHANNEL_DOUBLE);
+        mcx_free(id);
+        if (retVal == RETURN_ERROR) {
+            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", chName);
+            return RETURN_ERROR;
+        }
     }
 
     return RETURN_OK;
@@ -561,6 +587,9 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
 
         rtData->rtCalcStart_mys = mcx_time_to_micro_s(&rtData->rtCalcStart);
         rtData->rtCalcEnd_mys = mcx_time_to_micro_s(&rtData->rtCalcEnd);
+
+        rtData->rtSyncStart_mys = mcx_time_to_micro_s(&rtData->rtSyncStart);
+        rtData->rtSyncEnd_mys = mcx_time_to_micro_s(&rtData->rtSyncEnd);
     }
 
     return RETURN_OK;
@@ -777,10 +806,15 @@ struct Dependencies * ComponentGetInOutGroupsNoDependency(const Component * comp
 
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time) {
     McxStatus retVal = RETURN_OK;
+    ComponentRTFactorData * rtData = &comp->data->rtData;
+    McxTime rtSyncStart, rtSyncEnd;
 
-    mcx_time_init(&comp->data->rtData.rtCommStepTime);
-    comp->data->rtData.simCommStepTime = 0;
-    comp->data->rtData.rtLastCompEnd = comp->data->rtData.rtLastEndCalc;
+    mcx_time_init(&rtData->rtCommStepTime);
+    rtData->simCommStepTime = 0;
+    rtData->rtLastCompEnd = rtData->rtLastEndCalc;
+
+    mcx_time_get(&rtSyncStart);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtSyncStart, &rtData->rtSyncStart);
 
     retVal = DatabusEnterCommunicationMode(comp->data->databus, time->startTime);
     if (RETURN_OK != retVal) {
@@ -788,21 +822,32 @@ McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time
         return RETURN_ERROR;
     }
 
+    mcx_time_get(&rtSyncEnd);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtSyncEnd, &rtData->rtSyncEnd);
+
     return RETURN_OK;
 }
 
 McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time) {
     McxStatus retVal = RETURN_OK;
+    ComponentRTFactorData * rtData = &comp->data->rtData;
+    McxTime rtSyncStart, rtSyncEnd;
 
-    mcx_time_init(&comp->data->rtData.rtCommStepTime);
-    comp->data->rtData.simCommStepTime = 0;
-    comp->data->rtData.rtLastCompEnd = comp->data->rtData.rtLastEndCalc;
+    mcx_time_init(&rtData->rtCommStepTime);
+    rtData->simCommStepTime = 0;
+    rtData->rtLastCompEnd = rtData->rtLastEndCalc;
+
+    mcx_time_get(&rtSyncStart);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtSyncStart, &rtData->rtSyncStart);
 
     retVal = DatabusEnterCommunicationModeForConnections(comp->data->databus, connections, time->startTime);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Cannot enter communication mode for connections at time %.17g s", time->startTime);
         return RETURN_ERROR;
     }
+
+    mcx_time_get(&rtSyncEnd);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtSyncEnd, &rtData->rtSyncEnd);
 
     return RETURN_OK;
 }
@@ -1338,6 +1383,9 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
 
     mcx_time_init(&rtData->rtCalcStart);
     mcx_time_init(&rtData->rtCalcEnd);
+
+    mcx_time_init(&rtData->rtSyncStart);
+    mcx_time_init(&rtData->rtSyncEnd);
 
     rtData->rtFactorTotal = 0.;
     rtData->rtFactorTotalAvg = 0.;

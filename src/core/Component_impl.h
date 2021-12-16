@@ -63,6 +63,12 @@ struct ComponentRTFactorData {
 
     McxTime rtCalcEnd;   // wall clock of last DoStep End
     double rtCalcEnd_mys;
+
+    McxTime rtSyncStart;   // wall clock of sync start
+    double rtSyncStart_mys;
+
+    McxTime rtSyncEnd;   // wall clock of sync end
+    double rtSyncEnd_mys;
 };
 
 
