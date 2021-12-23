@@ -35,6 +35,73 @@ OBJECT_CLASS(Conversion, Object);
 // ----------------------------------------------------------------------
 // Range Conversion
 
+McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value) {
+    RangeConversion * rangeConv = NULL;
+    ChannelValue * minToUse = NULL;
+    ChannelValue * maxToUse = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
+    if (value->type != CHANNEL_DOUBLE && value->type != CHANNEL_INTEGER) {
+        return RETURN_OK;
+    }
+
+    rangeConv = (RangeConversion *) object_create(RangeConversion);
+    if (!rangeConv) {
+        mcx_log(LOG_ERROR, "ConvertRange: Not enough memory");
+        return RETURN_ERROR;
+    }
+
+    maxToUse = max ? ChannelValueClone(max) : NULL;
+    if (max && !maxToUse) {
+        mcx_log(LOG_ERROR, "ConvertRange: Not enough memory for max");
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    minToUse = min ? ChannelValueClone(min) : NULL;
+    if (min && !minToUse) {
+        mcx_log(LOG_ERROR, "ConvertRange: Not enough memory for min");
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    retVal = rangeConv->Setup(rangeConv, minToUse, maxToUse);
+    if (retVal == RETURN_ERROR) {
+        mcx_log(LOG_ERROR, "ConvertRange: Conversion setup failed");
+        goto cleanup;
+    }
+
+    minToUse = NULL;
+    maxToUse = NULL;
+
+    if (rangeConv->IsEmpty(rangeConv)) {
+        object_destroy(rangeConv);
+    }
+
+    if (rangeConv) {
+        Conversion * conversion = (Conversion *) rangeConv;
+        retVal = conversion->convert(conversion, value);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "ConvertRange: Conversion failed");
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    if (minToUse) {
+        mcx_free(minToUse);
+    }
+
+    if (maxToUse) {
+        mcx_free(maxToUse);
+    }
+
+    object_destroy(rangeConv);
+
+    return retVal;
+}
+
 static McxStatus RangeConversionConvert(Conversion * conversion, ChannelValue * value) {
     RangeConversion * rangeConversion = (RangeConversion *) conversion;
 
@@ -141,6 +208,42 @@ OBJECT_CLASS(RangeConversion, Conversion);
 // ----------------------------------------------------------------------
 // Unit Conversion
 
+McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value) {
+    UnitConversion * unitConv = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
+    unitConv = (UnitConversion *) object_create(UnitConversion);
+    if (!unitConv) {
+        mcx_log(LOG_ERROR, "ConvertUnit: Not enough memory");
+        return RETURN_ERROR;
+    }
+
+    retVal = unitConv->Setup(unitConv, fromUnit, toUnit);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ConvertUnit: Conversion setup failed");
+        goto cleanup;
+    }
+
+    if (unitConv->IsEmpty(unitConv)) {
+        object_destroy(unitConv);
+    }
+
+    if (unitConv) {
+        Conversion * conv = (Conversion *) unitConv;
+        retVal = conv->convert(conv, value);
+        if (retVal == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "ConvertUnit: Conversion failed");
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    object_destroy(unitConv);
+
+    return retVal;
+}
+
 static void UnitConversionConvertVector(UnitConversion * unitConversion, double * vector, size_t vectorLength) {
     size_t i;
     if (!unitConversion->IsEmpty(unitConversion)) {
@@ -241,6 +344,73 @@ OBJECT_CLASS(UnitConversion, Conversion);
 // ----------------------------------------------------------------------
 // Linear Conversion
 
+McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value) {
+    LinearConversion * linearConv = NULL;
+    ChannelValue * factorToUse = NULL;
+    ChannelValue * offsetToUse = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
+    if (value->type != CHANNEL_DOUBLE && value->type != CHANNEL_INTEGER) {
+        return RETURN_OK;
+    }
+
+    linearConv = (LinearConversion *) object_create(LinearConversion);
+    if (!linearConv) {
+        mcx_log(LOG_ERROR, "ConvertLinear: Not enough memory");
+        return RETURN_ERROR;
+    }
+
+    factorToUse = factor ? ChannelValueClone(factor) : NULL;
+    if (factor && !factorToUse) {
+        mcx_log(LOG_ERROR, "ConvertLinear: Not enough memory for factor");
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    offsetToUse = offset ? ChannelValueClone(offset) : NULL;
+    if (offset && !offsetToUse) {
+        mcx_log(LOG_ERROR, "ConvertLinear: Not enough memory for offset");
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    retVal = linearConv->Setup(linearConv, factorToUse, offsetToUse);
+    if (retVal == RETURN_ERROR) {
+        mcx_log(LOG_ERROR, "ConvertLinear: Conversion setup failed");
+        goto cleanup;
+    }
+
+    factorToUse = NULL;
+    offsetToUse = NULL;
+
+    if (linearConv->IsEmpty(linearConv)) {
+        object_destroy(linearConv);
+    }
+
+    if (linearConv) {
+        Conversion * conversion = (Conversion *) linearConv;
+        retVal = conversion->convert(conversion, value);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "ConvertLinear: Conversion failed");
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    if (factorToUse) {
+        mcx_free(factorToUse);
+    }
+
+    if (offsetToUse) {
+        mcx_free(offsetToUse);
+    }
+
+    object_destroy(linearConv);
+
+    return retVal;
+}
+
 static McxStatus LinearConversionConvert(Conversion * conversion, ChannelValue * value) {
     LinearConversion * linearConversion = (LinearConversion *) conversion;
 
@@ -338,6 +508,38 @@ OBJECT_CLASS(LinearConversion, Conversion);
 
 // ----------------------------------------------------------------------
 // Type Conversion
+
+McxStatus ConvertType(ChannelType fromType, ChannelType toType, ChannelValue * value) {
+    TypeConversion * typeConv = NULL;
+    Conversion * conv = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
+    typeConv = (TypeConversion *) object_create(TypeConversion);
+    if (!typeConv) {
+        mcx_log(LOG_ERROR, "ConvertType: Not enough memory");
+        return RETURN_ERROR;
+    }
+
+    conv = (Conversion *) typeConv;
+
+    retVal = typeConv->Setup(typeConv, fromType, toType);
+    if (retVal == RETURN_ERROR) {
+        mcx_log(LOG_ERROR, "ConvertType: Conversion setup failed");
+        goto cleanup;
+    }
+
+    retVal = conv->convert(conv, value);
+    if (retVal == RETURN_ERROR) {
+        mcx_log(LOG_ERROR, "Type conversion failed");
+        goto cleanup;
+    }
+
+cleanup:
+    object_destroy(typeConv);
+
+    return retVal;
+}
 
 static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValue * value) {
     if (ChannelValueType(value) != CHANNEL_INTEGER) {
