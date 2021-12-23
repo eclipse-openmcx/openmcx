@@ -14,6 +14,7 @@
 #include "steptypes/StepType.h"
 #include "tarjan.h"
 #include "components/ComponentFactory.h"
+#include "components/comp_constant.h"
 #include "reader/model/ModelInput.h"
 #include "reader/model/components/ComponentsInput.h"
 #include "reader/model/components/ComponentInput.h"
@@ -147,6 +148,114 @@ static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
     }
 }
 
+/**
+ * Remove connections to Constant elements from the model
+ * For each such connection, the value of the Constant shall be taken
+ * and set as the default value of the corresponding input.
+ * Necessary value/type conversions are done as well.
+ */
+static McxStatus ModelPreprocessConstConnections(Model * model) {
+    ObjectContainer * conns = model->connections;
+    ObjectContainer * filteredConns = (ObjectContainer *) object_create(ObjectContainer);
+
+    size_t i = 0;
+    McxStatus retVal = RETURN_OK;
+
+    if (!filteredConns) {
+        mcx_log(LOG_ERROR, "Not enough memory to filter out constant connections");
+        return RETURN_ERROR;
+    }
+
+    for (i = 0; i < conns->Size(conns); i++) {
+        ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
+        ChannelValue * src = NULL;
+
+        Component * srcComp = info->GetSourceComponent(info);
+        CompConstant * srcCompConst = NULL;
+        Databus * srcDb = srcComp->GetDatabus(srcComp);
+        ChannelInfo * srcChannelInfo = DatabusGetOutChannelInfo(srcDb, info->GetSourceChannelID(info));
+
+        Component * trgComp = info->GetTargetComponent(info);
+        Databus * trgDb = trgComp->GetDatabus(trgComp);
+        ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->GetTargetChannelID(info));
+
+        // if not a const conn, add to the filtered conns
+        if (0 != strcmp("CONSTANT", srcComp->GetType(srcComp))) {
+            filteredConns->PushBack(filteredConns, (Object *) info);
+            continue;
+        }
+
+        // else kick the connection and update the channel default value
+        srcCompConst = (CompConstant *) srcComp;
+        src = (ChannelValue *) mcx_calloc(1, sizeof(ChannelValue));
+
+        if (!src) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Not enough memory");
+            goto cleanup_1;
+        }
+
+        ChannelValueInit(src, srcChannelInfo->GetType(srcChannelInfo));
+        retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->GetSourceChannelID(info)));
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        // out channel range and linear conversions
+        retVal = ConvertRange(srcChannelInfo->GetMin(srcChannelInfo), srcChannelInfo->GetMax(srcChannelInfo), src);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        retVal = ConvertLinear(srcChannelInfo->GetScale(srcChannelInfo), srcChannelInfo->GetOffset(srcChannelInfo), src);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        // type conversion
+        retVal = ConvertType(srcChannelInfo->GetType(srcChannelInfo), trgChannelInfo->GetType(trgChannelInfo), src);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        // unit conversion
+        retVal = ConvertUnit(srcChannelInfo->GetUnit(srcChannelInfo), trgChannelInfo->GetUnit(trgChannelInfo), src);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        // set the default value
+        if (trgChannelInfo->defaultValue) {
+            ChannelValueDestructor(trgChannelInfo->defaultValue);
+        }
+        trgChannelInfo->defaultValue = src;
+
+        object_destroy(info);
+
+        continue;
+
+cleanup_1:
+        if (src) {
+            ChannelValueDestructor(src);
+            mcx_free(src);
+        }
+
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+cleanup:
+    if (retVal == RETURN_ERROR) {
+        object_destroy(filteredConns);
+
+        return RETURN_ERROR;
+    }
+
+    object_destroy(conns);
+    model->connections = filteredConns;
+
+    return RETURN_OK;
+}
+
 static McxStatus ModelPreprocessBinaryConnections(Model * model) {
     ObjectContainer * conns = model->connections;
     size_t connsSize = conns->Size(conns);
@@ -262,6 +371,12 @@ static ObjectContainer * GetAllSourceElements(Model * model, Component * comp) {
 
 static McxStatus ModelPreprocess(Model * model) {
     McxStatus retVal = RETURN_OK;
+
+    retVal = ModelPreprocessConstConnections(model);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Preprocessing const connections failed");
+        return RETURN_ERROR;
+    }
 
     retVal = ModelPreprocessBinaryConnections(model);
     if (RETURN_ERROR == retVal) {
