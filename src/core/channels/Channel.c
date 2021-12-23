@@ -437,6 +437,18 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
     // default value
     if (info->defaultValue) {
         ChannelValueSet(&channel->data->value, info->defaultValue);
+
+        // apply range and linear conversions immediately
+        retVal = ConvertRange(info->GetMin(info), info->GetMax(info), &channel->data->value);
+        if (retVal == RETURN_ERROR) {
+            return RETURN_ERROR;
+        }
+
+        retVal = ConvertLinear(info->GetScale(info), info->GetOffset(info), &channel->data->value);
+        if (retVal == RETURN_ERROR) {
+            return RETURN_ERROR;
+        }
+
         channel->SetDefinedDuringInit(channel);
         channel->data->internalValue = ChannelValueReference(&channel->data->value);
     }
