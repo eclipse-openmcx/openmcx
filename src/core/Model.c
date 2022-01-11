@@ -388,7 +388,8 @@ static McxStatus ModelConnectionsDone(Model * model) {
     // determine initialization evaluation order
     if (model->config->cosimInitEnabled) {
         retVal = ModelCreateInitSubModel(model);
-        if (retVal != RETURN_OK) {
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: InitSubModel could not be created");
             goto cleanup;
         }
     }
