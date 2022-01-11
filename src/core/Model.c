@@ -355,6 +355,20 @@ cleanup:
     return retVal;
 }
 
+McxStatus ModelInitInConnectedList(ObjectContainer * comps) {
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * comp = (Component *)comps->At(comps, i);
+        McxStatus retVal = DatabusUpdateInConnected(comp->GetDatabus(comp));
+        if (RETURN_ERROR == retVal) {
+            ComponentLog(comp, LOG_ERROR, "Could not initialize the In-Connection list");
+            return RETURN_ERROR;
+        }
+    }
+    return RETURN_OK;
+}
+
 static McxStatus ModelConnectionsDone(Model * model) {
     OrderedNodes * orderedNodes = NULL;
     McxStatus retVal = RETURN_OK;
@@ -362,6 +376,12 @@ static McxStatus ModelConnectionsDone(Model * model) {
     char * tarjanString = NULL;
 
     if (model->subModel) {
+        goto cleanup;
+    }
+
+    retVal = ModelInitInConnectedList(model->components);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: In-Connection lists could not be initialized");
         goto cleanup;
     }
 
