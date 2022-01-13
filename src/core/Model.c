@@ -156,11 +156,12 @@ static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
  */
 static McxStatus ModelPreprocessConstConnections(Model * model) {
     ObjectContainer * conns = model->connections;
-    ObjectContainer * filteredConns = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectContainer * filteredConns = NULL;
 
     size_t i = 0;
     McxStatus retVal = RETURN_OK;
 
+    filteredConns = (ObjectContainer*)object_create(ObjectContainer);
     if (!filteredConns) {
         mcx_log(LOG_ERROR, "Not enough memory to filter out constant connections");
         return RETURN_ERROR;
