@@ -180,7 +180,7 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->GetTargetChannelID(info));
 
         // if not a const conn, add to the filtered conns
-        if (0 != strcmp("CONSTANT", srcComp->GetType(srcComp))) {
+        if (0 != strcmp(compConstantTypeString, srcComp->GetType(srcComp))) {
             filteredConns->PushBack(filteredConns, (Object *) info);
             continue;
         }
@@ -322,7 +322,7 @@ cleanup:
 }
 
 static int ComponentIsBoundaryCondition(const Component * comp) {
-    if (0 == strcmp("CONSTANT", comp->GetType(comp))
+    if (0 == strcmp(compConstantTypeString, comp->GetType(comp))
         )
     {
         return TRUE;
@@ -1345,7 +1345,7 @@ static McxStatus ModelInitialize(Model * model) {
 }
 
 static const char * GetComponentAbbrev(const char * type) {
-    if (!strcmp(type, "CONSTANT")) {
+    if (!strcmp(type, compConstantTypeString)) {
         return "C";
     } else if (!strcmp(type, "INTEGRATOR")) {
         return "INT";
