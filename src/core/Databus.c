@@ -1730,34 +1730,61 @@ int DatabusChannelRTFactorIsValid(Databus * db, size_t channel) {
     return rtfactor->IsValid(rtfactor);
 }
 
-McxStatus DatabusEnterCouplingStepMode(Databus * db, double timeStepSize) {
-    size_t i = 0;
-    size_t j = 0;
-
-    McxStatus retVal = RETURN_OK;
-
+McxStatus DatabusCollectModeSwitchData(Databus * db) {
     ObjectContainer * infos = db->data->outInfo->data->infos;
     size_t size = infos->Size(infos);
+    size_t i = 0, j = 0, idx = 0;
+    db->modeSwitchDataSize = 0;
 
+    // determine cache size
     for (i = 0; i < size; i++) {
+        ChannelOut * out = db->data->out[i];
+        ObjectList * conns = out->GetConnections(out);
+        db->modeSwitchDataSize += conns->Size(conns);
+    }
+
+    // allocate cache
+    db->modeSwitchData = (ModeSwitchData *)mcx_calloc(db->modeSwitchDataSize, sizeof(ModeSwitchData));
+    if (!db->modeSwitchData) {
+        return RETURN_ERROR;
+    }
+
+    // fill up the cache
+    for (i = 0, idx = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
         ObjectList * conns = out->GetConnections(out);
         size_t connSize = conns->Size(conns);
 
-        for (j = 0; j < connSize; j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < connSize; j++, idx++) {
+            Connection * connection = (Connection*)conns->At(conns, j);
             ConnectionInfo * info = connection->GetInfo(connection);
             Component * target = info->GetTargetComponent(info);
             Component * source = info->GetSourceComponent(info);
             double targetTimeStepSize = target->GetTimeStep(target);
             double sourceTimeStepSize = source->GetTimeStep(source);
-            retVal = connection->EnterCouplingStepMode(connection, timeStepSize, sourceTimeStepSize, targetTimeStepSize);
-            if (RETURN_OK != retVal) {
-                char * buffer = info->ConnectionString(info);
-                mcx_log(LOG_ERROR, "Ports: Cannot enter coupling step mode of connection %s", buffer);
-                mcx_free(buffer);
-                return RETURN_ERROR;
-            }
+
+            db->modeSwitchData[idx].connection = connection;
+            db->modeSwitchData[idx].sourceTimeStepSize = sourceTimeStepSize;
+            db->modeSwitchData[idx].targetTimeStepSize = targetTimeStepSize;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus DatabusEnterCouplingStepMode(Databus * db, double timeStepSize) {
+    size_t i = 0;
+    McxStatus retVal = RETURN_OK;
+
+    for (i = 0; i < db->modeSwitchDataSize; i++) {
+        ModeSwitchData data = db->modeSwitchData[i];
+        retVal = data.connection->EnterCouplingStepMode(data.connection, timeStepSize, data.sourceTimeStepSize, data.targetTimeStepSize);
+        if (RETURN_OK != retVal) {
+            ConnectionInfo * info = data.connection->GetInfo(data.connection);
+            char * buffer = info->ConnectionString(info);
+            mcx_log(LOG_ERROR, "Ports: Cannot enter coupling step mode of connection %s", buffer);
+            mcx_free(buffer);
+            return RETURN_ERROR;
         }
     }
 

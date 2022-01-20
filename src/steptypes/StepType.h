@@ -56,6 +56,7 @@ struct StepTypeParams {
 /* shared functionality between step types */
 McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeParams * params);
 McxStatus CompEnterCouplingStepMode(Component * comp, void * param);
+McxStatus CompCollectModeSwitchData(Component * comp, void * param);
 McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param);
 McxStatus CompDoStep(CompAndGroup * compGroup, void * param);
 

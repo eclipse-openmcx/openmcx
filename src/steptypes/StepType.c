@@ -244,6 +244,18 @@ McxStatus CompEnterCouplingStepMode(Component * comp, void * param) {
     return RETURN_OK;
 }
 
+McxStatus CompCollectModeSwitchData(Component * comp, void * param) {
+    McxStatus retVal = RETURN_OK;
+
+    retVal = DatabusCollectModeSwitchData(comp->GetDatabus(comp));
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "%s: Collecting mode switch data failed", comp->GetName(comp));
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
 
 McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param) {
     const StepTypeParams * params = (const StepTypeParams *) param;

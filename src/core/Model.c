@@ -572,6 +572,11 @@ static McxStatus ModelConnectionsDone(Model * model) {
         goto cleanup;
     }
 
+    retVal = model->subModel->LoopComponents(model->subModel, CompCollectModeSwitchData, NULL);
+    if (RETURN_ERROR == retVal) {
+        return retVal;
+    }
+
 cleanup:
     if (orderedNodes) {
         tarjan_ordered_nodes_cleanup(orderedNodes);

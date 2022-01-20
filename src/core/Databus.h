@@ -250,6 +250,7 @@ McxStatus DatabusTriggerConnectedInConnections(struct Databus * db, TimeInterval
 
 McxStatus DatabusUpdateInConnected(Databus * db);
 
+McxStatus DatabusCollectModeSwitchData(Databus * db);
 McxStatus DatabusEnterCouplingStepMode(struct Databus * db, double timeStepSize);
 McxStatus DatabusEnterCommunicationMode(struct Databus * db, double time);
 McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time);
@@ -321,10 +322,20 @@ struct Channel * DatabusGetRTFactorChannel(Databus * db, size_t i);
 
 extern const struct ObjectClass _Databus;
 
+
+typedef struct {
+    Connection * connection;
+    double sourceTimeStepSize;
+    double targetTimeStepSize;
+} ModeSwitchData;
+
 typedef struct Databus {
     Object _; // base class
 
     struct DatabusData * data;
+
+    ModeSwitchData * modeSwitchData;
+    size_t modeSwitchDataSize;
 } Databus;
 
 char * CreateIndexedName(const char * name, unsigned i);
