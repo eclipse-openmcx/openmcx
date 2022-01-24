@@ -59,8 +59,8 @@ typedef struct ChannelValue {
 void   ChannelValueInit(ChannelValue * value, ChannelType type);
 void ChannelValueDestructor(ChannelValue * value);
 char * ChannelValueToString(ChannelValue * value);
-McxStatus ChannelValueDataToStringBuffer(ChannelValueData * value, ChannelType type, char * buffer, size_t len);
-McxStatus ChannelValueToStringBuffer(ChannelValue * value, char * buffer, size_t len);
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType type, char * buffer, size_t len);
+McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 
 ChannelType ChannelValueType(ChannelValue * value);
 void *      ChannelValueReference(ChannelValue * value);
