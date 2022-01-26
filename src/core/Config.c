@@ -325,6 +325,34 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * str = mcx_os_get_env_var("MC_INTERPOLATION_BUFFER_SIZE_LIMIT");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter buffer size limit (%d)", size);
+            } else {
+                config->interpolationBuffSizeLimit = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter buffer size limit: %zu", config->interpolationBuffSizeLimit);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_INTERPOLATION_BUFFER_SIZE_SAFE_EXT");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter buffer size safety extension (%d)", size);
+            } else {
+                config->interpolationBuffSizeSafetyExt = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter buffer size safety extension: %zu", config->interpolationBuffSizeSafetyExt);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
         char * cosimInitEnabled = NULL;
 
         cosimInitEnabled = mcx_os_get_env_var("MC_COSIM_INIT");
@@ -500,6 +528,8 @@ static Config * ConfigCreate(Config * config) {
 
     config->interpolationBuffSize = 1000;
     config->overrideInterpolationBuffSize = 0;
+    config->interpolationBuffSizeLimit = 100000;
+    config->interpolationBuffSizeSafetyExt = 1;
 
     return config;
 }

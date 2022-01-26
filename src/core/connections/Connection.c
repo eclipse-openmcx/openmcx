@@ -145,6 +145,17 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
         buffSize = ceil(synchStep / sourceStep) + 1;
     }
 
+    buffSize += model->config->interpolationBuffSizeSafetyExt;
+
+    if (buffSize > model->config->interpolationBuffSizeLimit) {
+        char * connString = info->ConnectionString(info);
+        mcx_log(LOG_WARNING, "%s: buffer limit exceeded (%zu > &zu). Limit can be changed via MC_INTERPOLATION_BUFFER_SIZE_LIMIT.",
+                connString, buffSize, model->config->interpolationBuffSizeLimit);
+        mcx_free(connString);
+
+        buffSize = model->config->interpolationBuffSizeLimit;
+    }
+
     return buffSize;
 }
 

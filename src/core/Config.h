@@ -63,6 +63,8 @@ struct Config {
 
     size_t interpolationBuffSize;
     size_t overrideInterpolationBuffSize;
+    size_t interpolationBuffSizeLimit;
+    size_t interpolationBuffSizeSafetyExt;
 
     int cosimInitEnabled;
 
