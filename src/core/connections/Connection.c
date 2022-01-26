@@ -102,13 +102,50 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
     return RETURN_OK;
 }
 
+static void LogStepRatios(double sourceStep, double targetStep, double synchStep, ConnectionInfo * info) {
+    char * connString = info->ConnectionString(info);
+
+    if (sourceStep <= synchStep && targetStep <= synchStep) {
+        mcx_log(LOG_DEBUG, "%s: source <= synch && target <= synch", connString);
+    } else if (sourceStep <= synchStep && targetStep > synchStep) {
+        mcx_log(LOG_INFO, "CONN %s: source <= synch && target > synch", connString);
+    } else if (sourceStep > synchStep && targetStep <= synchStep) {
+        mcx_log(LOG_INFO, "CONN %s: source > synch && target <= synch", connString);
+    } else {
+        mcx_log(LOG_INFO, "CONN %s: source > synch && target > synch", connString);
+    }
+
+    mcx_free(connString);
+}
+
+static int ComponentMightNotRespectStepSize(Component * comp) {
+    return FALSE;
+}
 
 static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     Component * source = info->GetSourceComponent(info);
+    Component * target = info->GetTargetComponent(info);
 
     Model * model = source->GetModel(source);
+    Task * task = model->GetTask(model);
 
-    return model->config->interpolationBuffSize;
+    double synchStep = task->GetTimeStep(task);
+    double sourceStep = source->GetTimeStep(source) > 0 ? source->GetTimeStep(source) : synchStep;
+    double targetStep = target->GetTimeStep(target) > 0 ? target->GetTimeStep(target) : synchStep;
+
+    size_t buffSize = 0;
+
+    if (model->config->overrideInterpolationBuffSize > 0) {
+        buffSize = model->config->overrideInterpolationBuffSize;
+    }
+    else if (ComponentMightNotRespectStepSize(source) || ComponentMightNotRespectStepSize(target)) {
+        buffSize = model->config->interpolationBuffSize;
+    }
+    else {
+        buffSize = ceil(synchStep / sourceStep) + 1;
+    }
+
+    return buffSize;
 }
 
 

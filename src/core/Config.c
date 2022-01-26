@@ -311,6 +311,20 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * str = mcx_os_get_env_var("MC_OVERRIDE_INTERPOLATION_BUFFER_SIZE");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter override buffer size (%d)", size);
+            } else {
+                config->overrideInterpolationBuffSize = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter override buffer size: %zu", config->overrideInterpolationBuffSize);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
         char * cosimInitEnabled = NULL;
 
         cosimInitEnabled = mcx_os_get_env_var("MC_COSIM_INIT");
@@ -485,6 +499,7 @@ static Config * ConfigCreate(Config * config) {
     config->nanCheckNumMessages = MAX_NUM_MSGS;
 
     config->interpolationBuffSize = 1000;
+    config->overrideInterpolationBuffSize = 0;
 
     return config;
 }

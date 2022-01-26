@@ -62,6 +62,7 @@ struct Config {
     int writeAllLogFile;
 
     size_t interpolationBuffSize;
+    size_t overrideInterpolationBuffSize;
 
     int cosimInitEnabled;
 
