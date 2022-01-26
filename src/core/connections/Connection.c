@@ -103,6 +103,15 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
 }
 
 
+static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
+    Component * source = info->GetSourceComponent(info);
+
+    Model * model = source->GetModel(source);
+
+    return model->config->interpolationBuffSize;
+}
+
+
 ChannelFilter * FilterFactory(Connection * connection) {
     ChannelFilter * filter = NULL;
     McxStatus retVal;
@@ -130,7 +139,8 @@ ChannelFilter * FilterFactory(Connection * connection) {
                         filter = (ChannelFilter *)intExtFilter;
                         mcx_log(LOG_DEBUG, "    Setting up dynamic filter. (%p)", filter);
                         mcx_log(LOG_DEBUG, "    Interpolation order: %d, extrapolation order: %d", params->interpolationOrder, params->extrapolationOrder);
-                        retVal = intExtFilter->Setup(intExtFilter, params->extrapolationOrder, params->interpolationOrder);
+                        size_t buffSize = DetermineFilterBufferSize(info);
+                        retVal = intExtFilter->Setup(intExtFilter, params->extrapolationOrder, params->interpolationOrder, buffSize);
                         if (RETURN_OK != retVal) {
                             return NULL;
                         }
@@ -149,7 +159,8 @@ ChannelFilter * FilterFactory(Connection * connection) {
                 filter = (ChannelFilter *) intFilter;
                 mcx_log(LOG_DEBUG, "    Setting up coupling step interpolation filter. (%p)", filter);
                 mcx_log(LOG_DEBUG, "    Interpolation order: %d", degree);
-                retVal = intFilter->Setup(intFilter, degree);
+                size_t buffSize = DetermineFilterBufferSize(info);
+                retVal = intFilter->Setup(intFilter, degree, buffSize);
                 if (RETURN_OK != retVal) {
                     mcx_log(LOG_ERROR, "Connection: Filter: Could not setup");
                     return NULL;

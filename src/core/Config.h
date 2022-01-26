@@ -61,6 +61,8 @@ struct Config {
 
     int writeAllLogFile;
 
+    size_t interpolationBuffSize;
+
     int cosimInitEnabled;
 
     size_t maxNumTimeSnapWarnings;
