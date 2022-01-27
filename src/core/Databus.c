@@ -1793,29 +1793,17 @@ McxStatus DatabusEnterCouplingStepMode(Databus * db, double timeStepSize) {
 
 McxStatus DatabusEnterCommunicationMode(Databus * db, double time) {
     size_t i = 0;
-    size_t j = 0;
-
     McxStatus retVal = RETURN_OK;
 
-    ObjectContainer * infos = db->data->outInfo->data->infos;
-    size_t size = infos->Size(infos);
-
-    for (i = 0; i < size; i++) {
-        ChannelOut * out = db->data->out[i];
-        ObjectList * conns = out->GetConnections(out);
-        size_t connSize = conns->Size(conns);
-
-        for (j = 0; j < connSize; j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
-            ConnectionInfo * info = connection->GetInfo(connection);
-
-            retVal = connection->EnterCommunicationMode(connection, time);
-            if (RETURN_OK != retVal) {
-                char * buffer = info->ConnectionString(info);
-                mcx_log(LOG_ERROR, "Ports: Cannot enter communication mode of connection %s", buffer);
-                mcx_free(buffer);
-                return RETURN_ERROR;
-            }
+    for (i = 0; i < db->modeSwitchDataSize; i++) {
+        ModeSwitchData data = db->modeSwitchData[i];
+        retVal = data.connection->EnterCommunicationMode(data.connection, time);
+        if (RETURN_OK != retVal) {
+            ConnectionInfo * info = data.connection->GetInfo(data.connection);
+            char * buffer = info->ConnectionString(info);
+            mcx_log(LOG_ERROR, "Ports: Cannot enter communication mode of connection %s", buffer);
+            mcx_free(buffer);
+            return RETURN_ERROR;
         }
     }
 
