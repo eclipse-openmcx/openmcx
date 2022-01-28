@@ -106,13 +106,13 @@ static void LogStepRatios(double sourceStep, double targetStep, double synchStep
     char * connString = info->ConnectionString(info);
 
     if (sourceStep <= synchStep && targetStep <= synchStep) {
-        mcx_log(LOG_DEBUG, "%s: source <= synch && target <= synch", connString);
+        MCX_DEBUG_LOG("CONN %s: source <= synch && target <= synch", connString);
     } else if (sourceStep <= synchStep && targetStep > synchStep) {
-        mcx_log(LOG_INFO, "CONN %s: source <= synch && target > synch", connString);
+        MCX_DEBUG_LOG("CONN %s: source <= synch && target > synch", connString);
     } else if (sourceStep > synchStep && targetStep <= synchStep) {
-        mcx_log(LOG_INFO, "CONN %s: source > synch && target <= synch", connString);
+        MCX_DEBUG_LOG("CONN %s: source > synch && target <= synch", connString);
     } else {
-        mcx_log(LOG_INFO, "CONN %s: source > synch && target > synch", connString);
+        MCX_DEBUG_LOG("CONN %s: source > synch && target > synch", connString);
     }
 
     mcx_free(connString);
