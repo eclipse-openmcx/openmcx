@@ -69,6 +69,37 @@ struct ComponentRTFactorData {
 
     McxTime rtSyncEnd;   // wall clock of sync end
     double rtSyncEnd_mys;
+
+    McxTime rtInputStart;
+    double rtInputStart_mys;
+    McxTime rtInputEnd;
+    double rtInputEnd_mys;
+
+    McxTime rtOutputStart;
+    double rtOutputStart_mys;
+    McxTime rtOutputEnd;
+    double rtOutputEnd_mys;
+
+    McxTime rtStoreStart;
+    double rtStoreStart_mys;
+    double rtStoreStartPre_mys;
+
+    McxTime rtStoreEnd;
+    double rtStoreEnd_mys;
+    double rtStoreEndPre_mys;
+
+    McxTime rtStoreInStart;
+    double rtStoreInStart_mys;
+    double rtStoreInStartPre_mys;
+
+    McxTime rtStoreInEnd;
+    double rtStoreInEnd_mys;
+    double rtStoreInEndPre_mys;
+
+    McxTime rtTriggerInStart;
+    double rtTriggerInStart_mys;
+    McxTime rtTriggerInEnd;
+    double rtTriggerInEnd_mys;
 };
 
 

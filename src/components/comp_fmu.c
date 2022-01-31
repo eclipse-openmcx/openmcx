@@ -13,6 +13,7 @@
 #include "FMI/fmi_import_context.h"
 #include "components/comp_fmu_impl.h"
 #include "core/Databus.h"
+#include "core/Component_impl.h"
 #include "fmilib.h"
 #include "fmu/Fmu1Value.h"
 #include "fmu/Fmu2Value.h"
@@ -975,12 +976,20 @@ static McxStatus Fmu2DoStep(Component * comp, size_t group, double time, double 
     McxStatus retVal;
     fmi2_status_t status = fmi2_status_ok;
 
+    ComponentRTFactorData * rtData = &comp->data->rtData;
+    McxTime rtInputStart, rtInputEnd;
+    mcx_time_get(&rtInputStart);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtInputStart, &rtData->rtInputStart);
+
     // Set variables
     retVal = Fmu2SetVariableArray(fmu2, fmu2->connectedIn);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting inChannels failed");
         return RETURN_ERROR;
     }
+
+    mcx_time_get(&rtInputEnd);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtInputEnd, &rtData->rtInputEnd);
 
     // Do calculations
     status = fmi2_import_do_step(fmu2->fmiImport, compFmu->lastCommunicationTimePoint, deltaTime, fmi2_true);
@@ -1288,6 +1297,11 @@ static McxStatus Fmu2UpdateOutChannels(Component * comp) {
     Fmu2CommonStruct * fmu2 = &comp_fmu->fmu2;
     McxStatus retVal;
 
+    ComponentRTFactorData * rtData = &comp->data->rtData;
+    McxTime rtOutputStart, rtOutputEnd;
+    mcx_time_get(&rtOutputStart);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtOutputStart, &rtData->rtOutputStart);
+
     retVal = Fmu2GetVariableArray(fmu2, fmu2->out);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Initialization computation failed");
@@ -1299,6 +1313,9 @@ static McxStatus Fmu2UpdateOutChannels(Component * comp) {
         ComponentLog(comp, LOG_ERROR, "Initialization computation failed");
         return RETURN_ERROR;
     }
+
+    mcx_time_get(&rtOutputEnd);
+    mcx_time_diff(&rtData->rtGlobalSimStart, &rtOutputEnd, &rtData->rtOutputEnd);
 
     return RETURN_OK;
 }
