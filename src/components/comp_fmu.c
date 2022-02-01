@@ -976,7 +976,7 @@ static McxStatus Fmu2DoStep(Component * comp, size_t group, double time, double 
     fmi2_status_t status = fmi2_status_ok;
 
     // Set variables
-    retVal = Fmu2SetVariableArray(fmu2, fmu2->in);
+    retVal = Fmu2SetVariableArray(fmu2, fmu2->connectedIn);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting inChannels failed");
         return RETURN_ERROR;
