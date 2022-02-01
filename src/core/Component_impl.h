@@ -54,6 +54,8 @@ struct ComponentRTFactorData {
     McxTime rtCompStart;       // wall clock of start of component
     McxTime rtGlobalSimStart;  // wall clock of start of simulation
 
+    int rtGlobalSimStartDefined;
+
     McxTime rtLastEndCalc; // wall clock of last Calc End
 
     McxTime rtLastCompEnd; // wall clock of last DoStep before entering communication mode

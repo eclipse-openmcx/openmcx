@@ -592,6 +592,7 @@ McxStatus ComponentInitialize(Component * comp, size_t group, double startTime) 
 McxStatus ComponentBeforeDoSteps(Component * comp, void * param) {
     McxTime * rtGlobalSimStart = (McxTime *)param;
     comp->data->rtData.rtGlobalSimStart = *rtGlobalSimStart;
+    comp->data->rtData.rtGlobalSimStartDefined = TRUE;
 
     mcx_time_get(&comp->data->rtData.rtCompStart);
     comp->data->rtData.rtLastEndCalc = comp->data->rtData.rtCompStart;
@@ -1574,6 +1575,8 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
 
     rtData->rtTriggerInStart_mys = 0.;
     rtData->rtTriggerInEnd_mys = 0.;
+
+    rtData->rtGlobalSimStartDefined = FALSE;
 
     rtData->rtFactorTotal = 0.;
     rtData->rtFactorTotalAvg = 0.;

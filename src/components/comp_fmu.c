@@ -1299,8 +1299,10 @@ static McxStatus Fmu2UpdateOutChannels(Component * comp) {
 
     ComponentRTFactorData * rtData = &comp->data->rtData;
     McxTime rtOutputStart, rtOutputEnd;
-    mcx_time_get(&rtOutputStart);
-    mcx_time_diff(&rtData->rtGlobalSimStart, &rtOutputStart, &rtData->rtOutputStart);
+    if (rtData->rtGlobalSimStartDefined) {
+        mcx_time_get(&rtOutputStart);
+        mcx_time_diff(&rtData->rtGlobalSimStart, &rtOutputStart, &rtData->rtOutputStart);
+    }
 
     retVal = Fmu2GetVariableArray(fmu2, fmu2->out);
     if (RETURN_OK != retVal) {
@@ -1314,8 +1316,10 @@ static McxStatus Fmu2UpdateOutChannels(Component * comp) {
         return RETURN_ERROR;
     }
 
-    mcx_time_get(&rtOutputEnd);
-    mcx_time_diff(&rtData->rtGlobalSimStart, &rtOutputEnd, &rtData->rtOutputEnd);
+    if (rtData->rtGlobalSimStartDefined) {
+        mcx_time_get(&rtOutputEnd);
+        mcx_time_diff(&rtData->rtGlobalSimStart, &rtOutputEnd, &rtData->rtOutputEnd);
+    }
 
     return RETURN_OK;
 }
