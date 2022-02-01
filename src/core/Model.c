@@ -485,6 +485,22 @@ McxStatus ModelInitInConnectedList(ObjectContainer * comps) {
     return RETURN_OK;
 }
 
+static McxStatus ModelSignalConnectionsDone(ObjectContainer * comps) {
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * comp = (Component *)comps->At(comps, i);
+        if (NULL != comp->OnConnectionsDone) {
+            if (RETURN_ERROR == comp->OnConnectionsDone(comp)) {
+                ComponentLog(comp, LOG_ERROR, "OnConnectionsDone callback failed");
+                return RETURN_ERROR;
+            }
+        }
+    }
+
+    return RETURN_OK;
+}
+
 static McxStatus ModelConnectionsDone(Model * model) {
     OrderedNodes * orderedNodes = NULL;
     McxStatus retVal = RETURN_OK;
@@ -498,6 +514,12 @@ static McxStatus ModelConnectionsDone(Model * model) {
     retVal = ModelInitInConnectedList(model->components);
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Model: In-Connection lists could not be initialized");
+        goto cleanup;
+    }
+
+    retVal = ModelSignalConnectionsDone(model->components);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Components could not be notified about connection completion");
         goto cleanup;
     }
 

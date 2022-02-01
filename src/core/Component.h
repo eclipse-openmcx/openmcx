@@ -72,6 +72,8 @@ typedef int (* fComponentOneOutputOneGroup)(Component * comp);
 typedef ComponentFinishState (* fComponentGetFinishState)(const Component * comp);
 typedef void (* fComponentSetIsFinished)(Component * comp);
 
+typedef McxStatus (* fOnConnectionsDone)(Component* comp);
+
 typedef struct Databus * (* fComponentGetDatabus)(const Component * comp);
 typedef const char * (* fComponentGetName)(const Component * comp);
 typedef struct Model * (* fComponentGetModel)(const Component * comp);
@@ -217,6 +219,8 @@ struct Component {
 
     fComponentGetNumber GetNumObservableChannels;
     fAddObservableChannels AddObservableChannels;
+
+    fOnConnectionsDone OnConnectionsDone;
 
     struct ComponentData * data;
 };

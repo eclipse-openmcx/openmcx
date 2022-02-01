@@ -73,6 +73,8 @@ McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->tunableParams = (ObjectContainer *) object_create(ObjectContainer);
     fmu->initialValues = (ObjectContainer *) object_create(ObjectContainer);
 
+    fmu->connectedIn = (ObjectContainer *) object_create(ObjectContainer);
+
     fmu->numLogCategories = 0;
     fmu->logCategories = NULL;
 
@@ -232,6 +234,10 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
     if (fmu->tunableParams) {
         fmu->tunableParams->DestroyObjects(fmu->tunableParams);
         object_destroy(fmu->tunableParams);
+    }
+
+    if (fmu->connectedIn) {
+        object_destroy(fmu->connectedIn);
     }
 
     if (fmu->fmiImport) {

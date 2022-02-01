@@ -52,6 +52,8 @@ struct Fmu2CommonStruct {
     ObjectContainer * params;
     ObjectContainer * initialValues;
 
+    ObjectContainer * connectedIn;
+
     ObjectContainer * localValues;
     ObjectContainer * tunableParams;
 

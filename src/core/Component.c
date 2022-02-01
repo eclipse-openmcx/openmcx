@@ -1269,6 +1269,8 @@ static Component * ComponentCreate(Component * comp) {
     comp->GetNumObservableChannels = ComponentGetNumObservableChannels;
     comp->AddObservableChannels = AddObservableChannels;
 
+    comp->OnConnectionsDone = NULL;
+
     return comp;
 }
 

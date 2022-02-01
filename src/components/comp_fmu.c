@@ -852,6 +852,24 @@ static McxStatus Fmu2Read(Component * comp, ComponentInput * input, const struct
     return RETURN_OK;
 }
 
+static McxStatus Fmu2CollectConnectedInputs(Component * comp) {
+    CompFMU * compFmu = (CompFMU *)comp;
+    size_t num = compFmu->fmu2.in->Size(compFmu->fmu2.in);
+
+    for (size_t i = 0; i < num; i++) {
+        Fmu2Value * val = (Fmu2Value *)compFmu->fmu2.in->At(compFmu->fmu2.in, i);
+
+        if (val->channel && val->channel->IsConnected(val->channel)) {
+            McxStatus retVal = compFmu->fmu2.connectedIn->PushBack(compFmu->fmu2.connectedIn, (Object *)val);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+        }
+    }
+
+    return RETURN_OK;
+}
+
 static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime) {
     CompFMU * compFmu = (CompFMU *) comp;
     int a = FALSE;
@@ -862,7 +880,6 @@ static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime
     double defaultTolerance = 0.0;
 
     McxStatus retVal = RETURN_OK;
-
 
     // Set variables
     retVal = Fmu2SetVariableArray(fmu2, fmu2->params);
@@ -1342,6 +1359,8 @@ static Component * CompFMUCreate(Component * comp) {
     comp->Initialize = Fmu2Initialize;
     comp->DoStep     = Fmu2DoStep;
     comp->Setup      = CompFmuSetup;
+
+    comp->OnConnectionsDone = Fmu2CollectConnectedInputs;
 
     comp->UpdateInChannels = Fmu2UpdateInChannels;
     comp->UpdateInitialOutChannels = Fmu2UpdateOutChannels;
