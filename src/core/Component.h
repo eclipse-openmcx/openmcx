@@ -228,7 +228,7 @@ struct Component {
 /* these functions have to be called by subclasses */
 void ComponentLog(const Component * comp, LogSeverity sev, const char * format, ...);
 
-McxStatus ComponentRead(Component * comp, ComponentInput * input);
+McxStatus ComponentRead(Component * comp, ComponentInput * input, const struct Config * const config);
 McxStatus ComponentSetup(Component * comp);
 
 McxStatus ComponentRegisterStorage(Component* comp, struct ResultsStorage* storage);

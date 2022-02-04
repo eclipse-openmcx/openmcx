@@ -296,6 +296,18 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * profilingMode = mcx_os_get_env_var("MC_PROFILING");
+        if (profilingMode) {
+            if (!is_off(profilingMode)) {
+                mcx_log(LOG_INFO, "Development mode turned on");
+                config->profilingMode = TRUE;
+            }
+
+            mcx_free(profilingMode);
+        }
+    }
+
+    {
         char * str = mcx_os_get_env_var("MC_INTERPOLATION_BUFFER_SIZE");
         if (str) {
             int size = atoi(str);
@@ -530,6 +542,8 @@ static Config * ConfigCreate(Config * config) {
     config->overrideInterpolationBuffSize = 0;
     config->interpolationBuffSizeLimit = 100000;
     config->interpolationBuffSizeSafetyExt = 1;
+
+    config->profilingMode = FALSE;
 
     return config;
 }

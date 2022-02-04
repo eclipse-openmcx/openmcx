@@ -72,6 +72,8 @@ struct ComponentRTFactorData {
     McxTime rtSyncEnd;   // wall clock of sync end
     double rtSyncEnd_mys;
 
+    int profilingTimesEnabled;
+
     McxTime rtInputStart;
     double rtInputStart_mys;
     McxTime rtInputEnd;

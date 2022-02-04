@@ -68,6 +68,8 @@ struct Config {
 
     int cosimInitEnabled;
 
+    int profilingMode;
+
     size_t maxNumTimeSnapWarnings;
 
     NaNCheckLevel nanCheck;

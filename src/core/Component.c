@@ -57,7 +57,7 @@ void ComponentLog(const Component * comp, LogSeverity sev, const char * format, 
     }
 }
 
-McxStatus ComponentRead(Component * comp, ComponentInput * input) {
+McxStatus ComponentRead(Component * comp, ComponentInput * input, const struct Config * const config) {
     InputElement * inputElement = (InputElement *)input;
     McxStatus retVal = RETURN_OK;
 
@@ -149,6 +149,7 @@ McxStatus ComponentRead(Component * comp, ComponentInput * input) {
         if (input->results->rtFactor.defined) {
             comp->data->rtData.defined = TRUE;
             comp->data->rtData.enabled = input->results->rtFactor.value;
+            comp->data->rtData.profilingTimesEnabled = config->profilingMode;
         }
 
         retVal = comp->data->storage->Read(comp->data->storage, input->results);
@@ -180,6 +181,7 @@ McxStatus ComponentSetup(Component * comp) {
         if (comp->data->model->task) {
             if (!comp->data->rtData.defined) {
                 comp->data->rtData.enabled = comp->data->model->task->rtFactorEnabled;
+                comp->data->rtData.profilingTimesEnabled = comp->data->model->config->profilingMode;
             }
 
             if (comp->data->model->task->params) {
@@ -283,54 +285,56 @@ static McxStatus ComponentSetupRTFactor(Component * comp) {
             return RETURN_ERROR;
         }
 
-        retVal = DefineTimingChannel(comp, "InputStartWallClockTime", "time~mys", &comp->data->rtData.rtInputStart_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+        if (comp->data->rtData.profilingTimesEnabled) {
+            retVal = DefineTimingChannel(comp, "InputStartWallClockTime", "time~mys", &comp->data->rtData.rtInputStart_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "InputEndWallClockTime", "time~mys", &comp->data->rtData.rtInputEnd_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "InputEndWallClockTime", "time~mys", &comp->data->rtData.rtInputEnd_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "OutputStartWallClockTime", "time~mys", &comp->data->rtData.rtOutputStart_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "OutputStartWallClockTime", "time~mys", &comp->data->rtData.rtOutputStart_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "OutputEndWallClockTime", "time~mys", &comp->data->rtData.rtOutputEnd_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "OutputEndWallClockTime", "time~mys", &comp->data->rtData.rtOutputEnd_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "StoreStartWallClockTime", "time~mys", &comp->data->rtData.rtStoreStart_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "StoreStartWallClockTime", "time~mys", &comp->data->rtData.rtStoreStart_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "StoreEndWallClockTime", "time~mys", &comp->data->rtData.rtStoreEnd_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "StoreEndWallClockTime", "time~mys", &comp->data->rtData.rtStoreEnd_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "StoreInStartWallClockTime", "time~mys", &comp->data->rtData.rtStoreInStart_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "StoreInStartWallClockTime", "time~mys", &comp->data->rtData.rtStoreInStart_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "StoreInEndWallClockTime", "time~mys", &comp->data->rtData.rtStoreInEnd_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "StoreInEndWallClockTime", "time~mys", &comp->data->rtData.rtStoreInEnd_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "TriggerInStartWallClockTime", "time~mys", &comp->data->rtData.rtTriggerInStart_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
-        }
+            retVal = DefineTimingChannel(comp, "TriggerInStartWallClockTime", "time~mys", &comp->data->rtData.rtTriggerInStart_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
 
-        retVal = DefineTimingChannel(comp, "TriggerInEndWallClockTime", "time~mys", &comp->data->rtData.rtTriggerInEnd_mys);
-        if (RETURN_ERROR == retVal) {
-            return RETURN_ERROR;
+            retVal = DefineTimingChannel(comp, "TriggerInEndWallClockTime", "time~mys", &comp->data->rtData.rtTriggerInEnd_mys);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
         }
     }
 
@@ -1184,7 +1188,7 @@ Component * CreateComponentFromComponentInput(ComponentFactory * factory,
     }
 
     // General Data
-    retVal = ComponentRead(comp, componentInput);
+    retVal = ComponentRead(comp, componentInput, config);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Model: Could not create element data");
         object_destroy(comp);
@@ -1389,6 +1393,8 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
 
     rtData->rtFactorCalc = 0.;
     rtData->rtFactorCalcAvg = 0.;
+
+    rtData->profilingTimesEnabled = FALSE;
 
     mcx_time_init(&rtData->rtCompStart);
     mcx_time_init(&rtData->rtLastEndCalc);
