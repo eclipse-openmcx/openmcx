@@ -24,6 +24,50 @@ extern "C" {
 struct Model;
 struct Databus;
 
+typedef struct {
+    int enabled;
+
+    McxTime start;
+    McxTime end;
+
+    double startTime;
+    double endTime;
+} TimeSnapshot;
+
+
+void TimeSnapshotStart(TimeSnapshot * snapshot);
+void TimeSnapshotEnd(TimeSnapshot * snapshot);
+
+
+typedef struct {
+    TimeSnapshot snapshot;
+
+    double startTimePre;
+    double endTimePre;
+} DelayedTimeSnapshot;
+
+
+typedef struct {
+    McxTime rtGlobalSimStart;  // wall clock of start of simulation
+
+    TimeSnapshot rtCalc;
+    TimeSnapshot rtSync;
+
+    int profilingTimesEnabled;
+
+    TimeSnapshot rtInput;
+    TimeSnapshot rtOutput;
+    TimeSnapshot rtTriggerIn;
+
+    DelayedTimeSnapshot rtStore;
+    DelayedTimeSnapshot rtStoreIn;
+} FunctionTimings;
+
+
+void FunctionTimingsCalculateTimeDiffs(FunctionTimings * timings);
+void FunctionTimingsSetGlobalSimStart(FunctionTimings * timings, McxTime * simStart);
+
+
 typedef struct ComponentRTFactorData ComponentRTFactorData;
 
 struct ComponentRTFactorData {
@@ -52,58 +96,12 @@ struct ComponentRTFactorData {
     double rtFactorTotalAvg;
 
     McxTime rtCompStart;       // wall clock of start of component
-    McxTime rtGlobalSimStart;  // wall clock of start of simulation
-
-    int rtGlobalSimStartDefined;
 
     McxTime rtLastEndCalc; // wall clock of last Calc End
 
     McxTime rtLastCompEnd; // wall clock of last DoStep before entering communication mode
 
-    McxTime rtCalcStart; // wall clock of last DoStep Start
-    double rtCalcStart_mys;
-
-    McxTime rtCalcEnd;   // wall clock of last DoStep End
-    double rtCalcEnd_mys;
-
-    McxTime rtSyncStart;   // wall clock of sync start
-    double rtSyncStart_mys;
-
-    McxTime rtSyncEnd;   // wall clock of sync end
-    double rtSyncEnd_mys;
-
-    int profilingTimesEnabled;
-
-    McxTime rtInputStart;
-    double rtInputStart_mys;
-    McxTime rtInputEnd;
-    double rtInputEnd_mys;
-
-    McxTime rtOutputStart;
-    double rtOutputStart_mys;
-    McxTime rtOutputEnd;
-    double rtOutputEnd_mys;
-
-    McxTime rtStoreStart;
-    double rtStoreStart_mys;
-    double rtStoreStartPre_mys;
-
-    McxTime rtStoreEnd;
-    double rtStoreEnd_mys;
-    double rtStoreEndPre_mys;
-
-    McxTime rtStoreInStart;
-    double rtStoreInStart_mys;
-    double rtStoreInStartPre_mys;
-
-    McxTime rtStoreInEnd;
-    double rtStoreInEnd_mys;
-    double rtStoreInEndPre_mys;
-
-    McxTime rtTriggerInStart;
-    double rtTriggerInStart_mys;
-    McxTime rtTriggerInEnd;
-    double rtTriggerInEnd_mys;
+    FunctionTimings funcTimings;
 };
 
 
