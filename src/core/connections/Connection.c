@@ -21,9 +21,12 @@
 
 // Filter
 #include "core/connections/filters/DiscreteFilter.h"
+#include "core/connections/filters/MemoryFilter.h"
 #include "core/connections/filters/IntExtFilter.h"
 #include "core/connections/filters/ExtFilter.h"
 #include "core/connections/filters/IntFilter.h"
+
+#include "util/compare.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -159,6 +162,764 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     return buffSize;
 }
 
+static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
+    size_t size = 0;
+
+    Component * sourceComp = info->GetSourceComponent(info);
+    Component * targetComp = info->GetTargetComponent(info);
+
+    Model * model = sourceComp->GetModel(sourceComp);
+    Task * task = model->GetTask(model);
+
+    double syncStep = task->GetTimeStep(task);
+
+    double sourceStep = sourceComp->GetTimeStep(sourceComp) ? sourceComp->GetTimeStep(sourceComp) : syncStep;
+    double targetStep = targetComp->GetTimeStep(targetComp) ? targetComp->GetTimeStep(targetComp) : syncStep;
+
+    double syncToSrcRatio = syncStep / sourceStep;
+    double syncToTrgRatio = syncStep / targetStep;
+
+    double trgToSyncRatio = targetStep / syncStep;
+    double trgToSrcRatio = targetStep / sourceStep;
+
+    double srcToSyncRatio = sourceStep / syncStep;
+    double srcToTrgRatio = sourceStep / targetStep;
+
+    double syncToSrc = round(syncToSrcRatio);
+    double syncToTrg = round(syncToTrgRatio);
+
+    double trgToSync = round(trgToSyncRatio);
+    double trgToSrc = round(trgToSrcRatio);
+
+    double srcToSync = round(srcToSyncRatio);
+    double srcToTrg = round(srcToTrgRatio);
+
+    int useInputsAtEndTime = task->useInputsAtEndTime;
+
+    StepTypeType stepType = task->GetStepTypeType(task);
+
+    if (ComponentMightNotRespectStepSize(sourceComp) || ComponentMightNotRespectStepSize(targetComp)) {
+        return 0;
+    }
+
+    if (STEP_TYPE_PARALLEL_MT == stepType) {
+        if (useInputsAtEndTime && extDegree == 0) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 2: T = t_a && t_a > t_b && t_a = n * t_b
+            else if (double_eq(syncStep, sourceStep) && srcToTrgRatio > 1.0 && double_eq(srcToTrgRatio, srcToTrg)) {
+                size = 2;
+            }
+            // CASE 3: T = t_a && t_a > t_b && t_a = m * t_b
+            else if (double_eq(syncStep, sourceStep) && srcToTrgRatio > 1.0 && !double_eq(srcToTrgRatio, srcToTrg)) {
+                size = 2;
+            }
+            // CASE 4: T > t_a && T = n * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 5: T > t_a && T = n * t_a && t_a > t_b && t_a = k * t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && srcToTrgRatio > 1.0 && double_eq(srcToTrgRatio, srcToTrg)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 6: T > t_a && T = n * t_a && t_a > t_b && t_a = m * t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && srcToTrgRatio > 1.0 && !double_eq(srcToTrgRatio, srcToTrg)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 7: T > t_a && T = m * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) ceil(syncToSrcRatio) + 1;
+            }
+            // CASE 10: T < t_a && T = t_b && n * T = t_a && n = 2
+            else if (double_eq(syncStep, targetStep) && double_eq(srcToSyncRatio, 2.0)) {
+                size = 2;
+            }
+            // CASE 12: T < t_a && T = t_b && m * T = t_a && m <= 1.5
+            else if (double_eq(syncStep, targetStep) && srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && (double_eq(srcToSyncRatio, 1.5) || srcToSyncRatio < 1.5)) {
+                size = 2;
+            }
+            // CASE 14: T < t_a && T < t_b && n * T = t_b && k * T = t_a && k / n = 2
+            else if (trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSync / trgToSync;
+                if (double_eq(factor, 2.0)) {
+                    size = 2;
+                }
+            }
+            // CASE 16: T < t_a && T < t_b && n * T = t_b && k * T = t_a && k / n in (1,2)
+            else if (trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSync / trgToSync;
+                if (!double_eq(factor, round(factor)) && factor > 1.0 && factor < 2.0) {
+                    size = 2;
+                }
+            }
+            // CASE 18: T < t_a && T < t_b && n * T = t_b && p * T = t_a && p / n in (1,2)
+            else if (trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSyncRatio / trgToSync;
+                if (!double_eq(factor, round(factor)) && factor > 1.0 && factor < 2.0) {
+                    size = 2;
+                }
+            }
+            // CASE 20: T < t_a && T < t_b && m * T = t_b && k * T = t_a && k / m in (1,2)
+            else if (trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSync / trgToSyncRatio;
+                if (!double_eq(factor, round(factor)) && factor > 1.0 && factor < 2.0) {
+                    size = 2;
+                }
+            }
+            // CASE 22: T < t_a && T < t_b && m * T = t_b && k * T = t_a && k / m = 2
+            else if (trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSync / trgToSyncRatio;
+                if (double_eq(factor, 2.0)) {
+                    size = 2;
+                }
+            }
+            // CASE 24: T < t_a && T < t_b && m * T = t_b && p * T = t_a && p / m = 2
+            else if (trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSyncRatio / trgToSyncRatio;
+                if (double_eq(factor, 2.0)) {
+                    size = 2;
+                }
+            }
+            // CASE 26: T < t_a && T < t_b && m * T = t_b && p * T = t_a && p / m in (1,2)
+            else if (trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync)) {
+                double factor = srcToSyncRatio / trgToSyncRatio;
+                if (!double_eq(factor, round(factor)) && factor > 1.0 && factor < 2.0) {
+                    size = 2;
+                }
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 37: T = t_b && t_b > t_a && t_b = m * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && !double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(trgToSrcRatio) + 1;
+            }
+            // CASE 38: T > t_b && T = n * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) syncToTrg * (size_t) trgToSrc + 1;
+            }
+            // CASE 39: T > t_b && T = n * t_b && t_b > t_a && t_b = m * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && !double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) syncToTrg * (size_t) ceil(trgToSrcRatio) + 1;
+            }
+            // CASE 40: T > t_b && t = m * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) trgToSrc + 1;
+            }
+            // CASE 41: T > t_b && t = m * t_b && t_b > t_a && t_b = p * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && !double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) ceil(trgToSrcRatio) + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 43: T < t_b && T = t_a && m * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 44: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 45: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n not in {2,3,...} && k > n
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 46: T < t_b && T < t_a && n * T = t_a && p * T = t_b && p > n
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                size = 2;
+            }
+            // CASE 47: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m not in {2,3,...} && k > m
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 48: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 49: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 50: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m not in {2,3,...} && p > m
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 51: T < t_b && T > t_a && T = n * t_a && k * T = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 52: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 53: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p not in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 54: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m not in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 55: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 56: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 57: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m < 2
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor < 2.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 58: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m > 2 && p * m not in {3,4,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 2.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+        }
+        else if (!useInputsAtEndTime && extDegree == 0) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 2: T = t_a && t_a > t_b && t_a = n * t_b
+            else if (double_eq(syncStep, sourceStep) && srcToTrgRatio > 1.0 && double_eq(srcToTrgRatio, srcToTrg)) {
+                size = 2;
+            }
+            // CASE 3: T = t_a && t_a > t_b && t_a = m * t_b
+            else if (double_eq(syncStep, sourceStep) && srcToTrgRatio > 1.0 && !double_eq(srcToTrgRatio, srcToTrg)) {
+                size = 2;
+            }
+            // CASE 4: T > t_a && T = n * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 5: T > t_a && T = n * t_a && t_a > t_b && t_a = k * t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && srcToTrgRatio > 1.0 && double_eq(srcToTrgRatio, srcToTrg)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 6: T > t_a && T = n * t_a && t_a > t_b && t_a = m * t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && srcToTrgRatio > 1.0 && !double_eq(srcToTrgRatio, srcToTrg)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 7: T > t_a && T = m * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) ceil(syncToSrcRatio) + 1;
+            }
+            // CASE 12: T < t_a && T = t_b && m * T = t_a && m <= 1.5
+            else if (double_eq(syncStep, targetStep) && srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && (double_eq(srcToSyncRatio, 1.5) || srcToSyncRatio < 1.5)) {
+                size = 2;
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 38: T > t_b && T = n * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) syncToTrg * (size_t) trgToSrc + 1;
+            }
+            // CASE 40: T > t_b && t = m * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) trgToSrc + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 43: T < t_b && T = t_a && m * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 44: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 48: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 49: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 51: T < t_b && T > t_a && T = n * t_a && k * T = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 52: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 53: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p not in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 55: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 56: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+        }
+        else if (useInputsAtEndTime) {
+            // not applicable
+        }
+        else if (!useInputsAtEndTime) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 44: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 48: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 49: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 51: T < t_b && T > t_a && T = n * t_a && k * T = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 55: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+        }
+    } else if (STEP_TYPE_SEQUENTIAL == stepType) {
+        if (useInputsAtEndTime && extDegree == 0) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 4: T > t_a && T = n * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 7: T > t_a && T = m * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) ceil(syncToSrcRatio) + 1;
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 38: T > t_b && T = n * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) syncToTrg * (size_t) trgToSrc + 1;
+            }
+            // CASE 40: T > t_b && t = m * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) trgToSrc + 1;
+            }
+            // CASE 41: T > t_b && t = m * t_b && t_b > t_a && t_b = p * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && !double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) ceil(trgToSrcRatio) + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 43: T < t_b && T = t_a && m * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 44: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 45: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n not in {2,3,...} && k > n
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 46: T < t_b && T < t_a && n * T = t_a && p * T = t_b && p > n
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                size = 2;
+            }
+            // CASE 47: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m not in {2,3,...} && k > m
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 48: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 49: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 50: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m not in {2,3,...} && p > m
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync) && trgToSyncRatio > srcToSyncRatio) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 51: T < t_b && T > t_a && T = n * t_a && k * T = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = (size_t)syncToSrc + 1;
+            }
+            // CASE 52: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 53: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p not in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 54: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m not in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 55: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 56: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 58: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m > 2 && p * m not in {3,4,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 2.0 && !double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+        }
+        else if (!useInputsAtEndTime && extDegree == 0) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 4: T > t_a && T = n * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 7: T > t_a && T = m * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) ceil(syncToSrcRatio) + 1;
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 38: T > t_b && T = n * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t)syncToTrg * (size_t)trgToSrc + 1;
+            }
+            // CASE 40: T > t_b && t = m * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) trgToSrc + 1;
+            }
+            // CASE 41: T > t_b && t = m * t_b && t_b > t_a && t_b = p * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && !double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) ceil(trgToSrcRatio) + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 44: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 48: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 49: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 51: T < t_b && T > t_a && T = n * t_a && k * T = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = (size_t)syncToSrc + 1;
+            }
+            // CASE 52: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 55: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 56: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+        }
+        else if (useInputsAtEndTime) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 4: T > t_a && T = n * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 7: T > t_a && T = m * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) ceil(syncToSrcRatio) + 1;
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 38: T > t_b && T = n * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) syncToTrg * (size_t) trgToSrc + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+        }
+        else if (!useInputsAtEndTime) {
+            // CASE 1: T = t_a && t_a = t_b
+            if (double_eq(syncStep, sourceStep) && double_eq(sourceStep, targetStep)) {
+                size = 2;
+            }
+            // CASE 4: T > t_a && T = n * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) syncToSrc + 1;
+            }
+            // CASE 7: T > t_a && T = m * t_a && t_a = t_b
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && double_eq(sourceStep, targetStep)) {
+                size = (size_t) ceil(syncToSrcRatio) + 1;
+            }
+            // CASE 36: T = t_b && t_b > t_a && t_b = n * t_a
+            else if (double_eq(syncStep, targetStep) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) trgToSrc + 1;
+            }
+            // CASE 38: T > t_b && T = n * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) syncToTrg * (size_t) trgToSrc + 1;
+            }
+            // CASE 40: T > t_b && t = m * t_b && t_b > t_a && t_b = k * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) trgToSrc + 1;
+            }
+            // CASE 41: T > t_b && t = m * t_b && t_b > t_a && t_b = p * t_a
+            else if (syncToTrgRatio > 1.0 && !double_eq(syncToTrgRatio, syncToTrg) && trgToSrcRatio > 1.0 && !double_eq(trgToSrcRatio, trgToSrc)) {
+                size = (size_t) ceil(syncToTrgRatio) * (size_t) ceil(trgToSrcRatio) + 1;
+            }
+            // CASE 42: T < t_b && T = t_a && n * T = t_b
+            else if (double_eq(syncStep, sourceStep) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = 2;
+            }
+            // CASE 44: T < t_b && T < t_a &&& n * T = t_a && k * T = t_b && k / n in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSync;
+                if (factor > 1 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 48: T < t_b && T < t_a &&& m * T = t_a && k * T = t_b && k / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSync / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 49: T < t_b && T < t_a &&& m * T = t_a && p * T = t_b && p / m in {2,3,...}
+            else if (srcToSyncRatio > 1.0 && !double_eq(srcToSyncRatio, srcToSync) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = trgToSyncRatio / srcToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = 2;
+                }
+            }
+            // CASE 51: T < t_b && T > t_a && T = n * t_a && k * T = t_b
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                size = (size_t)syncToSrc + 1;
+            }
+            // CASE 52: T < t_b && T > t_a && T = n * t_a && p * T = t_b && n * p in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrc * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) syncToSrc + 1;
+                }
+            }
+            // CASE 55: T < t_b && T > t_a && T = m * t_a && k * T = t_b && k * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSync;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+            // CASE 56: T < t_b && T > t_a && T = m * t_a && p * T = t_b && p * m in {2,3,...}
+            else if (syncToSrcRatio > 1.0 && !double_eq(syncToSrcRatio, syncToSrc) && trgToSyncRatio > 1.0 && !double_eq(trgToSyncRatio, trgToSync)) {
+                double factor = syncToSrcRatio * trgToSyncRatio;
+                if (factor > 1.0 && double_eq(factor, round(factor))) {
+                    size = (size_t) ceil(syncToSrcRatio) + 1;
+                }
+            }
+        }
+    }
+
+    return size ? size + model->config->memFilterHistoryExtra : 0;
+}
+
+static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType sourceType, size_t historySize) {
+    McxStatus retVal = RETURN_OK;
+
+    MemoryFilter * filter = (MemoryFilter *)object_create(MemoryFilter);
+    if (!filter) {
+        mcx_log(LOG_ERROR, "Memory filter creation failed");
+        return NULL;
+    }
+
+    mcx_log(LOG_DEBUG, "    Setting up memory filter. (%p)", filter);
+    mcx_log(LOG_DEBUG, "    History size: %zu", historySize);
+
+    retVal = filter->Setup(filter, sourceType, historySize, reverseSearch);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Memory filter setup failed");
+        object_destroy(filter);
+        return NULL;
+    }
+
+    return filter;
+}
 
 ChannelFilter * FilterFactory(Connection * connection) {
     ChannelFilter * filter = NULL;
@@ -167,6 +928,11 @@ ChannelFilter * FilterFactory(Connection * connection) {
 
     InterExtrapolationType extrapolType = info->GetInterExtraType(info);
     InterExtrapolationParams * params = info->GetInterExtraParams(info);
+
+    Component * sourceComp = info->GetSourceComponent(info);
+    Model * model = sourceComp->GetModel(sourceComp);
+    Task * task = model->GetTask(model);
+    int useInputsAtEndTime = task->useInputsAtEndTime;
 
     if (info->GetType(info) == CHANNEL_DOUBLE) {
         if (!(INTERVAL_COUPLING == params->interpolationInterval && INTERVAL_SYNCHRONIZATION == params->extrapolationInterval)) {
@@ -182,7 +948,13 @@ ChannelFilter * FilterFactory(Connection * connection) {
             int degree = (INTERPOLATING == isInterExtrapol) ? params->interpolationOrder : params->extrapolationOrder;
 
             if (EXTRAPOLATING == isInterExtrapol || INTEREXTRAPOLATING == isInterExtrapol) {
-                    if (INTEREXTRAPOLATING == isInterExtrapol) {
+                    size_t memFilterHist = MemoryFilterHistorySize(info, params->extrapolationOrder);
+                    if (0 != memFilterHist) {
+                        filter = SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+                        if (!filter) {
+                            return NULL;
+                        }
+                    } else if (INTEREXTRAPOLATING == isInterExtrapol) {
                         IntExtFilter * intExtFilter = (IntExtFilter *)object_create(IntExtFilter);
                         filter = (ChannelFilter *)intExtFilter;
                         mcx_log(LOG_DEBUG, "    Setting up dynamic filter. (%p)", filter);
@@ -203,15 +975,23 @@ ChannelFilter * FilterFactory(Connection * connection) {
                         }
                     }
             } else {
-                IntFilter * intFilter = (IntFilter *) object_create(IntFilter);
-                filter = (ChannelFilter *) intFilter;
-                mcx_log(LOG_DEBUG, "    Setting up coupling step interpolation filter. (%p)", filter);
-                mcx_log(LOG_DEBUG, "    Interpolation order: %d", degree);
-                size_t buffSize = DetermineFilterBufferSize(info);
-                retVal = intFilter->Setup(intFilter, degree, buffSize);
-                if (RETURN_OK != retVal) {
-                    mcx_log(LOG_ERROR, "Connection: Filter: Could not setup");
-                    return NULL;
+                size_t memFilterHist = MemoryFilterHistorySize(info, degree);
+                if (0 != memFilterHist) {
+                    filter = SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+                    if (!filter) {
+                        return NULL;
+                    }
+                } else {
+                    IntFilter* intFilter = (IntFilter*)object_create(IntFilter);
+                    filter = (ChannelFilter*)intFilter;
+                    mcx_log(LOG_DEBUG, "    Setting up coupling step interpolation filter. (%p)", filter);
+                    mcx_log(LOG_DEBUG, "    Interpolation order: %d", degree);
+                    size_t buffSize = DetermineFilterBufferSize(info);
+                    retVal = intFilter->Setup(intFilter, degree, buffSize);
+                    if (RETURN_OK != retVal) {
+                        mcx_log(LOG_ERROR, "Connection: Filter: Could not setup");
+                        return NULL;
+                    }
                 }
             }
 
@@ -242,9 +1022,17 @@ ChannelFilter * FilterFactory(Connection * connection) {
     if (NULL == filter && info->GetType(info) == CHANNEL_DOUBLE) {
         // TODO: add a check to avoid filters for non-multirate cases
 
-        ExtFilter * extFilter = (ExtFilter *) object_create(ExtFilter);
-        extFilter->Setup(extFilter, 0);
-        filter = (ChannelFilter *) extFilter;
+        size_t memFilterHist = MemoryFilterHistorySize(info, 0);
+        if (0 != memFilterHist) {
+            filter = SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+            if (!filter) {
+                return NULL;
+            }
+        } else {
+            ExtFilter * extFilter = (ExtFilter *) object_create(ExtFilter);
+            extFilter->Setup(extFilter, 0);
+            filter = (ChannelFilter *) extFilter;
+        }
     }
 
     filter->AssignState(filter, &connection->data->state);

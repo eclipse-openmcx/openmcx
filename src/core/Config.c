@@ -365,6 +365,20 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * str = mcx_os_get_env_var("MC_MEM_FILTER_HISTORY_EXTRA");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid memory filter extra history size (%d)", size);
+            } else {
+                config->memFilterHistoryExtra = (size_t) size;
+                mcx_log(LOG_INFO, "Memory filter extra history size: %zu", config->memFilterHistoryExtra);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
         char * cosimInitEnabled = NULL;
 
         cosimInitEnabled = mcx_os_get_env_var("MC_COSIM_INIT");
@@ -542,6 +556,8 @@ static Config * ConfigCreate(Config * config) {
     config->overrideInterpolationBuffSize = 0;
     config->interpolationBuffSizeLimit = 100000;
     config->interpolationBuffSizeSafetyExt = 1;
+
+    config->memFilterHistoryExtra = 1;
 
     config->profilingMode = FALSE;
 
