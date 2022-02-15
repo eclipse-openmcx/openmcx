@@ -119,7 +119,7 @@ static McxStatus TaskInitialize(Task * task, Model * model) {
         return RETURN_ERROR;
     }
 
-    retVal = subModel->LoopComponents(subModel, CompPostDoUpdateState, (void *) task);
+    retVal = subModel->LoopComponents(subModel, CompPostDoUpdateState, (void *) stepParams);
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Post update state of elements failed during initialization");
         return RETURN_ERROR;
