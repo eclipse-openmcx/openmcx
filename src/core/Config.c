@@ -377,6 +377,20 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * str = mcx_os_get_env_var("MC_MEM_FILTER_HISTORY_LIMIT");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid memory filter history size limit (%d)", size);
+            } else {
+                config->memFilterHistoryLimit = (size_t) size;
+                mcx_log(LOG_INFO, "Memory filter history size limit: %zu", config->memFilterHistoryLimit);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
         char * str = mcx_os_get_env_var("MC_MEM_FILTER_HISTORY_EXTRA");
         if (str) {
             int size = atoi(str);
@@ -570,6 +584,7 @@ static Config * ConfigCreate(Config * config) {
     config->interpolationBuffSizeSafetyExt = 1;
 
     config->useMemFilter = TRUE;
+    config->memFilterHistoryLimit = 10000000;
     config->memFilterHistoryExtra = 1;
 
     config->profilingMode = FALSE;

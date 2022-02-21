@@ -67,6 +67,7 @@ struct Config {
     size_t interpolationBuffSizeSafetyExt;
 
     int useMemFilter;
+    size_t memFilterHistoryLimit;
     size_t memFilterHistoryExtra;
 
     int cosimInitEnabled;

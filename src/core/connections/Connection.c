@@ -171,6 +171,8 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
 
+    size_t limit = model->config->memFilterHistoryLimit;
+
     double syncStep = task->GetTimeStep(task);
 
     double sourceStep = sourceComp->GetTimeStep(sourceComp) ? sourceComp->GetTimeStep(sourceComp) : syncStep;
@@ -900,7 +902,21 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
         }
     }
 
-    return size ? size + model->config->memFilterHistoryExtra : 0;
+    if (size == 0) {
+        return 0;
+    }
+
+    if (size + model->config->memFilterHistoryExtra > limit) {
+        char * connString = info->ConnectionString(info);
+        mcx_log(LOG_WARNING, "%s: history size limit exceeded (%zu > &zu). Limit can be changed via MC_MEM_FILTER_HISTORY_LIMIT. "
+                             "Disabling memory filter",
+                connString, size + model->config->memFilterHistoryExtra, limit);
+        mcx_free(connString);
+
+        return 0;
+    }
+
+    return size + model->config->memFilterHistoryExtra;
 }
 
 static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType sourceType, size_t historySize) {
