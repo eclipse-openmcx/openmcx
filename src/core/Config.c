@@ -365,6 +365,18 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * disableMemFilter = NULL;
+
+        disableMemFilter = mcx_os_get_env_var("MC_DISABLE_MEM_FILTER");
+        if (disableMemFilter) {
+            if (is_on(disableMemFilter)) {
+                config->useMemFilter = FALSE;
+            }
+            mcx_free(disableMemFilter);
+        }
+    }
+
+    {
         char * str = mcx_os_get_env_var("MC_MEM_FILTER_HISTORY_EXTRA");
         if (str) {
             int size = atoi(str);
@@ -557,6 +569,7 @@ static Config * ConfigCreate(Config * config) {
     config->interpolationBuffSizeLimit = 100000;
     config->interpolationBuffSizeSafetyExt = 1;
 
+    config->useMemFilter = TRUE;
     config->memFilterHistoryExtra = 1;
 
     config->profilingMode = FALSE;

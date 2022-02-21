@@ -198,6 +198,10 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
 
     StepTypeType stepType = task->GetStepTypeType(task);
 
+    if (!model->config->useMemFilter) {
+        return 0;
+    }
+
     if (ComponentMightNotRespectStepSize(sourceComp) || ComponentMightNotRespectStepSize(targetComp)) {
         return 0;
     }
