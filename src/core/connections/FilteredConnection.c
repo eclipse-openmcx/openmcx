@@ -11,7 +11,6 @@
 #include "core/connections/FilteredConnection.h"
 #include "core/connections/FilteredConnection_impl.h"
 #include "core/connections/Connection.h"
-#include "core/connections/Connection_impl.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/channels/Channel.h"
 #include "core/channels/ChannelInfo.h"
@@ -58,7 +57,7 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     ChannelValueInit(&filteredConnection->data->store, sourceInfo->type);
 
     // value reference
-    connection->data->value = ChannelValueReference(&filteredConnection->data->store);
+    connection->value_ = ChannelValueReference(&filteredConnection->data->store);
 
 
     // Connection::Setup()
@@ -86,7 +85,7 @@ static McxStatus FilteredConnectionEnterCommunicationMode(Connection * connectio
         }
     }
 
-    connection->data->state = InCommunicationMode;
+    connection->state_ = InCommunicationMode;
     return RETURN_OK;
 }
 
@@ -107,7 +106,7 @@ static McxStatus FilteredConnectionEnterCouplingStepMode(Connection * connection
         }
     }
 
-    connection->data->state = InCouplingStepMode;
+    connection->state_ = InCouplingStepMode;
     return RETURN_OK;
 }
 

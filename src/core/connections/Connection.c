@@ -10,7 +10,6 @@
 
 #include "CentralParts.h"
 #include "core/connections/Connection.h"
-#include "core/connections/Connection_impl.h"
 #include "core/channels/Channel.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/Conversion.h"
@@ -1052,65 +1051,37 @@ ChannelFilter * FilterFactory(Connection * connection) {
         }
     }
 
-    filter->AssignState(filter, &connection->data->state);
+    filter->AssignState(filter, &connection->state_);
 
     return filter;
 }
 
-
-static ConnectionData * ConnectionDataCreate(ConnectionData * data) {
-    data->out = NULL;
-    data->in = NULL;
-
-    ConnectionInfoInit(&data->info);
-
-    data->value = NULL;
-    data->useInitialValue = FALSE;
-
-    data->isActiveDependency = TRUE;
-
-    ChannelValueInit(&data->store, CHANNEL_UNKNOWN);
-
-    data->state = InCommunicationMode;
-
-    data->NormalUpdateFrom = NULL;
-    data->NormalUpdateTo = NULL;
-    data->normalValue = NULL;
-
-    return data;
-}
-
-
-static void ConnectionDataDestructor(ConnectionData * data) {
-    ChannelValueDestructor(&data->store);
-}
-
-OBJECT_CLASS(ConnectionData, Object);
-
-
 static void * ConnectionGetValueReference(Connection * connection) {
-    return (void *)connection->data->value;
+    return (void *)connection->value_;
 }
 
+static void ConnectionSetValueReference(Connection * connection, void * reference) {
+    connection->value_ = reference;
+}
 
 static void ConnectionDestructor(Connection * connection) {
-    object_destroy(connection->data);
+    ChannelValueDestructor(&connection->store_);
 }
 
 static ChannelOut * ConnectionGetSource(Connection * connection) {
-    return connection->data->out;
+    return connection->out_;
 }
 
 static ChannelIn  * ConnectionGetTarget(Connection * connection) {
-    return connection->data->in;
+    return connection->in_;
 }
 
 static ConnectionInfo * ConnectionGetInfo(Connection * connection) {
-    return &connection->data->info;
+    return &connection->info;
 }
 
 static int ConnectionIsDecoupled(Connection * connection) {
-    return ConnectionInfoIsDecoupled(&connection->data->info);
+    return ConnectionInfoIsDecoupled(&connection->info);
 }
 
 static int ConnectionIsDefinedDuringInit(Connection * connection) {
@@ -1125,11 +1096,11 @@ static void ConnectionSetDefinedDuringInit(Connection * connection) {
 
 
 static int ConnectionIsActiveDependency(Connection * conn) {
-    return conn->data->isActiveDependency;
+    return conn->isActiveDependency_;
 }
 
 static void ConnectionSetActiveDependency(Connection * conn, int active) {
-    conn->data->isActiveDependency = active;
+    conn->isActiveDependency_ = active;
 }
 
 static void ConnectionUpdateFromInput(Connection * connection, TimeInterval * time) {
@@ -1138,13 +1109,13 @@ static void ConnectionUpdateFromInput(Connection * connection, TimeInterval * ti
 static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
     ConnectionInfo * info = connection->GetInfo(connection);
 
-    Channel * in = (Channel *) connection->data->in;
-    Channel * out = (Channel *) connection->data->out;
+    Channel * in = (Channel *) connection->in_;
+    Channel * out = (Channel *) connection->out_;
 
     ChannelInfo * inInfo = in->GetInfo(in);
     ChannelInfo * outInfo = out->GetInfo(out);
 
-    if (connection->data->state != InInitializationMode) {
+    if (connection->state_ != InInitializationMode) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Update initial value: Cannot update initial value outside of initialization mode", buffer);
         mcx_free(buffer);
@@ -1160,7 +1131,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
 
     if (inInfo->GetInitialValue(inInfo)) {
         McxStatus retVal = RETURN_OK;
-        ChannelValue * store = &connection->data->store;
+        ChannelValue * store = &connection->store_;
         ChannelValue * inChannelValue = inInfo->GetInitialValue(inInfo);
         ChannelValue * inValue = ChannelValueClone(inChannelValue);
 
@@ -1201,17 +1172,17 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         }
         mcx_free(inValue);
 
-        connection->data->useInitialValue = TRUE;
+        connection->useInitialValue_ = TRUE;
     } else if (outInfo->GetInitialValue(outInfo)) {
-        ChannelValueSet(&connection->data->store, outInfo->GetInitialValue(outInfo));
-        connection->data->useInitialValue = TRUE;
+        ChannelValueSet(&connection->store_, outInfo->GetInitialValue(outInfo));
+        connection->useInitialValue_ = TRUE;
     } else {
         {
             char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_WARNING, "Connection %s: No initial values are specified for the ports of the connection", buffer);
             mcx_free(buffer);
         }
-        ChannelValueInit(&connection->data->store, ConnectionInfoGetType(info));
+        ChannelValueInit(&connection->store_, ConnectionInfoGetType(info));
     }
 
     return RETURN_OK;
@@ -1220,7 +1191,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
 static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * time) {
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
-        Channel * channel = (Channel *) connection->data->out;
+        Channel * channel = (Channel *) connection->out_;
         ChannelInfo * info = channel->GetInfo(channel);
         MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateFromInput", time->startTime, info->GetName(info));
     }
@@ -1229,7 +1200,7 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
 }
 
 static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
-    Channel * channel = (Channel *) connection->data->out;
+    Channel * channel = (Channel *) connection->out_;
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
@@ -1238,8 +1209,8 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
     }
 #endif
 
-    if (!connection->data->useInitialValue) {
-        ChannelValueSetFromReference(&connection->data->store, channel->GetValueReference(channel));
+    if (!connection->useInitialValue_) {
+        ChannelValueSetFromReference(&connection->store_, channel->GetValueReference(channel));
         if (channel->IsDefinedDuringInit(channel)) {
             connection->SetDefinedDuringInit(connection);
         }
@@ -1250,27 +1221,27 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
 
 static McxStatus ConnectionEnterInitializationMode(Connection * connection) {
 #ifdef MCX_DEBUG
-        Channel * channel = (Channel *) connection->data->out;
+        Channel * channel = (Channel *) connection->out_;
         ChannelInfo * info = channel->GetInfo(channel);
         MCX_DEBUG_LOG("[%f] CONN   (%s) EnterInit", 0.0, info->GetName(info));
 #endif
 
-    if (connection->data->state == InInitializationMode) {
+    if (connection->state_ == InInitializationMode) {
         mcx_log(LOG_ERROR, "Connection: Enter initialization mode: Called multiple times");
         return RETURN_ERROR;
     }
 
-    connection->data->state = InInitializationMode;
+    connection->state_ = InInitializationMode;
 
     // save functions for normal mode
-    connection->data->NormalUpdateFrom = connection->UpdateFromInput;
-    connection->data->NormalUpdateTo = connection->UpdateToOutput;
-    connection->data->normalValue = connection->data->value;
+    connection->NormalUpdateFrom_ = connection->UpdateFromInput;
+    connection->NormalUpdateTo_ = connection->UpdateToOutput;
+    connection->normalValue_ = connection->value_;
 
     // set functions for initialization mode
     connection->UpdateFromInput = ConnectionInitUpdateFrom;
     connection->UpdateToOutput = ConnectionInitUpdateTo;
-    connection->data->value = ChannelValueReference(&connection->data->store);
+    connection->value_ = ChannelValueReference(&connection->store_);
     connection->IsDefinedDuringInit = ConnectionIsDefinedDuringInit;
     connection->SetDefinedDuringInit = ConnectionSetDefinedDuringInit;
 
@@ -1284,21 +1255,21 @@ static McxStatus ConnectionExitInitializationMode(Connection * connection, doubl
 
 #ifdef MCX_DEBUG
     if (time < MCX_DEBUG_LOG_TIME) {
-        Channel * channel = (Channel *) connection->data->out;
+        Channel * channel = (Channel *) connection->out_;
         ChannelInfo * info = channel->GetInfo(channel);
         MCX_DEBUG_LOG("[%f] CONN   (%s) ExitInit", time, info->GetName(info));
     }
 #endif
 
-    if (connection->data->state != InInitializationMode) {
+    if (connection->state_ != InInitializationMode) {
         mcx_log(LOG_ERROR, "Connection: Exit initialization mode: Called multiple times");
         return RETURN_ERROR;
     }
 
     // restore functions for normal mode
-    connection->UpdateFromInput = connection->data->NormalUpdateFrom;
-    connection->UpdateToOutput = connection->data->NormalUpdateTo;
-    connection->data->value = connection->data->normalValue;
+    connection->UpdateFromInput = connection->NormalUpdateFrom_;
+    connection->UpdateToOutput = connection->NormalUpdateTo_;
+    connection->value_ = connection->normalValue_;
     connection->IsDefinedDuringInit = NULL;
     connection->SetDefinedDuringInit(connection); // After initialization all values are defined
     connection->SetDefinedDuringInit = NULL;
@@ -1314,7 +1285,7 @@ static McxStatus ConnectionExitInitializationMode(Connection * connection, doubl
 }
 
 static McxStatus ConnectionEnterCommunicationMode(Connection * connection, double time) {
-    connection->data->state = InCommunicationMode;
+    connection->state_ = InCommunicationMode;
 
     return RETURN_OK;
 }
@@ -1322,7 +1293,7 @@ static McxStatus ConnectionEnterCommunicationMode(Connection * connection, doubl
 static McxStatus ConnectionEnterCouplingStepMode(Connection * connection
     , double communicationTimeStepSize, double sourceTimeStepSize, double targetTimeStepSize)
 {
-    connection->data->state = InCouplingStepMode;
+    connection->state_ = InCouplingStepMode;
 
     return RETURN_OK;
 }
@@ -1333,16 +1304,16 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
     Channel * chOut = (Channel *) out;
     ChannelInfo * outInfo = chOut->GetInfo(chOut);
 
-    connection->data->out  = out;
-    connection->data->in   = in;
+    connection->out_  = out;
+    connection->in_   = in;
 
     if (in->IsDiscrete(in)) {
         info->hasDiscreteTarget = TRUE;
     }
 
-    connection->data->info = *info;
+    connection->info = *info;
 
-    ChannelValueInit(&connection->data->store, outInfo->GetType(outInfo));
+    ChannelValueInit(&connection->store_, outInfo->GetType(outInfo));
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);
@@ -1365,11 +1336,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 }
 
 static Connection * ConnectionCreate(Connection * connection) {
-    connection->data = (ConnectionData *) object_create(ConnectionData);
-
-    if (!connection->data) {
-        return NULL;
-    }
+    McxStatus retVal = RETURN_OK;
 
     connection->Setup = NULL;
 
@@ -1377,6 +1344,7 @@ static Connection * ConnectionCreate(Connection * connection) {
     connection->GetTarget = ConnectionGetTarget;
 
     connection->GetValueReference = ConnectionGetValueReference;
+    connection->SetValueReference = ConnectionSetValueReference;
 
     connection->GetInfo   = ConnectionGetInfo;
 
@@ -1398,6 +1366,27 @@ static Connection * ConnectionCreate(Connection * connection) {
     connection->ExitInitializationMode = ConnectionExitInitializationMode;
 
     connection->AddFilter = NULL;
+
+    connection->out_ = NULL;
+    connection->in_ = NULL;
+
+    retVal = ConnectionInfoInit(&connection->info);
+    if (RETURN_ERROR == retVal) {
+        return NULL;
+    }
+
+    connection->value_ = NULL;
+    connection->useInitialValue_ = FALSE;
+
+    connection->isActiveDependency_ = TRUE;
+
+    ChannelValueInit(&connection->store_, CHANNEL_UNKNOWN);
+
+    connection->state_ = InCommunicationMode;
+
+    connection->NormalUpdateFrom_ = NULL;
+    connection->NormalUpdateTo_ = NULL;
+    connection->normalValue_ = NULL;
 
     return connection;
 }

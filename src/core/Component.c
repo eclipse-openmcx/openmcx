@@ -17,7 +17,6 @@
 #include "core/Model.h"
 #include "core/channels/Channel.h"
 #include "core/channels/Channel_impl.h"
-#include "core/connections/Connection_impl.h"
 #include "steptypes/StepType.h"
 #include "storage/ComponentStorage.h"
 #include "storage/ResultsStorage.h"

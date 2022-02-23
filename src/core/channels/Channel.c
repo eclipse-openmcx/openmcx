@@ -200,7 +200,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         ConnectionInfo * connInfo = NULL;
         ChannelValue * val = &channel->data->value;
 
-        connInfo = conn->GetInfo(conn);
+        connInfo = &conn->info;
 
         ChannelValueDestructor(val);
         ChannelValueInit(val, ConnectionInfoGetType(connInfo));
