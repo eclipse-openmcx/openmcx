@@ -790,8 +790,8 @@ Connection * DatabusCreateConnection(Databus * db, ConnectionInfo * info) {
     ChannelOut * outChannel = NULL;
     ChannelIn  * inChannel  = NULL;
 
-    size_t outChannelID = info->GetSourceChannelID(info);
-    size_t inChannelID  = info->GetTargetChannelID(info);
+    size_t outChannelID = info->sourceChannel;
+    size_t inChannelID  = info->targetChannel;
 
     char * connStr = NULL;
 
@@ -805,7 +805,7 @@ Connection * DatabusCreateConnection(Databus * db, ConnectionInfo * info) {
 
     outChannel = db->data->out[outChannelID];
 
-    target = info->GetTargetComponent(info);
+    target = info->targetComponent;
 
     // get inChannel
     inDb = target->GetDatabus(target);
@@ -816,7 +816,7 @@ Connection * DatabusCreateConnection(Databus * db, ConnectionInfo * info) {
 
     inChannel = inDb->data->in[inChannelID];
 
-    connStr = info->ConnectionString(info);
+    connStr = ConnectionInfoConnectionString(info);
     mcx_log(LOG_DEBUG, "  Connection: %s", connStr);
     if (connStr) {
         mcx_free(connStr);
@@ -832,7 +832,7 @@ Connection * DatabusCreateConnection(Databus * db, ConnectionInfo * info) {
 
     retVal = connection->Setup(connection, outChannel, inChannel, info);
     if (RETURN_OK != retVal) {
-        char * buffer = info->ConnectionString(info);
+        char * buffer = ConnectionInfoConnectionString(info);
         if (buffer) {
             mcx_log(LOG_ERROR, "Create connection: Could not setup connection %s", buffer);
             mcx_free(buffer);
@@ -1758,8 +1758,8 @@ McxStatus DatabusCollectModeSwitchData(Databus * db) {
         for (j = 0; j < connSize; j++, idx++) {
             Connection * connection = (Connection*)conns->At(conns, j);
             ConnectionInfo * info = connection->GetInfo(connection);
-            Component * target = info->GetTargetComponent(info);
-            Component * source = info->GetSourceComponent(info);
+            Component * target = info->targetComponent;
+            Component * source = info->sourceComponent;
             double targetTimeStepSize = target->GetTimeStep(target);
             double sourceTimeStepSize = source->GetTimeStep(source);
 
@@ -1781,7 +1781,7 @@ McxStatus DatabusEnterCouplingStepMode(Databus * db, double timeStepSize) {
         retVal = data.connection->EnterCouplingStepMode(data.connection, timeStepSize, data.sourceTimeStepSize, data.targetTimeStepSize);
         if (RETURN_OK != retVal) {
             ConnectionInfo * info = data.connection->GetInfo(data.connection);
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_ERROR, "Ports: Cannot enter coupling step mode of connection %s", buffer);
             mcx_free(buffer);
             return RETURN_ERROR;
@@ -1800,7 +1800,7 @@ McxStatus DatabusEnterCommunicationMode(Databus * db, double time) {
         retVal = data.connection->EnterCommunicationMode(data.connection, time);
         if (RETURN_OK != retVal) {
             ConnectionInfo * info = data.connection->GetInfo(data.connection);
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_ERROR, "Ports: Cannot enter communication mode of connection %s", buffer);
             mcx_free(buffer);
             return RETURN_ERROR;
@@ -1819,7 +1819,7 @@ McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList *
     for (i = 0; i < connSize; i++) {
         Connection * connection = (Connection *) connections->At(connections, i);
         ConnectionInfo * info = connection->GetInfo(connection);
-        Component * comp = info->GetSourceComponent(info);
+        Component * comp = info->sourceComponent;
         Databus * connDb = comp->GetDatabus(comp);
 
         McxStatus retVal = RETURN_OK;
@@ -1827,7 +1827,7 @@ McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList *
         if (db == connDb) {
             retVal = connection->EnterCommunicationMode(connection, time);
             if (RETURN_OK != retVal) {
-                char * buffer = info->ConnectionString(info);
+                char * buffer = ConnectionInfoConnectionString(info);
                 mcx_log(LOG_ERROR, "Ports: Cannot enter communication mode of connection %s", buffer);
                 mcx_free(buffer);
                 return RETURN_ERROR;

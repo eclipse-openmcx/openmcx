@@ -17,6 +17,7 @@
 #include "core/Dependency.h"
 #include "objects/StringContainer.h"
 #include "reader/model/components/ComponentInput.h"
+#include "core/connections/ConnectionInfo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,7 +34,6 @@ struct Model;
 struct ComponentData;
 struct ChannelInfo;
 struct Connection;
-struct ConnectionInfo;
 struct StepTypeParams;
 struct ResultsStorage;
 struct ComponentStorage;
@@ -246,7 +246,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, struct St
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time);
 McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
-struct ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID);
+ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID);
 struct Connection * GetInConnection(const Component * comp, size_t channelID);
 
 size_t ComponentGetNumOutGroups(const Component * comp);

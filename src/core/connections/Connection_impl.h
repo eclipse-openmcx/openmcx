@@ -51,7 +51,7 @@ typedef struct ConnectionData {
     int isActiveDependency;
 
     // Meta Data
-    ConnectionInfo * info;
+    ConnectionInfo info;
 
     // Current state of the connection in state machine
     ConnectionState state;

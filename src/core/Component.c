@@ -976,7 +976,7 @@ static ObjectList * ComponentGetConnections(Component * fromComp, Component * to
             Connection * conn = (Connection *) conns->At(conns, j);
             ConnectionInfo * info = conn->GetInfo(conn);
 
-            if (info->GetTargetComponent(info) == toComp) {
+            if (info->targetComponent == toComp) {
                 retVal = connections->PushBack(connections, (Object *) conn);
                 if (RETURN_OK != retVal) {
                     ComponentLog(fromComp, LOG_ERROR, "Could not collect connections");

@@ -13,6 +13,7 @@
 
 #include "CentralParts.h"
 #include "core/connections/ConnectionInfo.h"
+#include "objects/Vector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +31,7 @@ typedef enum {
     InInitializationMode
 } ConnectionState;
 
-McxStatus CheckConnectivity(ObjectContainer * connections);
+McxStatus CheckConnectivity(Vector * connections);
 McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInterExtrapolating);
 
 

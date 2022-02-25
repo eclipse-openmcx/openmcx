@@ -446,18 +446,18 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
                         Connection * conn = (Connection *) connections->At(connections, k);
                         ConnectionInfo    * info = conn->GetInfo(conn);
 
-                        if (info->IsDecoupled(info)) {
+                        if (ConnectionInfoIsDecoupled(info)) {
                             continue;
                         }
 
                         if (fromComp->GetSequenceNumber(fromComp) > toComp->GetSequenceNumber(toComp)) {
                             localDecouplePriority = INT_MAX; // ordering by components takes priority
                             break;
-                        } else if (info->GetDecoupleType(info) == DECOUPLE_IFNEEDED) {
-                            if (info->GetDecouplePriority(info) > localDecouplePriority) {
-                                localDecouplePriority = info->GetDecouplePriority(info);
+                        } else if (info->decoupleType == DECOUPLE_IFNEEDED) {
+                            if (info->decouplePriority > localDecouplePriority) {
+                                localDecouplePriority = info->decouplePriority;
                             }
-                        } else if (info->GetDecoupleType(info) == DECOUPLE_NEVER) {
+                        } else if (info->decoupleType == DECOUPLE_NEVER) {
                             // if a connection in this bundle set to never decouple, discard this bundle
                             localDecouplePriority = -1;
                             break;
@@ -502,11 +502,11 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
                     Connection * conn = (Connection *) connections->At(connections, k);
                     ConnectionInfo * info = conn->GetInfo(conn);
 
-                    char * connStr = info->ConnectionString(info);
+                    char * connStr = ConnectionInfoConnectionString(info);
                     mcx_log(LOG_INFO, "Decoupling connection %s", connStr);
                     mcx_free(connStr);
 
-                    info->SetDecoupled(info);
+                    ConnectionInfoSetDecoupled(info);
                 }
 
                 object_destroy(connections);
@@ -668,7 +668,7 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                     //check if connection exists (cosim init values are not deoupling connections, they only have lower priority than connection values)
                     ConnectionInfo * info = GetInConnectionInfo(targetComp, targetInChannelID);
                     if (NULL != info) {
-                        if (info->IsDecoupled(info)) {//decoupled connection
+                        if (ConnectionInfoIsDecoupled(info)) {//decoupled connection
                             dependency = DEP_INDEPENDENT;
                         }
                     } else {//no connection
@@ -682,21 +682,21 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                 Connection * conn = GetInConnection(targetComp, targetInChannelID);
 
                 if (info
-                    && (info->GetDecoupleType(info) & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED))
-                    && (!info->IsDecoupled(info))
+                    && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED))
+                    && (!ConnectionInfoIsDecoupled(info))
                     && conn
                     && conn->IsActiveDependency(conn))
                 {
-                    Component * sourceComp = info->GetSourceComponent(info);
+                    Component * sourceComp = info->sourceComponent;
                     size_t sourceOutGroup, sourceNode;
                     Databus * db = targetComp->GetDatabus(targetComp);
                     DatabusInfo * dbInfo = DatabusGetOutInfo(db);
                     size_t numOutChannels = DatabusInfoGetChannelNum(dbInfo);
 
                     if (INITIAL_DEPENDENCIES == depType) {
-                        sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->GetSourceChannelID(info));
+                        sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->sourceChannel);
                     } else {
-                        sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->GetSourceChannelID(info));
+                        sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->sourceChannel);
                     }
 
                     sourceNode = SubModelGeneratorGetNodeID(subModelGenerator, sourceComp, sourceOutGroup);

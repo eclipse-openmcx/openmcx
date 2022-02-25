@@ -32,7 +32,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-McxStatus CheckConnectivity(ObjectContainer * connections) {
+McxStatus CheckConnectivity(Vector * connections) {
     size_t i = 0;
 
     size_t connSize = connections->Size(connections);
@@ -40,11 +40,11 @@ McxStatus CheckConnectivity(ObjectContainer * connections) {
     for (i = 0; i < connSize; i++) {
         ConnectionInfo * connInfo = (ConnectionInfo *) connections->At(connections, i);
         ChannelInfo * info = NULL;
-        Component * target = connInfo->GetTargetComponent(connInfo);
-        int targetId = connInfo->GetTargetChannelID(connInfo);
+        Component * target = connInfo->targetComponent;
+        int targetId = connInfo->targetChannel;
 
-        Component * source = connInfo->GetSourceComponent(connInfo);
-        int sourceId = connInfo->GetSourceChannelID(connInfo);
+        Component * source = connInfo->sourceComponent;
+        int sourceId = connInfo->sourceChannel;
 
         info = DatabusInfoGetChannel(DatabusGetInInfo(target->GetDatabus(target)), targetId);
         if (info) {
@@ -69,22 +69,19 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
     ChannelInfo * outInfo = NULL;
     ChannelInfo * inInfo = NULL;
 
-    source = info->GetSourceComponent(info);
-    target = info->GetTargetComponent(info);
+    source = info->sourceComponent;
+    target = info->targetComponent;
 
     // Get data types of involved channels
-    outInfo = DatabusInfoGetChannel(DatabusGetOutInfo(source->GetDatabus(source)),
-        info->GetSourceChannelID(info));
-
-    inInfo = DatabusInfoGetChannel(DatabusGetInInfo(target->GetDatabus(target)),
-        info->GetTargetChannelID(info));
+    outInfo = DatabusInfoGetChannel(DatabusGetOutInfo(source->GetDatabus(source)), info->sourceChannel);
+    inInfo = DatabusInfoGetChannel(DatabusGetInInfo(target->GetDatabus(target)), info->targetChannel);
 
     if (!outInfo || !inInfo) {
         mcx_log(LOG_ERROR, "Connection: Make connection: Invalid arguments");
         return RETURN_ERROR;
     }
 
-    InterExtrapolationParams * params = info->GetInterExtraParams(info);
+    InterExtrapolationParams * params = &info->interExtrapolationParams;
 
     if (EXTRAPOLATING == isInterExtrapolating) {
         if (params->extrapolationOrder != params->interpolationOrder) {
@@ -94,7 +91,7 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
         isInterExtrapolating = INTEREXTRAPOLATING;
     }
 
-    info->SetInterExtrapolating(info, isInterExtrapolating);
+    info->isInterExtrapolating = isInterExtrapolating;
 
     connection = DatabusCreateConnection(source->GetDatabus(source), info);
     if (!connection) {
@@ -106,7 +103,7 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
 }
 
 static void LogStepRatios(double sourceStep, double targetStep, double synchStep, ConnectionInfo * info) {
-    char * connString = info->ConnectionString(info);
+    char * connString = ConnectionInfoConnectionString(info);
 
     if (sourceStep <= synchStep && targetStep <= synchStep) {
         MCX_DEBUG_LOG("CONN %s: source <= synch && target <= synch", connString);
@@ -126,8 +123,8 @@ static int ComponentMightNotRespectStepSize(Component * comp) {
 }
 
 static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
-    Component * source = info->GetSourceComponent(info);
-    Component * target = info->GetTargetComponent(info);
+    Component * source = info->sourceComponent;
+    Component * target = info->targetComponent;
 
     Model * model = source->GetModel(source);
     Task * task = model->GetTask(model);
@@ -151,7 +148,7 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     buffSize += model->config->interpolationBuffSizeSafetyExt;
 
     if (buffSize > model->config->interpolationBuffSizeLimit) {
-        char * connString = info->ConnectionString(info);
+        char * connString = ConnectionInfoConnectionString(info);
         mcx_log(LOG_WARNING, "%s: buffer limit exceeded (%zu > &zu). Limit can be changed via MC_INTERPOLATION_BUFFER_SIZE_LIMIT.",
                 connString, buffSize, model->config->interpolationBuffSizeLimit);
         mcx_free(connString);
@@ -165,8 +162,8 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
 static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     size_t size = 0;
 
-    Component * sourceComp = info->GetSourceComponent(info);
-    Component * targetComp = info->GetTargetComponent(info);
+    Component * sourceComp = info->sourceComponent;
+    Component * targetComp = info->targetComponent;
 
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
@@ -907,7 +904,7 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     }
 
     if (size + model->config->memFilterHistoryExtra > limit) {
-        char * connString = info->ConnectionString(info);
+        char * connString = ConnectionInfoConnectionString(info);
         mcx_log(LOG_WARNING, "%s: history size limit exceeded (%zu > &zu). Limit can be changed via MC_MEM_FILTER_HISTORY_LIMIT. "
                              "Disabling memory filter",
                 connString, size + model->config->memFilterHistoryExtra, limit);
@@ -946,22 +943,22 @@ ChannelFilter * FilterFactory(Connection * connection) {
     McxStatus retVal;
     ConnectionInfo * info = connection->GetInfo(connection);
 
-    InterExtrapolationType extrapolType = info->GetInterExtraType(info);
-    InterExtrapolationParams * params = info->GetInterExtraParams(info);
+    InterExtrapolationType extrapolType = info->interExtrapolationType;
+    InterExtrapolationParams * params = &info->interExtrapolationParams;
 
-    Component * sourceComp = info->GetSourceComponent(info);
+    Component * sourceComp = info->sourceComponent;
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
     int useInputsAtEndTime = task->useInputsAtEndTime;
 
-    if (info->GetType(info) == CHANNEL_DOUBLE) {
+    if (ConnectionInfoGetType(info) == CHANNEL_DOUBLE) {
         if (!(INTERVAL_COUPLING == params->interpolationInterval && INTERVAL_SYNCHRONIZATION == params->extrapolationInterval)) {
             mcx_log(LOG_WARNING, "The use of inter/extrapolation interval settings for double is not supported");
         }
         if (extrapolType == INTEREXTRAPOLATION_POLYNOMIAL) {
 
-            InterExtrapolatingType isInterExtrapol = info->GetInterExtrapolating(info);
-            if (INTERPOLATING == isInterExtrapol && info->IsDecoupled(info)) {
+            InterExtrapolatingType isInterExtrapol = info->isInterExtrapolating;
+            if (INTERPOLATING == isInterExtrapol && ConnectionInfoIsDecoupled(info)) {
                 isInterExtrapol = INTEREXTRAPOLATING;
             }
 
@@ -970,7 +967,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
             if (EXTRAPOLATING == isInterExtrapol || INTEREXTRAPOLATING == isInterExtrapol) {
                     size_t memFilterHist = MemoryFilterHistorySize(info, params->extrapolationOrder);
                     if (0 != memFilterHist) {
-                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
                         if (!filter) {
                             return NULL;
                         }
@@ -997,7 +994,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
             } else {
                 size_t memFilterHist = MemoryFilterHistorySize(info, degree);
                 if (0 != memFilterHist) {
-                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
                     if (!filter) {
                         return NULL;
                     }
@@ -1033,18 +1030,18 @@ ChannelFilter * FilterFactory(Connection * connection) {
         mcx_log(LOG_DEBUG, "Using constant synchronization step extrapolation for non-double connection");
 
         discreteFilter = (DiscreteFilter *) object_create(DiscreteFilter);
-        discreteFilter->Setup(discreteFilter, info->GetType(info));
+        discreteFilter->Setup(discreteFilter, ConnectionInfoGetType(info));
 
 
         filter = (ChannelFilter *) discreteFilter;
     }
 
-    if (NULL == filter && info->GetType(info) == CHANNEL_DOUBLE) {
+    if (NULL == filter && ConnectionInfoGetType(info) == CHANNEL_DOUBLE) {
         // TODO: add a check to avoid filters for non-multirate cases
 
         size_t memFilterHist = MemoryFilterHistorySize(info, 0);
         if (0 != memFilterHist) {
-            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
             if (!filter) {
                 return NULL;
             }
@@ -1065,7 +1062,7 @@ static ConnectionData * ConnectionDataCreate(ConnectionData * data) {
     data->out = NULL;
     data->in = NULL;
 
-    data->info = NULL;
+    ConnectionInfoInit(&data->info);
 
     data->value = NULL;
     data->useInitialValue = FALSE;
@@ -1085,8 +1082,6 @@ static ConnectionData * ConnectionDataCreate(ConnectionData * data) {
 
 
 static void ConnectionDataDestructor(ConnectionData * data) {
-    object_destroy(data->info);
-
     ChannelValueDestructor(&data->store);
 }
 
@@ -1111,12 +1106,11 @@ static ChannelIn  * ConnectionGetTarget(Connection * connection) {
 }
 
 static ConnectionInfo * ConnectionGetInfo(Connection * connection) {
-    return connection->data->info;
+    return &connection->data->info;
 }
 
 static int ConnectionIsDecoupled(Connection * connection) {
-    ConnectionInfo * info = connection->GetInfo(connection);
-    return info->IsDecoupled(info);
+    return ConnectionInfoIsDecoupled(&connection->data->info);
 }
 
 static int ConnectionIsDefinedDuringInit(Connection * connection) {
@@ -1151,14 +1145,14 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
     ChannelInfo * outInfo = out->GetInfo(out);
 
     if (connection->data->state != InInitializationMode) {
-        char * buffer = info->ConnectionString(info);
+        char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Update initial value: Cannot update initial value outside of initialization mode", buffer);
         mcx_free(buffer);
         return RETURN_ERROR;
     }
 
     if (!out || !in) {
-        char * buffer = info->ConnectionString(info);
+        char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Update initial value: Cannot update initial value for unconnected connection", buffer);
         mcx_free(buffer);
         return RETURN_ERROR;
@@ -1213,11 +1207,11 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         connection->data->useInitialValue = TRUE;
     } else {
         {
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_WARNING, "Connection %s: No initial values are specified for the ports of the connection", buffer);
             mcx_free(buffer);
         }
-        ChannelValueInit(&connection->data->store, info->GetType(info));
+        ChannelValueInit(&connection->data->store, ConnectionInfoGetType(info));
     }
 
     return RETURN_OK;
@@ -1341,18 +1335,19 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     connection->data->out  = out;
     connection->data->in   = in;
-    connection->data->info = info;
 
     if (in->IsDiscrete(in)) {
-        info->SetDiscreteTarget(info);
+        info->hasDiscreteTarget = TRUE;
     }
+
+    connection->data->info = *info;
 
     ChannelValueInit(&connection->data->store, outInfo->GetType(outInfo));
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);
     if (RETURN_OK != retVal) {
-        char * buffer = info->ConnectionString(info);
+        char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Setup connection: Could not register with outport", buffer);
         mcx_free(buffer);
         return RETURN_ERROR;
@@ -1360,7 +1355,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     retVal = in->SetConnection(in, connection, outInfo->GetUnit(outInfo), outInfo->GetType(outInfo));
     if (RETURN_OK != retVal) {
-        char * buffer = info->ConnectionString(info);
+        char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Setup connection: Could not register with inport", buffer);
         mcx_free(buffer);
         return RETURN_ERROR;

@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2020 AVL List GmbH and others
+ * Copyright (c) 2022 AVL List GmbH and others
  * 
  * This program and the accompanying materials are made available under the
  * terms of the Apache Software License 2.0 which is available at
@@ -11,8 +11,6 @@
 #ifndef MCX_CORE_CONNECTIONS_CONNECTIONINFO_H
 #define MCX_CORE_CONNECTIONS_CONNECTIONINFO_H
 
-#include "core/channels/ChannelInfo.h"
-#include "objects/ObjectContainer.h"
 #include "CentralParts.h"
 #include "core/Component_interface.h"
 
@@ -22,115 +20,46 @@
 extern "C" {
 #endif /* __cplusplus */
 
-// ----------------------------------------------------------------------
-// ConnectionInfo
 
-struct ConnectionInfo;
-typedef struct ConnectionInfo ConnectionInfo;
+typedef struct Component Component;
 
-typedef void (*fConnectionInfoSet)(
-      ConnectionInfo * info
-    , Component * sourceComponent
-    , Component * targetComponent
-    , int sourceChannel
-    , int targetChannel
-    , int isDecoupled
-    , InterExtrapolatingType isInterExtrapolating
-    , InterExtrapolationType interExtrapolationType
-    , InterExtrapolationParams * interExtrapolationParams
-    , DecoupleType decoupleType
-    , int decouplePriority
-);
 
-typedef void (* fConnectionInfoGet)(
-      ConnectionInfo * info
-    , Component ** sourceComponent
-    , Component ** targetComponent
-    , int * sourceChannel
-    , int * targetChannel
-    , int * isDecoupled
-    , InterExtrapolatingType * isInterExtrapolating
-    , InterExtrapolationType * interExtrapolationType
-    , InterExtrapolationParams ** interExtrapolationParams
-    , DecoupleType * decoupleType
-    , int * decouplePriority
-);
+typedef struct ConnectionInfo {
+    Component * sourceComponent;
+    Component * targetComponent;
 
-typedef ConnectionInfo * (* fConnectionInfoClone)(
-    ConnectionInfo * info);
+    int sourceChannel;
+    int targetChannel;
 
-typedef ConnectionInfo * (* fConnectionInfoCopy)(
-    ConnectionInfo * info,
-    int              sourceChannel,
-    int              targetChannel);
+    // Decouple Info: If this connection is decoupled because of an algebraic loop
+    // in the model (this means that the value of the source for the target is
+    // behind one timestep)
+    int isDecoupled_;
 
-typedef int (* fConnectionInfoGetChannelID)(ConnectionInfo * info);
+    int hasDiscreteTarget;
 
-typedef Component * (* fConnectionInfoGetSourceComponent)(ConnectionInfo * info);
-typedef Component * (* fConnectionInfoGetTargetComponent)(ConnectionInfo * info);
+    ChannelType connType_;
 
-typedef DecoupleType (* fConnectionInfoGetDecoupleType)(ConnectionInfo * info);
+    InterExtrapolatingType isInterExtrapolating;
 
-typedef ChannelType (* fConnectionInfoGetType)(ConnectionInfo * info);
+    InterExtrapolationType interExtrapolationType;
+    InterExtrapolationParams interExtrapolationParams;
 
-typedef int         (* fConnectionInfoGetBool)(ConnectionInfo * info);
-typedef int         (* fConnectionInfoGetInt)(ConnectionInfo * info);
-typedef InterExtrapolatingType (* fConnectionInfoGetInterExtrapolating)(ConnectionInfo * info);
+    DecoupleType decoupleType;
+    int decouplePriority;
 
-typedef void        (* fConnectionInfoSetVoid)(ConnectionInfo * info);
-typedef void        (* fConnectionInfoSetInterExtrapolating)(ConnectionInfo * info, InterExtrapolatingType isInterExtrapolating);
-typedef char *      (* fConnectionInfoConnectionString)(ConnectionInfo * info);
+} ConnectionInfo;
 
-typedef InterExtrapolationType (* fConnectionInfoGetInterExtraType)(ConnectionInfo * info);
-typedef InterExtrapolationParams * (* fConnectionInfoGetInterExtraParams)(ConnectionInfo * info);
 
-typedef void (* fConnectionInfoSetInterExtraType)(ConnectionInfo * info, InterExtrapolationType type);
+McxStatus ConnectionInfoInit(ConnectionInfo * info);
 
-typedef int (*fConnectionHasDiscreteTarget)(ConnectionInfo * info);
-typedef void (*fConnectionSetDiscreteTarget)(ConnectionInfo * info);
 
-extern const struct ObjectClass _ConnectionInfo;
+ChannelType ConnectionInfoGetType(ConnectionInfo * info);
 
-struct ConnectionInfo {
-    Object _; // base class
+int ConnectionInfoIsDecoupled(ConnectionInfo * info);
+void ConnectionInfoSetDecoupled(ConnectionInfo * info);
 
-    fConnectionInfoSet Set;
-    fConnectionInfoGet Get;
-
-    fConnectionInfoClone Clone;
-    fConnectionInfoCopy Copy;
-
-    fConnectionInfoGetChannelID GetSourceChannelID;
-    fConnectionInfoGetChannelID GetTargetChannelID;
-
-    fConnectionInfoGetSourceComponent  GetSourceComponent;
-    fConnectionInfoGetTargetComponent  GetTargetComponent;
-
-    fConnectionInfoGetDecoupleType     GetDecoupleType;
-    fConnectionInfoGetInt              GetDecouplePriority;
-
-    fConnectionInfoGetBool IsDecoupled;
-    fConnectionInfoSetVoid SetDecoupled;
-
-    fConnectionInfoGetInterExtrapolating GetInterExtrapolating;
-    fConnectionInfoSetInterExtrapolating SetInterExtrapolating;
-
-    fConnectionHasDiscreteTarget HasDiscreteTarget;
-    fConnectionSetDiscreteTarget SetDiscreteTarget;
-
-    fConnectionInfoGetType GetType;
-
-    fConnectionInfoConnectionString ConnectionString;
-
-    fConnectionInfoGetInterExtraType GetInterExtraType;
-    fConnectionInfoGetInterExtraParams GetInterExtraParams;
-
-    fConnectionInfoSetInterExtraType SetInterExtraType;
-
-    struct ConnectionInfoData * data;
-
-    ChannelType connType;
-} ;
+char * ConnectionInfoConnectionString(ConnectionInfo * info);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

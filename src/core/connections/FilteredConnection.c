@@ -14,6 +14,7 @@
 #include "core/connections/Connection_impl.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/connections/filters/DiscreteFilter.h"
 
 #ifdef __cplusplus
@@ -46,8 +47,8 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     McxStatus retVal = RETURN_OK;
 
     // Decoupling
-    if (DECOUPLE_ALWAYS == info->GetDecoupleType(info)) {
-        info->SetDecoupled(info);
+    if (DECOUPLE_ALWAYS == info->decoupleType) {
+        ConnectionInfoSetDecoupled(info);
     }
 
     // filter will be added after model is connected

@@ -25,7 +25,6 @@
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
 #include "core/connections/Connection.h"
-#include "core/connections/ConnectionInfo_impl.h"
 #include "core/connections/FilteredConnection.h"
 #include "core/SubModel.h"
 
@@ -43,43 +42,44 @@ extern "C" {
 
 
 static ChannelInfo * GetTargetChannelInfo(ConnectionInfo * info) {
-    Component * trg = info->GetTargetComponent(info);
+    Component * trg = info->targetComponent;
     struct Databus * trgDb = trg->GetDatabus(trg);
-    int trgId = info->GetTargetChannelID(info);
+    int trgId = info->targetChannel;
 
     return DatabusGetInChannelInfo(trgDb, trgId);
 }
 
 static ChannelInfo * GetSourceChannelInfo(ConnectionInfo * info) {
-    Component * src = info->GetSourceComponent(info);
+    Component * src = info->sourceComponent;
     struct Databus * srcDb = src->GetDatabus(src);
-    int srcId = info->GetSourceChannelID(info);
+    int srcId = info->sourceChannel;
 
     return DatabusGetOutChannelInfo(srcDb, srcId);
 }
 
-static int ConnInfoWithSrc(Object * obj, void * ctx) {
+static int ConnInfoWithSrc(void * elem, void * arg) {
     /*
      * TRUE if obj (ConnectionInfo) has ctx as its source ChannelInfo
      */
-    ConnectionInfo * info = (ConnectionInfo *)obj;
+    ChannelInfo * chInfo = (ChannelInfo *) arg;
+    ConnectionInfo * info = *((ConnectionInfo **) elem);
     ChannelInfo * srcInfo = GetSourceChannelInfo(info);
 
-    return srcInfo == (ChannelInfo *)ctx;
+    return srcInfo == chInfo;
 }
 
-static int IsBinaryConn(Object * obj) {
+static int IsBinaryConn(void * elem, void * args) {
     /*
      * TRUE if both source and target channel infos of obj (ConnectionInfo) are binary
      */
-    ConnectionInfo * info = (ConnectionInfo *)obj;
+    ConnectionInfo * info = (ConnectionInfo *) elem;
     ChannelInfo * srcInfo = GetSourceChannelInfo(info);
     ChannelInfo * trgInfo = GetTargetChannelInfo(info);
 
     return srcInfo->IsBinary(srcInfo) && trgInfo->IsBinary(trgInfo);
 }
 
-static int CanMakeChannelsBinReferences(ObjectContainer * connInfos, Task * task) {
+static int CanMakeChannelsBinReferences(Vector * connInfos, Task * task) {
     /*
      * Checks whether all binary connections in connInfos satisfy the condition
      * to use CHANNEL_BINARY_REFERENCE instead of CHANNEL_BINARY.
@@ -94,10 +94,10 @@ static int CanMakeChannelsBinReferences(ObjectContainer * connInfos, Task * task
     size_t num = connInfos->Size(connInfos);
 
     for (i = 0; i < num; i++) {
-        ConnectionInfo * info = (ConnectionInfo *)connInfos->At(connInfos, i);
+        ConnectionInfo * info = *(ConnectionInfo **)connInfos->At(connInfos, i);
 
-        Component * trg = info->GetTargetComponent(info);
-        Component * src = info->GetSourceComponent(info);
+        Component * trg = info->targetComponent;
+        Component * src = info->sourceComponent;
 
         ChannelInfo * trgInfo = GetTargetChannelInfo(info);
         ChannelInfo * srcInfo = GetSourceChannelInfo(info);
@@ -115,7 +115,7 @@ static int CanMakeChannelsBinReferences(ObjectContainer * connInfos, Task * task
     return TRUE;
 }
 
-static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
+static void UpdateBinaryChannelTypes(Vector * connInfos, Task * task) {
     /*
      * Updates the channel types of binary connections in connInfos according to the
      * result of `CanMakeChannelsBinReferences` (see function for more info)
@@ -125,20 +125,20 @@ static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
     int canMakeReference = CanMakeChannelsBinReferences(connInfos, task);
 
     for (i = 0; i < connInfos->Size(connInfos); i++) {
-        ConnectionInfo * info = (ConnectionInfo *)connInfos->At(connInfos, i);
+        ConnectionInfo * info = *(ConnectionInfo **)connInfos->At(connInfos, i);
 
         ChannelInfo * srcInfo = GetSourceChannelInfo(info);
         ChannelInfo * trgInfo = GetTargetChannelInfo(info);
 
         if (canMakeReference) {
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "Fast binary channel requirements fulfilled for connection %s", buffer);
             mcx_free(buffer);
 
             trgInfo->type = CHANNEL_BINARY_REFERENCE;
             srcInfo->type = CHANNEL_BINARY_REFERENCE;
         } else {
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "Using binary channels for connection %s", buffer);
             mcx_free(buffer);
 
@@ -155,34 +155,35 @@ static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
  * Necessary value/type conversions are done as well.
  */
 static McxStatus ModelPreprocessConstConnections(Model * model) {
-    ObjectContainer * conns = model->connections;
-    ObjectContainer * filteredConns = NULL;
+    Vector * conns = model->connections;
+    Vector * filteredConns = NULL;
 
     size_t i = 0;
     McxStatus retVal = RETURN_OK;
 
-    filteredConns = (ObjectContainer*)object_create(ObjectContainer);
+    filteredConns = (Vector*)object_create(Vector);
     if (!filteredConns) {
         mcx_log(LOG_ERROR, "Not enough memory to filter out constant connections");
         return RETURN_ERROR;
     }
+    filteredConns->Setup(filteredConns, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
 
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
         ChannelValue * src = NULL;
 
-        Component * srcComp = info->GetSourceComponent(info);
+        Component * srcComp = info->sourceComponent;
         CompConstant * srcCompConst = NULL;
         Databus * srcDb = srcComp->GetDatabus(srcComp);
-        ChannelInfo * srcChannelInfo = DatabusGetOutChannelInfo(srcDb, info->GetSourceChannelID(info));
+        ChannelInfo * srcChannelInfo = DatabusGetOutChannelInfo(srcDb, info->sourceChannel);
 
-        Component * trgComp = info->GetTargetComponent(info);
+        Component * trgComp = info->targetComponent;
         Databus * trgDb = trgComp->GetDatabus(trgComp);
-        ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->GetTargetChannelID(info));
+        ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->targetChannel);
 
         // if not a const conn, add to the filtered conns
         if (0 != strcmp(compConstantTypeString, srcComp->GetType(srcComp))) {
-            filteredConns->PushBack(filteredConns, (Object *) info);
+            filteredConns->PushBack(filteredConns, info);
             continue;
         }
 
@@ -196,7 +197,7 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         }
 
         ChannelValueInit(src, srcChannelInfo->GetType(srcChannelInfo));
-        retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->GetSourceChannelID(info)));
+        retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->sourceChannel));
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
@@ -230,8 +231,6 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         }
         trgChannelInfo->defaultValue = src;
 
-        object_destroy(info);
-
         continue;
 
 cleanup_1:
@@ -257,12 +256,17 @@ cleanup:
     return RETURN_OK;
 }
 
+static int ConnInfoContained(void * elem, void * arg) {
+    ConnectionInfo * info = *(ConnectionInfo **) elem;
+    return info == (ConnectionInfo *) arg;
+}
+
 static McxStatus ModelPreprocessBinaryConnections(Model * model) {
-    ObjectContainer * conns = model->connections;
+    Vector * conns = model->connections;
     size_t connsSize = conns->Size(conns);
 
-    ObjectContainer * binConnInfos = NULL;
-    ObjectContainer * processedConnInfos = NULL;
+    Vector * binConnInfos = NULL;
+    Vector * processedConnInfos = NULL;
 
     size_t i = 0;
 
@@ -274,30 +278,32 @@ static McxStatus ModelPreprocessBinaryConnections(Model * model) {
         return RETURN_OK;
     }
 
-    // filter all binary connection
-    binConnInfos = conns->Filter(conns, IsBinaryConn);
+    binConnInfos = conns->FilterRef(conns, IsBinaryConn, NULL);
     if (!binConnInfos) {
         mcx_log(LOG_ERROR, "Not enough memory for binary connections");
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
-    processedConnInfos = (ObjectContainer *)object_create(ObjectContainer);
+    processedConnInfos = (Vector*)object_create(Vector);
     if (!processedConnInfos) {
         mcx_log(LOG_ERROR, "Not enough memory for processed binary connections");
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
-    for (i = 0; i < binConnInfos->Size(binConnInfos); i++) {
-        ConnectionInfo * info = (ConnectionInfo *)binConnInfos->At(binConnInfos, i);
+    processedConnInfos->Setup(processedConnInfos, sizeof(ConnectionInfo*), NULL, NULL, NULL);
 
-        if (processedConnInfos->Contains(processedConnInfos, (Object *)info)) {
+    for (i = 0; i < binConnInfos->Size(binConnInfos); i++) {
+        ConnectionInfo * info = *(ConnectionInfo **)binConnInfos->At(binConnInfos, i);
+        ChannelInfo * srcInfo = GetSourceChannelInfo(info);
+        Vector* connInfos = NULL;
+
+        if (processedConnInfos->FindIdx(processedConnInfos, ConnInfoContained, info) != SIZE_T_ERROR) {
             continue;
         }
 
-        ChannelInfo * srcInfo = GetSourceChannelInfo(info);
-        ObjectContainer * connInfos = binConnInfos->FilterCtx(binConnInfos, ConnInfoWithSrc, srcInfo);
+        connInfos = binConnInfos->Filter(binConnInfos, ConnInfoWithSrc, srcInfo);
         if (!connInfos) {
             mcx_log(LOG_ERROR, "Not enough memory for filtered binary connections");
             retVal = RETURN_ERROR;
@@ -331,18 +337,18 @@ static int ComponentIsBoundaryCondition(const Component * comp) {
     return FALSE;
 }
 
-static ObjectContainer * GetAllSourceConnInfos(Model * model, Component * comp) {
-    ObjectContainer * conns = model->connections;
-    ObjectContainer * comps = model->components;
+static Vector * GetAllSourceConnInfoRefs(Model * model, Component * comp) {
+    Vector * conns = model->connections;
     size_t numConnections = conns->Size(conns);
-    ObjectContainer * sources = (ObjectContainer *) object_create(ObjectContainer);
+    Vector * sources = (Vector*) object_create(Vector);
     size_t i = 0;
 
+    sources->Setup(sources, sizeof(ConnectionInfo*), NULL, NULL, NULL);
     for (i = 0; i < numConnections; i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
-        Component * target = info->GetTargetComponent(info);
+        Component * target = info->targetComponent;
         if (target == comp) {
-            sources->PushBack(sources, (Object *) info);
+            sources->PushBack(sources, &info);
         }
     }
 
@@ -350,17 +356,16 @@ static ObjectContainer * GetAllSourceConnInfos(Model * model, Component * comp) 
 }
 
 static ObjectContainer * GetAllSourceElements(Model * model, Component * comp) {
-    ObjectContainer * conns = model->connections;
-    ObjectContainer * comps = model->components;
+    Vector * conns = model->connections;
     size_t numConnections = conns->Size(conns);
     ObjectContainer * sources = (ObjectContainer *) object_create(ObjectContainer);
     size_t i = 0;
 
     for (i = 0; i < numConnections; i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
-        Component * target = info->GetTargetComponent(info);
+        Component * target = info->targetComponent;
         if (target == comp) {
-            Component * source = info->GetSourceComponent(info);
+            Component * source = info->sourceComponent;
             if (!sources->Contains(sources, (Object *) source)) {
                 sources->PushBack(sources, (Object *) source);
             }
@@ -409,7 +414,7 @@ static McxStatus ModelInsertAllFilters(Model * model) {
                 Connection * connection = (Connection *) conns->At(conns, k);
                 ConnectionInfo * info = connection->GetInfo(connection);
                     if (connection->AddFilter) {
-                        char * connStr = info->ConnectionString(info);
+                        char * connStr = ConnectionInfoConnectionString(info);
                         mcx_log(LOG_DEBUG, "  Adding filter to connection: %s", connStr);
                         if (connStr) {
                             mcx_free(connStr);
@@ -719,7 +724,7 @@ static McxStatus ModelReadComponents(void * self, ComponentsInput * input) {
     return RETURN_OK;
 }
 
-McxStatus ReadConnections(ObjectContainer * connections,
+McxStatus ReadConnections(Vector * connections,
                           ConnectionsInput * connectionsInput,
                           ObjectContainer * components,
                           Component * sourceComp,
@@ -730,7 +735,7 @@ McxStatus ReadConnections(ObjectContainer * connections,
     // loop over all connections here
     for (i = 0; i < connInputs->Size(connInputs); i++) {
         ConnectionInput * connInput = (ConnectionInput*)connInputs->At(connInputs, i);
-        ObjectContainer * conns = NULL;
+        Vector * conns = NULL;
         size_t connsSize = 0;
         size_t j = 0;
 
@@ -745,7 +750,7 @@ McxStatus ReadConnections(ObjectContainer * connections,
             ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, j);
             char * connStr = NULL;
 
-            connStr = info->ConnectionString(info);
+            connStr = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "  Connection: %s", connStr);
             mcx_free(connStr);
         }
@@ -773,13 +778,10 @@ static McxStatus ModelReadConnections(void * self, ConnectionsInput * input) {
 }
 
 static McxStatus ModelCheckConnectivity(Model * model) {
-    ObjectContainer * connections = model->connections;
-    McxStatus retVal = RETURN_OK;
-
-    return CheckConnectivity(connections);
+    return CheckConnectivity(model->connections);
 }
 
-McxStatus MakeConnections(ObjectContainer * connections, InterExtrapolatingType isInterExtrapolating) {
+McxStatus MakeConnections(Vector * connections, InterExtrapolatingType isInterExtrapolating) {
     ConnectionInfo * info = NULL;
     McxStatus retVal = RETURN_OK;
     size_t i = 0;
@@ -907,7 +909,7 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 static McxStatus ModelDoConsistencyChecks(Model * model) {
     SubModel * subModel = model->subModel;
 
-    ObjectContainer * conns = model->connections;
+    Vector * conns = model->connections;
     ObjectContainer * comps = model->components;
 
     Task * task = model->task;
@@ -924,8 +926,7 @@ static McxStatus ModelDoConsistencyChecks(Model * model) {
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
 
-        if ((info->GetDecouplePriority(info) > 0)
-            || (info->GetDecoupleType(info) != DECOUPLE_DEFAULT)) {
+        if (info->decouplePriority > 0 || info->decoupleType != DECOUPLE_DEFAULT) {
             hasDecoupleInfos = 1;
         }
     }
@@ -1473,7 +1474,7 @@ McxStatus PrintComponentGraph(Component * comp,
     return RETURN_OK;
 }
 
-McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Component * inComp, Component * outComp, const char * title, const char * filename) {
+McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * inComp, Component * outComp, const char * title, const char * filename) {
     size_t i = 0;
     size_t j = 0;
 
@@ -1577,8 +1578,8 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
 
-        Component * src = info->GetSourceComponent(info);
-        Component * trg = info->GetTargetComponent(info);
+        Component * src = info->sourceComponent;
+        Component * trg = info->targetComponent;
 
         size_t srcID = src->GetID(src);
         size_t trgID = trg->GetID(trg);
@@ -1591,8 +1592,8 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         }
 
         mcx_os_fprintf(dotFile, "comp%zu:out%d -> comp%zu:in%d;\n",
-                srcID, info->GetSourceChannelID(info),
-                trgID, info->GetTargetChannelID(info));
+                srcID, info->sourceChannel,
+                trgID, info->targetChannel);
     }
 
     mcx_os_fprintf(dotFile, "}\n");
@@ -1643,7 +1644,8 @@ static Model * ModelCreate(Model * model) {
 
     // set to default values
     model->components = (ObjectContainer *) object_create(ObjectContainer);
-    model->connections = (ObjectContainer *) object_create(ObjectContainer);
+    model->connections = (Vector *) object_create(Vector);
+    model->connections->Setup(model->connections, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
     model->factory = NULL;
 
     model->config = NULL;

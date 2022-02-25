@@ -14,15 +14,18 @@
 #include "objects/ObjectContainer.h"
 #include "reader/model/connections/ConnectionInput.h"
 #include "core/Component_interface.h"
+#include "objects/Vector.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-ObjectContainer * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * components,
-                                                             ConnectionInput * connInput,
-                                                             Component * sourceCompOverride,
-                                                             Component * targetCompOverride);
+
+Vector * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * components,
+                                                    ConnectionInput * connInput,
+                                                    Component * sourceCompOverride,
+                                                    Component * targetCompOverride);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
