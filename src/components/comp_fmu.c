@@ -14,6 +14,7 @@
 #include "components/comp_fmu_impl.h"
 #include "core/Databus.h"
 #include "core/Component_impl.h"
+#include "core/channels/ChannelInfo.h"
 #include "fmilib.h"
 #include "fmu/Fmu1Value.h"
 #include "fmu/Fmu2Value.h"
@@ -55,9 +56,9 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
 
             jm_status_enu_t status = jm_status_success;
 
-            const char * channelName = info->GetNameInTool(info);
+            const char * channelName = info->nameInTool;
             if (NULL == channelName) {
-                channelName = info->GetName(info);
+                channelName = ChannelInfoGetName(info);
             }
 
             var = fmi1_import_get_variable_by_name(fmu1->fmiImport, channelName);
@@ -66,10 +67,10 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
                 return RETURN_ERROR;
             }
 
-            if (info->GetType(info) != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
+            if (info->type != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
                 ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
                 ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(info->GetType(info)), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
+                    ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
                 return RETURN_ERROR;
             }
 
@@ -104,9 +105,9 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
         fmi1_import_variable_t * var = NULL;
         jm_status_enu_t status = jm_status_success;
 
-        const char * channelName = info->GetNameInTool(info);
+        const char * channelName = info->nameInTool;
         if (NULL == channelName) {
-            channelName = info->GetName(info);
+            channelName = ChannelInfoGetName(info);
         }
 
         var = fmi1_import_get_variable_by_name(fmu1->fmiImport, channelName);
@@ -115,10 +116,10 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
             return RETURN_ERROR;
         }
 
-        if (info->GetType(info) != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
+        if (info->type != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
             ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
             ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
-                ChannelTypeToString(info->GetType(info)), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
+                ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
             return RETURN_ERROR;
         }
 
@@ -386,15 +387,15 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
         Fmu2Value * val = (Fmu2Value *) vals->At(vals, i);
 
         if (DatabusChannelInIsValid(db, i)) {
-            const char * channelName = info->GetNameInTool(info);
+            const char * channelName = info->nameInTool;
             if (NULL == channelName) {
-                channelName = info->GetName(info);
+                channelName = ChannelInfoGetName(info);
             }
 
             val->SetChannel(val, info->channel);
 
-            if (val->val.type != info->GetType(info)) {
-                ChannelValueInit(&val->val, info->GetType(info));
+            if (val->val.type != info->type) {
+                ChannelValueInit(&val->val, info->type);
             }
             retVal = DatabusSetInReference(db, i,
                            ChannelValueReference(&val->val),
@@ -424,13 +425,13 @@ static McxStatus Fmu2SetupChannelOut(ObjectContainer /* Fmu2Values */ * vals, Da
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
         Fmu2Value * val = (Fmu2Value *) vals->At(vals, i);
 
-        const char * channelName = info->GetNameInTool(info);
+        const char * channelName = info->nameInTool;
         if (NULL == channelName) {
-            channelName = info->GetName(info);
+            channelName = ChannelInfoGetName(info);
         }
 
-        if (val->val.type != info->GetType(info)) {
-            ChannelValueInit(&val->val, info->GetType(info));
+        if (val->val.type != info->type) {
+            ChannelValueInit(&val->val, info->type);
         }
         retVal = DatabusSetOutReference(db, i,
                                         ChannelValueReference(&val->val),
@@ -510,13 +511,13 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
         Fmu2Value * val = NULL;
         fmi2_import_variable_t * var = NULL;
 
-        const char * channelName = info->GetNameInTool(info);
+        const char * channelName = info->nameInTool;
         if (NULL == channelName) {
-            channelName = info->GetName(info);
+            channelName = ChannelInfoGetName(info);
         }
 
         // TODO: move content of if-else blocks to separate functions
-        if (info->IsBinary(info)) {
+        if (ChannelInfoIsBinary(info)) {
             // see https://github.com/OpenSimulationInterface/osi-sensor-model-packaging for more info
             char * channelNameLo = mcx_string_merge(2, channelName, ".base.lo");
             char * channelNameHi = mcx_string_merge(2, channelName, ".base.hi");
@@ -581,10 +582,10 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
                 return RETURN_ERROR;
             }
 
-            if (info->GetType(info) != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
+            if (info->type != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelName);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(info->GetType(info)),
+                             ChannelTypeToString(info->type),
                              ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
                 return RETURN_ERROR;
             }
@@ -621,12 +622,12 @@ static McxStatus Fmu2ReadChannelOut(ObjectContainer /* Fmu2Value */ * vals, Data
         Fmu2Value * val = NULL;
         fmi2_import_variable_t * var = NULL;
 
-        const char * channelName = info->GetNameInTool(info);
+        const char * channelName = info->nameInTool;
         if (NULL == channelName) {
-            channelName = info->GetName(info);
+            channelName = ChannelInfoGetName(info);
         }
 
-        if (info->IsBinary(info)) {
+        if (ChannelInfoIsBinary(info)) {
             char * channelNameLo = mcx_string_merge(2, channelName, ".base.lo");
             char * channelNameHi = mcx_string_merge(2, channelName, ".base.hi");
             char * channelNameSize = mcx_string_merge(2, channelName, ".size");
@@ -690,10 +691,10 @@ static McxStatus Fmu2ReadChannelOut(ObjectContainer /* Fmu2Value */ * vals, Data
                 return RETURN_ERROR;
             }
 
-            if (info->GetType(info) != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
+            if (info->type != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelName);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(info->GetType(info)), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
+                    ChannelTypeToString(info->type), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
                 return RETURN_ERROR;
             }
 

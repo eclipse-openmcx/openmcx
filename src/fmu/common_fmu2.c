@@ -13,6 +13,8 @@
 
 #include "fmu/Fmu2Value.h"
 
+#include "core/channels/ChannelInfo.h"
+
 #include "reader/model/parameters/ArrayParameterDimensionInput.h"
 #include "reader/model/parameters/ParameterInput.h"
 #include "reader/model/parameters/ParametersInput.h"
@@ -1037,7 +1039,7 @@ void Fmu2MarkTunableParamsAsInputAsDiscrete(ObjectContainer * in) {
             if (fmi2_causality_enu_input != causality) {
                 ChannelIn * in = (ChannelIn *) val->channel;
                 ChannelInfo * info = ((Channel*)in)->GetInfo((Channel*)in);
-                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", info->GetLogName(info));
+                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
                 in->SetDiscrete(in);
             }
         }

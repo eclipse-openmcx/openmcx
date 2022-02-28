@@ -11,6 +11,7 @@
 #include "CentralParts.h"
 #include "core/connections/Connection.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/Conversion.h"
 
@@ -31,6 +32,29 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
+static void UpdateInChannelInfo(Component * comp, size_t idx) {
+    Databus * db = comp->GetDatabus(comp);
+    ChannelInfo * src = DatabusGetInChannelInfo(db, idx);
+
+    Channel * channel = (Channel *) DatabusGetInChannel(db, idx);
+
+    if (channel) {
+        channel->GetInfo(channel)->connected = 1;
+    }
+}
+
+static void UpdateOutChannelInfo(Component * comp, size_t idx) {
+    Databus * db = comp->GetDatabus(comp);
+    ChannelInfo * src = DatabusGetOutChannelInfo(db, idx);
+
+    Channel * channel = (Channel *) DatabusGetOutChannel(db, idx);
+
+    if (channel) {
+        channel->GetInfo(channel)->connected = 1;
+    }
+}
+
 McxStatus CheckConnectivity(Vector * connections) {
     size_t i = 0;
 
@@ -48,11 +72,13 @@ McxStatus CheckConnectivity(Vector * connections) {
         info = DatabusInfoGetChannel(DatabusGetInInfo(target->GetDatabus(target)), targetId);
         if (info) {
             info->connected = 1;
+            UpdateInChannelInfo(target, targetId);
         }
 
         info = DatabusInfoGetChannel(DatabusGetOutInfo(source->GetDatabus(source)), sourceId);
         if (info) {
             info->connected = 1;
+            UpdateOutChannelInfo(source, sourceId);
         }
     }
 
@@ -1129,10 +1155,10 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         return RETURN_ERROR;
     }
 
-    if (inInfo->GetInitialValue(inInfo)) {
+    if (inInfo->initialValue) {
         McxStatus retVal = RETURN_OK;
         ChannelValue * store = &connection->store_;
-        ChannelValue * inChannelValue = inInfo->GetInitialValue(inInfo);
+        ChannelValue * inChannelValue = inInfo->initialValue;
         ChannelValue * inValue = ChannelValueClone(inChannelValue);
 
         if (NULL == inValue) {
@@ -1173,8 +1199,8 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         mcx_free(inValue);
 
         connection->useInitialValue_ = TRUE;
-    } else if (outInfo->GetInitialValue(outInfo)) {
-        ChannelValueSet(&connection->store_, outInfo->GetInitialValue(outInfo));
+    } else if (outInfo->initialValue) {
+        ChannelValueSet(&connection->store_, outInfo->initialValue);
         connection->useInitialValue_ = TRUE;
     } else {
         {
@@ -1193,7 +1219,7 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
         Channel * channel = (Channel *) connection->out_;
         ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateFromInput", time->startTime, info->GetName(info));
+        MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateFromInput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
     // Do nothing
@@ -1205,7 +1231,7 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
         ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateToOutput", time->startTime, info->GetName(info));
+        MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateToOutput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
 
@@ -1223,7 +1249,7 @@ static McxStatus ConnectionEnterInitializationMode(Connection * connection) {
 #ifdef MCX_DEBUG
         Channel * channel = (Channel *) connection->out_;
         ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] CONN   (%s) EnterInit", 0.0, info->GetName(info));
+        MCX_DEBUG_LOG("[%f] CONN   (%s) EnterInit", 0.0, ChannelInfoGetName(info));
 #endif
 
     if (connection->state_ == InInitializationMode) {
@@ -1257,7 +1283,7 @@ static McxStatus ConnectionExitInitializationMode(Connection * connection, doubl
     if (time < MCX_DEBUG_LOG_TIME) {
         Channel * channel = (Channel *) connection->out_;
         ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] CONN   (%s) ExitInit", time, info->GetName(info));
+        MCX_DEBUG_LOG("[%f] CONN   (%s) ExitInit", time, ChannelInfoGetName(info));
     }
 #endif
 
@@ -1313,7 +1339,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     connection->info = *info;
 
-    ChannelValueInit(&connection->store_, outInfo->GetType(outInfo));
+    ChannelValueInit(&connection->store_, outInfo->type);
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);
@@ -1324,7 +1350,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
         return RETURN_ERROR;
     }
 
-    retVal = in->SetConnection(in, connection, outInfo->GetUnit(outInfo), outInfo->GetType(outInfo));
+    retVal = in->SetConnection(in, connection, outInfo->unitString, outInfo->type);
     if (RETURN_OK != retVal) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Setup connection: Could not register with inport", buffer);

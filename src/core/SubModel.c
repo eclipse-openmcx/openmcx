@@ -14,6 +14,7 @@
 #include "core/SubModel.h"
 #include "core/Component.h"
 #include "core/connections/Connection.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
 
@@ -81,7 +82,7 @@ static McxStatus SubModelGeneratorPrintNodeMap(SubModelGenerator * subModelGener
             }
             if (comp->OneOutputOneGroup(comp)) {
                 ChannelInfo * info   = DatabusGetOutChannelInfo(comp->GetDatabus(comp), compAndGroup->group);
-                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), info->GetName(info));
+                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), ChannelInfoGetName(info));
                 mcx_log(LOG_DEBUG, "         (%zu)", compAndGroup->group);
             } else if(depType == INITIAL_DEPENDENCIES && comp->GetNumInitialOutGroups(comp) == 1 ||
                       depType == RUNTIME_DEPENDENCIES && comp->GetNumOutGroups(comp) == 1) {
@@ -90,7 +91,7 @@ static McxStatus SubModelGeneratorPrintNodeMap(SubModelGenerator * subModelGener
                 mcx_log(LOG_INFO, " %s (%s, -)", enu, comp->GetName(comp));
             } else {
                 ChannelInfo * info = DatabusGetOutChannelInfo(comp->GetDatabus(comp), compAndGroup->group);
-                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), info->GetName(info));
+                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), ChannelInfoGetName(info));
             }
         }
     }

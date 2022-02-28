@@ -13,6 +13,7 @@
 
 #include "CentralParts.h"
 #include "objects/ObjectContainer.h"
+#include "core/channels/ChannelInfo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,7 +28,7 @@ typedef struct ChannelData {
     // ----------------------------------------------------------------------
     // General Information
 
-    ChannelInfo * info;
+    ChannelInfo info;
 
     // ----------------------------------------------------------------------
     // Value

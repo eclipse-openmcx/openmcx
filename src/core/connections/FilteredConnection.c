@@ -127,7 +127,7 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
         ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateFromInput", time->startTime, info->GetName(info));
+        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateFromInput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
 
@@ -150,7 +150,7 @@ static void FilteredConnectionUpdateToOutput(Connection * connection, TimeInterv
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
         ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateToOutput", time->startTime, info->GetName(info));
+        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateToOutput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
 

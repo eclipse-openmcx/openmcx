@@ -24,6 +24,7 @@
 
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/connections/Connection.h"
 #include "core/connections/FilteredConnection.h"
 #include "core/SubModel.h"
@@ -76,7 +77,7 @@ static int IsBinaryConn(void * elem, void * args) {
     ChannelInfo * srcInfo = GetSourceChannelInfo(info);
     ChannelInfo * trgInfo = GetTargetChannelInfo(info);
 
-    return srcInfo->IsBinary(srcInfo) && trgInfo->IsBinary(trgInfo);
+    return ChannelInfoIsBinary(srcInfo) && ChannelInfoIsBinary(trgInfo);
 }
 
 static int CanMakeChannelsBinReferences(Vector * connInfos, Task * task) {
@@ -196,31 +197,31 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
             goto cleanup_1;
         }
 
-        ChannelValueInit(src, srcChannelInfo->GetType(srcChannelInfo));
+        ChannelValueInit(src, srcChannelInfo->type);
         retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->sourceChannel));
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // out channel range and linear conversions
-        retVal = ConvertRange(srcChannelInfo->GetMin(srcChannelInfo), srcChannelInfo->GetMax(srcChannelInfo), src);
+        retVal = ConvertRange(srcChannelInfo->min, srcChannelInfo->max, src);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
-        retVal = ConvertLinear(srcChannelInfo->GetScale(srcChannelInfo), srcChannelInfo->GetOffset(srcChannelInfo), src);
+        retVal = ConvertLinear(srcChannelInfo->scale, srcChannelInfo->offset, src);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // type conversion
-        retVal = ConvertType(srcChannelInfo->GetType(srcChannelInfo), trgChannelInfo->GetType(trgChannelInfo), src);
+        retVal = ConvertType(srcChannelInfo->type, trgChannelInfo->type, src);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // unit conversion
-        retVal = ConvertUnit(srcChannelInfo->GetUnit(srcChannelInfo), trgChannelInfo->GetUnit(trgChannelInfo), src);
+        retVal = ConvertUnit(srcChannelInfo->unitString, trgChannelInfo->unitString, src);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
@@ -883,10 +884,10 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
         Channel * channel = (Channel *)DatabusGetInChannel(db, i);
         ChannelInfo * info = channel->GetInfo(channel);
 
-        if ((info->GetMode(info) == CHANNEL_MANDATORY)
+        if ((info->mode == CHANNEL_MANDATORY)
             && !channel->IsValid(channel)) {
             mcx_log(LOG_ERROR, "Model: %d. inport (%s) of element %s not connected"
-                , i+1, info->GetName(info), comp->GetName(comp));
+                , i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }
@@ -895,10 +896,10 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
         Channel * channel = (Channel *)DatabusGetOutChannel(db, i);
         ChannelInfo * info = channel->GetInfo(channel);
 
-        if ((info->GetMode(info) == CHANNEL_MANDATORY)
+        if ((info->mode == CHANNEL_MANDATORY)
             && !channel->IsValid(channel)) {
             mcx_log(LOG_ERROR, "Model: %d. outport (%s) of element %s not connected"
-                , i+1, info->GetName(info), comp->GetName(comp));
+                , i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }

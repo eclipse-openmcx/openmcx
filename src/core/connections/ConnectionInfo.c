@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "core/connections/ConnectionInfo.h"
+#include "core/channels/ChannelInfo.h"
 
 #include "core/Model.h"
 #include "core/Databus.h"
@@ -63,7 +64,7 @@ ChannelType ConnectionInfoGetType(ConnectionInfo * info) {
         return CHANNEL_UNKNOWN;
     }
 
-    info->connType_ = outInfo->GetType(outInfo);
+    info->connType_ = outInfo->type;
     return info->connType_;
 }
 
@@ -117,9 +118,9 @@ char * ConnectionInfoConnectionString(ConnectionInfo * info) {
 
     len = strlen("(, ) - (, )")
         + strlen(src->GetName(src))
-        + strlen(srcInfo->GetName(srcInfo))
+        + strlen(ChannelInfoGetName(srcInfo))
         + strlen(trg->GetName(trg))
-        + strlen(trgInfo->GetName(trgInfo))
+        + strlen(ChannelInfoGetName(trgInfo))
         + 1 /* terminator */;
 
     buffer = (char *) mcx_malloc(len * sizeof(char));
@@ -129,9 +130,9 @@ char * ConnectionInfoConnectionString(ConnectionInfo * info) {
 
     sprintf(buffer, "(%s, %s) - (%s, %s)",
             src->GetName(src),
-            srcInfo->GetName(srcInfo),
+            ChannelInfoGetName(srcInfo),
             trg->GetName(trg),
-            trgInfo->GetName(trgInfo));
+            ChannelInfoGetName(trgInfo));
 
     return buffer;
 }

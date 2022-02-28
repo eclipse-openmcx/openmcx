@@ -156,8 +156,8 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
         return RETURN_ERROR;
     }
 
-    conversion->min = min;
-    conversion->max = max;
+    conversion->min = min ? ChannelValueClone(min) : NULL;
+    conversion->max = max ? ChannelValueClone(max) : NULL;
 
     return RETURN_OK;
 }
@@ -458,8 +458,8 @@ static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelVal
         return RETURN_ERROR;
     }
 
-    conversion->factor = factor;
-    conversion->offset = offset;
+    conversion->factor = factor ? ChannelValueClone(factor) : NULL;
+    conversion->offset = offset ? ChannelValueClone(offset) : NULL;
 
     return RETURN_OK;
 }

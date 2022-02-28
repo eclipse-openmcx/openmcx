@@ -11,6 +11,8 @@
 #ifndef MCX_CORE_DATABUS_IMPL_H
 #define MCX_CORE_DATABUS_IMPL_H
 
+#include "objects/Vector.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -27,7 +29,7 @@ extern const struct ObjectClass _DatabusInfoData;
 typedef struct DatabusInfoData {
     Object _; // base class
 
-    ObjectContainer * infos;
+    Vector * infos;
     ObjectContainer * origInfos;
 } DatabusInfoData;
 
