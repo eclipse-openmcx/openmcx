@@ -35,6 +35,26 @@ static void * VectorAt(const Vector * vector, size_t idx) {
     }
 }
 
+static McxStatus VectorSetAt(Vector * vector, size_t pos, void * elem) {
+    McxStatus retVal = RETURN_OK;
+
+    if (pos >= vector->size_) {
+        vector->Resize(vector, pos + 1);
+    }
+
+    if (vector->elemSetter_) {
+        retVal = vector->elemSetter_(vector->At(vector, pos), elem);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Vector: SetAt: Element setting failed");
+            return RETURN_ERROR;
+        }
+    } else {
+        memcpy(vector->At(vector, pos), elem, vector->elemSize_);
+    }
+
+    return RETURN_OK;
+}
+
 static size_t VectorFindIdx(const Vector * vector, fVectorElemPredicate pred, void * args) {
     size_t i = 0;
     char * it = NULL;
@@ -217,6 +237,7 @@ static Vector * VectorCreate(Vector * vector) {
     vector->Setup = VectorSetup;
     vector->Size = VectorSize;
     vector->At = VectorAt;
+    vector->SetAt = VectorSetAt;
     vector->Resize = VectorResize;
     vector->PushBack = VectorPushBack;
     vector->Append = VectorAppend;
