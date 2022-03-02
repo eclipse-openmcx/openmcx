@@ -34,7 +34,7 @@ typedef void * (*fVectorFind)(const Vector * vector, fVectorElemPredicate pred, 
 typedef size_t (*fVectorFindIdx)(const Vector * vector, fVectorElemPredicate pred, void * args);
 typedef void * (*fVectorAt)(const Vector * vector, size_t idx);
 typedef McxStatus (*fVectorSetAt)(Vector * vector, size_t pos, void * elem);
-typedef McxStatus (*fVectorResize)(Vector * vector, size_t size);
+typedef McxStatus (*fVectorReserve)(Vector * vector, size_t newCapacity);
 typedef McxStatus (*fVectorPushBack)(Vector * vector, void * elem);
 typedef McxStatus (*fVectorAppend)(Vector * vector, Vector * appendee);
 typedef Vector * (*fVectorFilter)(const Vector * vector, fVectorElemPredicate predicate, void * args);
@@ -51,7 +51,7 @@ typedef struct Vector {
     fVectorSize Size;
     fVectorAt At;
     fVectorSetAt SetAt;
-    fVectorResize Resize;
+    fVectorReserve Reserve;
     fVectorPushBack PushBack;
     fVectorAppend Append;
     fVectorFilter Filter;

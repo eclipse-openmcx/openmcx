@@ -35,11 +35,41 @@ static void * VectorAt(const Vector * vector, size_t idx) {
     }
 }
 
+static McxStatus VectorResize(Vector * vector, size_t size) {
+    size_t oldSize = vector->size_;
+    size_t oldCapacity = vector->capacity_;
+    size_t i = 0;
+    McxStatus retVal = RETURN_OK;
+
+    vector->size_ = size;
+    if (oldCapacity < size) {
+        vector->capacity_ = size + vector->increment_;
+        vector->elements_ = mcx_realloc(vector->elements_, vector->capacity_ * vector->elemSize_);
+        if (!vector->elements_) {
+            mcx_log(LOG_ERROR, "Vector: Resize: Memory allocation failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    // if we make the vector larger, init new elements
+    if (vector->elemInitializer_) {
+        for (i = oldSize; i < size; ++i) {
+            retVal = vector->elemInitializer_(vector->At(vector, i));
+            if (RETURN_ERROR == retVal) {
+                mcx_log(LOG_ERROR, "Vector: Resize: Element initialization failed");
+                return RETURN_ERROR;
+            }
+        }
+    }
+
+    return RETURN_OK;
+}
+
 static McxStatus VectorSetAt(Vector * vector, size_t pos, void * elem) {
     McxStatus retVal = RETURN_OK;
 
     if (pos >= vector->size_) {
-        vector->Resize(vector, pos + 1);
+        VectorResize(vector, pos + 1);
     }
 
     if (vector->elemSetter_) {
@@ -78,30 +108,15 @@ static void * VectorFind(const Vector * vector, fVectorElemPredicate pred, void 
     return vector->At(vector, idx);
 }
 
-static McxStatus VectorResize(Vector * vector, size_t size) {
-    size_t oldSize = vector->size_;
+static McxStatus VectorReserve(Vector * vector, size_t newCapacity) {
     size_t oldCapacity = vector->capacity_;
-    size_t i = 0;
-    McxStatus retVal = RETURN_OK;
 
-    vector->size_ = size;
-    if (oldCapacity < size) {
-        vector->capacity_ = size + vector->increment_;
+    if (oldCapacity < newCapacity) {
+        vector->capacity_ = oldCapacity + newCapacity;
         vector->elements_ = mcx_realloc(vector->elements_, vector->capacity_ * vector->elemSize_);
         if (!vector->elements_) {
-            mcx_log(LOG_ERROR, "Vector: Resize: Memory allocation failed");
+            mcx_log(LOG_ERROR, "Vector: Reserve: Memory allocation failed");
             return RETURN_ERROR;
-        }
-    }
-
-    // if we make the vector larger, init new elements
-    if (vector->elemInitializer_) {
-        for (i = oldSize; i < size; ++i) {
-            retVal = vector->elemInitializer_(vector->At(vector, i));
-            if (RETURN_ERROR == retVal) {
-                mcx_log(LOG_ERROR, "Vector: Resize: Element initialization failed");
-                return RETURN_ERROR;
-            }
         }
     }
 
@@ -109,7 +124,7 @@ static McxStatus VectorResize(Vector * vector, size_t size) {
 }
 
 static McxStatus VectorPushBack(Vector * vector, void * elem) {
-    McxStatus retVal = vector->Resize(vector, vector->size_ + 1);
+    McxStatus retVal = VectorResize(vector, vector->size_ + 1);
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Vector: PushBack: Resize failed");
         return RETURN_ERROR;
@@ -238,7 +253,7 @@ static Vector * VectorCreate(Vector * vector) {
     vector->Size = VectorSize;
     vector->At = VectorAt;
     vector->SetAt = VectorSetAt;
-    vector->Resize = VectorResize;
+    vector->Reserve = VectorReserve;
     vector->PushBack = VectorPushBack;
     vector->Append = VectorAppend;
     vector->Filter = VectorFilter;
