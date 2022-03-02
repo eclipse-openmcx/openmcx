@@ -24,39 +24,17 @@ extern "C" {
 // ----------------------------------------------------------------------
 // Channel
 
-static ChannelData * ChannelDataCreate(ChannelData * data) {
-    McxStatus retVal = RETURN_OK;
-
-    retVal = ChannelInfoInit(&data->info);
-    if (RETURN_ERROR == retVal) {
-        return NULL;
-    }
-
-    data->isDefinedDuringInit = FALSE;
-    data->internalValue = NULL;
-    ChannelValueInit(&data->value, CHANNEL_UNKNOWN);
-
-    return data;
-}
-
-static void ChannelDataDestructor(ChannelData * data) {
-    ChannelInfoDestroy(&data->info);
-    ChannelValueDestructor(&data->value);
-}
-
-OBJECT_CLASS(ChannelData, Object);
-
 
 static int ChannelIsDefinedDuringInit(Channel * channel) {
-    return channel->data->isDefinedDuringInit;
+    return channel->isDefinedDuringInit;
 }
 
 static void ChannelSetDefinedDuringInit(Channel * channel) {
-    channel->data->isDefinedDuringInit = TRUE;
+    channel->isDefinedDuringInit = TRUE;
 }
 
 static ChannelInfo * ChannelGetInfo(Channel * channel) {
-    return &channel->data->info;
+    return &channel->info;
 }
 
 static McxStatus ChannelSetup(Channel * channel, ChannelInfo * info) {
@@ -64,7 +42,7 @@ static McxStatus ChannelSetup(Channel * channel, ChannelInfo * info) {
 
     info->channel = channel;
 
-    retVal = ChannelInfoSetFrom(&channel->data->info, info);
+    retVal = ChannelInfoSetFrom(&channel->info, info);
     if (RETURN_ERROR == retVal) {
         return RETURN_ERROR;
     }
@@ -73,14 +51,18 @@ static McxStatus ChannelSetup(Channel * channel, ChannelInfo * info) {
 }
 
 static void ChannelDestructor(Channel * channel) {
-    object_destroy(channel->data);
+    ChannelInfoDestroy(&channel->info);
+    ChannelValueDestructor(&channel->value);
 }
 
 static Channel * ChannelCreate(Channel * channel) {
-    channel->data = (ChannelData *) object_create(ChannelData);
-    if (!channel->data) {
+    if (RETURN_ERROR == ChannelInfoInit(&channel->info)) {
         return NULL;
     }
+
+    channel->isDefinedDuringInit = FALSE;
+    channel->internalValue = NULL;
+    ChannelValueInit(&channel->value, CHANNEL_UNKNOWN);
 
     channel->GetInfo = ChannelGetInfo;
     channel->Setup = ChannelSetup;
@@ -187,7 +169,7 @@ static const void * ChannelInGetValueReference(Channel * channel) {
         return NULL;
     }
 
-    return ChannelValueReference(&channel->data->value);
+    return ChannelValueReference(&channel->value);
 }
 
 static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
@@ -200,7 +182,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     /* if no connection is present we have nothing to update*/
     if (conn) {
         ConnectionInfo * connInfo = NULL;
-        ChannelValue * val = &channel->data->value;
+        ChannelValue * val = &channel->value;
 
         connInfo = &conn->info;
 
@@ -223,7 +205,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
 
 
         if (info->type == CHANNEL_DOUBLE) {
-            ChannelValue * val = &channel->data->value;
+            ChannelValue * val = &channel->value;
             // unit
             if (in->data->unitConversion) {
                 Conversion * conversion = (Conversion *) in->data->unitConversion;
@@ -236,7 +218,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         }
 
         if (info->type == CHANNEL_DOUBLE || info->type == CHANNEL_INTEGER) {
-            ChannelValue * val = &channel->data->value;
+            ChannelValue * val = &channel->value;
 
             // linear
             if (in->data->linearConversion) {
@@ -351,7 +333,7 @@ static int ChannelInIsDiscrete(ChannelIn * in) {
 }
 
 static int ChannelInIsConnected(Channel * channel) {
-    if (channel->data->info.type != CHANNEL_UNKNOWN && channel->data->info.connected) {
+    if (channel->info.type != CHANNEL_UNKNOWN && channel->info.connected) {
         return TRUE;
     } else {
         ChannelIn * in = (ChannelIn *) channel;
@@ -387,7 +369,7 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
     McxStatus retVal;
 
     in->data->connection = connection;
-    channel->data->internalValue = connection->GetValueReference(connection);
+    channel->internalValue = connection->GetValueReference(connection);
 
     // setup unit conversion
     inInfo = channel->GetInfo(channel);
@@ -434,25 +416,25 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
         mcx_log(LOG_ERROR, "Port %s: Setup inport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    ChannelValueInit(&channel->data->value, info->type);
+    ChannelValueInit(&channel->value, info->type);
 
     // default value
     if (info->defaultValue) {
-        ChannelValueSet(&channel->data->value, info->defaultValue);
+        ChannelValueSet(&channel->value, info->defaultValue);
 
         // apply range and linear conversions immediately
-        retVal = ConvertRange(info->min, info->max, &channel->data->value);
+        retVal = ConvertRange(info->min, info->max, &channel->value);
         if (retVal == RETURN_ERROR) {
             return RETURN_ERROR;
         }
 
-        retVal = ConvertLinear(info->scale, info->offset, &channel->data->value);
+        retVal = ConvertLinear(info->scale, info->offset, &channel->value);
         if (retVal == RETURN_ERROR) {
             return RETURN_ERROR;
         }
 
         channel->SetDefinedDuringInit(channel);
-        channel->data->internalValue = ChannelValueReference(&channel->data->value);
+        channel->internalValue = ChannelValueReference(&channel->value);
     }
 
     // unit conversion is setup when a connection is set
@@ -587,11 +569,11 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
         mcx_log(LOG_ERROR, "Port %s: Setup outport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    ChannelValueInit(&channel->data->value, info->type);
+    ChannelValueInit(&channel->value, info->type);
 
     // default value
     if (info->defaultValue) {
-        channel->data->internalValue = ChannelValueReference(channel->data->info.defaultValue);
+        channel->internalValue = ChannelValueReference(channel->info.defaultValue);
     }
 
 
@@ -650,7 +632,7 @@ static const void * ChannelOutGetValueReference(Channel * channel) {
         return NULL;
     }
 
-    return ChannelValueReference(&channel->data->value);
+    return ChannelValueReference(&channel->value);
 }
 
 static const proc * ChannelOutGetFunction(ChannelOut * out) {
@@ -662,11 +644,11 @@ static ObjectList * ChannelOutGetConnections(ChannelOut * out) {
 }
 
 static int ChannelOutIsValid(Channel * channel) {
-    return (NULL != channel->data->internalValue);
+    return (NULL != channel->internalValue);
 }
 
 static int ChannelOutIsConnected(Channel * channel) {
-    if (channel->data->info.connected) {
+    if (channel->info.connected) {
         return TRUE;
     } else {
         ChannelOut * out = (ChannelOut *) channel;
@@ -693,8 +675,8 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
         mcx_log(LOG_ERROR, "Port %s: Set outport reference: Port not set up", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    if (channel->data->internalValue
-        && !(info->defaultValue && channel->data->internalValue == ChannelValueReference(info->defaultValue))) {
+    if (channel->internalValue
+        && !(info->defaultValue && channel->internalValue == ChannelValueReference(info->defaultValue))) {
         mcx_log(LOG_ERROR, "Port %s: Set outport reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
@@ -709,7 +691,7 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
         }
     }
 
-    channel->data->internalValue = reference;
+    channel->internalValue = reference;
 
     return RETURN_OK;
 }
@@ -739,7 +721,7 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
     out->data->valueFunction = (const proc *) reference;
 
     // Setup value reference to point to internal value
-    channel->data->internalValue = ChannelValueReference(&channel->data->value);
+    channel->internalValue = ChannelValueReference(&channel->value);
 
     return RETURN_OK;
 }
@@ -782,7 +764,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                 MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, val);
             }
 #endif // MCX_DEBUG
-            ChannelValueSetFromReference(&channel->data->value, &val);
+            ChannelValueSetFromReference(&channel->value, &val);
         } else {
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
@@ -791,18 +773,18 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                                   time->startTime,
                                   ChannelInfoGetLogName(info),
                                   time->startTime,
-                                  * (double *) channel->data->internalValue);
+                                  * (double *) channel->internalValue);
                 } else {
                     MCX_DEBUG_LOG("[%f] CH OUT (%s)", time->startTime, ChannelInfoGetLogName(info));
                 }
             }
 #endif // MCX_DEBUG
-            ChannelValueSetFromReference(&channel->data->value, channel->data->internalValue);
+            ChannelValueSetFromReference(&channel->value, channel->internalValue);
         }
 
         // Apply conversion
         if (info->type == CHANNEL_DOUBLE || info->type == CHANNEL_INTEGER) {
-            ChannelValue * val = &channel->data->value;
+            ChannelValue * val = &channel->value;
 
             // range
             if (out->data->rangeConversion) {
@@ -841,7 +823,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         const double * val = NULL;
 
         {
-            val = &channel->data->value.value.d;
+            val = &channel->value.value.d;
         }
 
         if (isnan(*val))
@@ -924,7 +906,7 @@ static McxStatus ChannelLocalSetup(ChannelLocal * local, ChannelInfo * info) {
 }
 
 static const void * ChannelLocalGetValueReference(Channel * channel) {
-    return channel->data->internalValue;
+    return channel->internalValue;
 }
 
 static McxStatus ChannelLocalUpdate(Channel * channel, TimeInterval * time) {
@@ -932,7 +914,7 @@ static McxStatus ChannelLocalUpdate(Channel * channel, TimeInterval * time) {
 }
 
 static int ChannelLocalIsValid(Channel * channel) {
-    return (channel->data->internalValue != NULL);
+    return (channel->internalValue != NULL);
 }
 
 // TODO: Unify with ChannelOutsetReference (similar code)
@@ -947,8 +929,8 @@ static McxStatus ChannelLocalSetReference(ChannelLocal * local,
         mcx_log(LOG_ERROR, "Port: Set local value reference: Port not set up");
         return RETURN_ERROR;
     }
-    if (channel->data->internalValue
-        && !(info->defaultValue && channel->data->internalValue == ChannelValueReference(info->defaultValue))) {
+    if (channel->internalValue
+        && !(info->defaultValue && channel->internalValue == ChannelValueReference(info->defaultValue))) {
         mcx_log(LOG_ERROR, "Port %s: Set local value reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
@@ -959,7 +941,7 @@ static McxStatus ChannelLocalSetReference(ChannelLocal * local,
         }
     }
 
-    channel->data->internalValue = reference;
+    channel->internalValue = reference;
 
     return RETURN_OK;
 }

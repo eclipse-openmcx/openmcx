@@ -12,6 +12,7 @@
 #define MCX_CORE_CHANNELS_CHANNEL_H
 
 #include "CentralParts.h"
+#include "core/channels/ChannelInfo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,9 +20,7 @@ extern "C" {
 
 struct Config;
 struct Component;
-struct ChannelInfo;
 
-struct ChannelData;
 struct ChannelInData;
 struct ChannelOutData;
 struct Connection;
@@ -52,6 +51,18 @@ extern const struct ObjectClass _Channel;
 
 struct Channel {
     Object _; // base class
+
+    ChannelInfo info;
+
+    // ----------------------------------------------------------------------
+    // Value
+
+    // NOTE: This flag gets set if there is a defined value for the
+    // channel during initialization.
+    int isDefinedDuringInit;
+
+    const void * internalValue;
+    ChannelValue value;
 
     /**
      * Virtual method.
@@ -98,8 +109,6 @@ struct Channel {
      * Initialize channel with info struct.
      */
     fChannelSetup Setup;
-
-    struct ChannelData * data;
 };
 
 // ----------------------------------------------------------------------

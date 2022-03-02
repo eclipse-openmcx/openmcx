@@ -19,27 +19,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-// ----------------------------------------------------------------------
-// Channel
 
-typedef struct ChannelData {
-    Object _; // base class
-
-    // ----------------------------------------------------------------------
-    // General Information
-
-    ChannelInfo info;
-
-    // ----------------------------------------------------------------------
-    // Value
-
-    // NOTE: This flag gets set if there is a defined value for the
-    // channel during initialization.
-    int isDefinedDuringInit;
-    const void * internalValue;
-    ChannelValue value;
-
-} ChannelData;
 
 // ----------------------------------------------------------------------
 // ChannelIn
