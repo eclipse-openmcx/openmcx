@@ -635,7 +635,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
 
     for (i = 0; i < numOut; i++) {
         Channel * channel = (Channel *) DatabusGetOutChannel(db, i);
-        char * id = channel->GetInfo(channel)->id;
+        char * id = channel->info.id;
 
         if (NULL != id) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -645,7 +645,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
 
     for (i = 0; i < numIn; i++) {
         Channel * channel = (Channel *) DatabusGetInChannel(db, i);
-        char * id = channel->GetInfo(channel)->id;
+        char * id = channel->info.id;
         int isValid = DatabusChannelInIsValid(db, i);
 
         if (NULL != id && isValid) {
@@ -656,7 +656,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
 
     for (i = 0; i < numLocal; i++) {
         Channel * channel = (Channel *) DatabusGetLocalChannel(db, i);
-        char * id = channel->GetInfo(channel)->id;
+        char * id = channel->info.id;
         int isValid = DatabusChannelLocalIsValid(db, i);
 
         if (NULL != id && isValid) {
@@ -667,7 +667,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
 
     for (i = 0; i < numRTFactor; i++) {
         Channel * channel = (Channel *) DatabusGetRTFactorChannel(db, i);
-        char * id = channel->GetInfo(channel)->id;
+        char * id = channel->info.id;
         int isValid = DatabusChannelRTFactorIsValid(db, i);
 
         if (NULL != id && isValid) {

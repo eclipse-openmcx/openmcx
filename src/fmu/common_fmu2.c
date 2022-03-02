@@ -1038,7 +1038,7 @@ void Fmu2MarkTunableParamsAsInputAsDiscrete(ObjectContainer * in) {
 
             if (fmi2_causality_enu_input != causality) {
                 ChannelIn * in = (ChannelIn *) val->channel;
-                ChannelInfo * info = ((Channel*)in)->GetInfo((Channel*)in);
+                ChannelInfo * info = &((Channel*)in)->info;
                 mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
                 in->SetDiscrete(in);
             }

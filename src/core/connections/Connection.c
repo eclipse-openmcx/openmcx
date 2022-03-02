@@ -40,7 +40,7 @@ static void UpdateInChannelInfo(Component * comp, size_t idx) {
     Channel * channel = (Channel *) DatabusGetInChannel(db, idx);
 
     if (channel) {
-        channel->GetInfo(channel)->connected = 1;
+        channel->info.connected = 1;
     }
 }
 
@@ -51,7 +51,7 @@ static void UpdateOutChannelInfo(Component * comp, size_t idx) {
     Channel * channel = (Channel *) DatabusGetOutChannel(db, idx);
 
     if (channel) {
-        channel->GetInfo(channel)->connected = 1;
+        channel->info.connected = 1;
     }
 }
 
@@ -1138,8 +1138,8 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
     Channel * in = (Channel *) connection->in_;
     Channel * out = (Channel *) connection->out_;
 
-    ChannelInfo * inInfo = in->GetInfo(in);
-    ChannelInfo * outInfo = out->GetInfo(out);
+    ChannelInfo * inInfo = &in->info;
+    ChannelInfo * outInfo = &out->info;
 
     if (connection->state_ != InInitializationMode) {
         char * buffer = ConnectionInfoConnectionString(info);
@@ -1218,7 +1218,7 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
         Channel * channel = (Channel *) connection->out_;
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateFromInput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
@@ -1230,7 +1230,7 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         MCX_DEBUG_LOG("[%f] CONN   (%s) UpdateToOutput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
@@ -1248,7 +1248,7 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
 static McxStatus ConnectionEnterInitializationMode(Connection * connection) {
 #ifdef MCX_DEBUG
         Channel * channel = (Channel *) connection->out_;
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         MCX_DEBUG_LOG("[%f] CONN   (%s) EnterInit", 0.0, ChannelInfoGetName(info));
 #endif
 
@@ -1282,7 +1282,7 @@ static McxStatus ConnectionExitInitializationMode(Connection * connection, doubl
 #ifdef MCX_DEBUG
     if (time < MCX_DEBUG_LOG_TIME) {
         Channel * channel = (Channel *) connection->out_;
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         MCX_DEBUG_LOG("[%f] CONN   (%s) ExitInit", time, ChannelInfoGetName(info));
     }
 #endif
@@ -1328,7 +1328,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
     McxStatus retVal = RETURN_OK;
 
     Channel * chOut = (Channel *) out;
-    ChannelInfo * outInfo = chOut->GetInfo(chOut);
+    ChannelInfo * outInfo = &chOut->info;
 
     connection->out_  = out;
     connection->in_   = in;

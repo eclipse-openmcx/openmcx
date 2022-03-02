@@ -882,7 +882,7 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *)DatabusGetInChannel(db, i);
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
 
         if ((info->mode == CHANNEL_MANDATORY)
             && !channel->IsValid(channel)) {
@@ -894,7 +894,7 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 
     for (i = 0; i < numOutChannels; i++) {
         Channel * channel = (Channel *)DatabusGetOutChannel(db, i);
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
 
         if ((info->mode == CHANNEL_MANDATORY)
             && !channel->IsValid(channel)) {

@@ -40,8 +40,8 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
                                          ChannelIn * in, ConnectionInfo * info) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
 
-    ChannelInfo * sourceInfo = ((Channel *)out)->GetInfo((Channel *) out);
-    ChannelInfo * targetInfo = ((Channel *)in)->GetInfo((Channel *) in);
+    ChannelInfo * sourceInfo = &((Channel *)out)->info;
+    ChannelInfo * targetInfo = &((Channel *)in)->info;
 
     McxStatus retVal = RETURN_OK;
 
@@ -122,11 +122,10 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
     ChannelFilter * filter = filteredConnection->GetWriteFilter(filteredConnection);
     Channel * channel = (Channel *) connection->GetSource(connection);
-    ChannelInfo * info = channel->GetInfo(channel);
+    ChannelInfo * info = &channel->info;
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
-        ChannelInfo * info = channel->GetInfo(channel);
         MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateFromInput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
@@ -145,11 +144,10 @@ static void FilteredConnectionUpdateToOutput(Connection * connection, TimeInterv
     Channel * channel = (Channel *) connection->GetSource(connection);
     ChannelOut * out  = (ChannelOut *) channel;
 
-    ChannelInfo * info = channel->GetInfo(channel);
+    ChannelInfo * info = &channel->info;
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
-        ChannelInfo * info = channel->GetInfo(channel);
         MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateToOutput", time->startTime, ChannelInfoGetName(info));
     }
 #endif

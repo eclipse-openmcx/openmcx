@@ -757,7 +757,7 @@ McxStatus DatabusTriggerOutChannels(Databus *db, TimeInterval * time) {
         out = (Channel *) db->data->out[i];
         retVal = out->Update(out, time);
         if (RETURN_OK != retVal) {
-            ChannelInfo * info = out->GetInfo(out);
+            ChannelInfo * info = &out->info;
             mcx_log(LOG_ERROR, "Could not update outport %s", ChannelInfoGetName(info));
             return RETURN_ERROR;
         }
@@ -780,7 +780,7 @@ McxStatus DatabusTriggerConnectedInConnections(Databus * db, TimeInterval * cons
         Channel * channel = (Channel *)db->data->inConnected[i];
         retVal = channel->Update(channel, consumerTime);
         if (RETURN_OK != retVal) {
-            ChannelInfo * info = channel->GetInfo(channel);
+            ChannelInfo * info = &channel->info;
             mcx_log(LOG_ERROR, "Could not update inport %s", ChannelInfoGetName(info));
             return RETURN_ERROR;
         }
@@ -805,7 +805,7 @@ McxStatus DatabusTriggerInConnections(Databus * db, TimeInterval * consumerTime)
         if (channel->IsValid(channel)) {
             retVal = channel->Update(channel, consumerTime);
             if (RETURN_OK != retVal) {
-                ChannelInfo * info = channel->GetInfo(channel);
+                ChannelInfo * info = &channel->info;
                 mcx_log(LOG_ERROR, "Could not update inport %s", ChannelInfoGetName(info));
                 return RETURN_ERROR;
             }
@@ -1138,7 +1138,7 @@ McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * refe
     }
 
     if (CHANNEL_UNKNOWN != type) {
-        ChannelInfo * info = ((Channel *)out)->GetInfo((Channel *) out);
+        ChannelInfo * info = &((Channel *)out)->info;
         if (info->type != type) {
             if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
                 // ok
@@ -1172,7 +1172,7 @@ McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const voi
         return RETURN_ERROR;
     }
 
-    info = ((Channel *)out)->GetInfo((Channel *) out);
+    info = &((Channel *)out)->info;
     if (info->type != type) {
         mcx_log(LOG_ERROR, "Ports: Set out reference function: Port %s has mismatching type %s, given: %s",
             ChannelInfoGetName(info), ChannelTypeToString(info->type), ChannelTypeToString(type));
@@ -1322,7 +1322,7 @@ McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, 
     }
 
     if (CHANNEL_UNKNOWN != type) {
-        info = ((Channel *)in)->GetInfo((Channel *)in);
+        info = &((Channel *)in)->info;
         if (info->type != type) {
             if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
                 // ok

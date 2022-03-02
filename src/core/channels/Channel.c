@@ -33,10 +33,6 @@ static void ChannelSetDefinedDuringInit(Channel * channel) {
     channel->isDefinedDuringInit = TRUE;
 }
 
-static ChannelInfo * ChannelGetInfo(Channel * channel) {
-    return &channel->info;
-}
-
 static McxStatus ChannelSetup(Channel * channel, ChannelInfo * info) {
     McxStatus retVal = RETURN_OK;
 
@@ -64,7 +60,6 @@ static Channel * ChannelCreate(Channel * channel) {
     channel->internalValue = NULL;
     ChannelValueInit(&channel->value, CHANNEL_UNKNOWN);
 
-    channel->GetInfo = ChannelGetInfo;
     channel->Setup = ChannelSetup;
     channel->IsDefinedDuringInit = ChannelIsDefinedDuringInit;
     channel->SetDefinedDuringInit = ChannelSetDefinedDuringInit;
@@ -122,7 +117,7 @@ OBJECT_CLASS(ChannelInData, Object);
 
 static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, ChannelType type) {
     Channel * ch = (Channel *) in;
-    ChannelInfo * info = ch->GetInfo(ch);
+    ChannelInfo * info = &ch->info;
 
     if (!in) {
         mcx_log(LOG_ERROR, "Port: Set inport reference: Invalid port");
@@ -159,7 +154,7 @@ static const void * ChannelInGetValueReference(Channel * channel) {
         const static int maxCountError = 10;
         static int i = 0;
         if (i < maxCountError) {
-            ChannelInfo * info = channel->GetInfo(channel);
+            ChannelInfo * info = &channel->info;
             i++;
             mcx_log(LOG_ERROR, "Port %s: Get value reference: No value reference for inport", ChannelInfoGetLogName(info));
             if (i == maxCountError) {
@@ -174,7 +169,7 @@ static const void * ChannelInGetValueReference(Channel * channel) {
 
 static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     ChannelIn * in = (ChannelIn *) channel;
-    ChannelInfo * info = channel->GetInfo(channel);
+    ChannelInfo * info = &channel->info;
     Connection * conn = in->data->connection;
 
     McxStatus retVal = RETURN_OK;
@@ -316,7 +311,7 @@ static int ChannelInIsValid(Channel * channel) {
     if (channel->IsConnected(channel)) {
         return TRUE;
     } else {
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         if (info && NULL != info->defaultValue) {
             return TRUE;
         }
@@ -347,7 +342,7 @@ static int ChannelInIsConnected(Channel * channel) {
 
 static ConnectionInfo * ChannelInGetConnectionInfo(ChannelIn * in) {
     if (in->data->connection) {
-        return in->data->connection->GetInfo(in->data->connection);
+        return &in->data->connection->info;
     } else {
         return NULL;
     }
@@ -372,7 +367,7 @@ static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection,
     channel->internalValue = connection->GetValueReference(connection);
 
     // setup unit conversion
-    inInfo = channel->GetInfo(channel);
+    inInfo = &channel->info;
 
     if (inInfo->type == CHANNEL_DOUBLE) {
         in->data->unitConversion = (UnitConversion *) object_create(UnitConversion);
@@ -624,7 +619,7 @@ static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * con
 
 static const void * ChannelOutGetValueReference(Channel * channel) {
     ChannelOut * out = (ChannelOut *) channel;
-    ChannelInfo * info = channel->GetInfo(channel);
+    ChannelInfo * info = &channel->info;
 
     // check if out is initialized
     if (!channel->IsValid(channel)) {
@@ -670,7 +665,7 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
         mcx_log(LOG_ERROR, "Port: Set outport reference: Invalid port");
         return RETURN_ERROR;
     }
-    info = channel->GetInfo(channel);
+    info = &channel->info;
     if (!info) {
         mcx_log(LOG_ERROR, "Port %s: Set outport reference: Port not set up", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
@@ -704,7 +699,7 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
         return RETURN_ERROR;
     }
 
-    info = channel->GetInfo(channel);
+    info = &channel->info;
     if (CHANNEL_UNKNOWN != type) {
         if (info->type != type) {
             mcx_log(LOG_ERROR, "Port %s: Set outport function: Mismatching types", ChannelInfoGetLogName(info));
@@ -744,7 +739,7 @@ static void WarnAboutNaN(LogSeverity level, ChannelInfo * info, TimeInterval * t
 
 static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     ChannelOut * out = (ChannelOut *)channel;
-    ChannelInfo * info = ((Channel *)out)->GetInfo((Channel *)out);
+    ChannelInfo * info = &channel->info;
 
     ObjectList * conns = out->data->connections;
 
@@ -924,7 +919,7 @@ static McxStatus ChannelLocalSetReference(ChannelLocal * local,
     Channel * channel = (Channel *) local;
     ChannelInfo * info = NULL;
 
-    info = channel->GetInfo(channel);
+    info = &channel->info;
     if (!info) {
         mcx_log(LOG_ERROR, "Port: Set local value reference: Port not set up");
         return RETURN_ERROR;

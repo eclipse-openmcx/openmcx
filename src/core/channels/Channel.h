@@ -41,8 +41,6 @@ typedef int (* fChannelIsDefinedDuringInit)(Channel * channel);
 
 typedef void (* fChannelSetDefinedDuringInit)(Channel * channel);
 
-typedef struct ChannelInfo * (* fChannelGetInfo)(Channel * channel);
-
 typedef McxStatus (* fChannelSetup)(Channel * channel, struct ChannelInfo * info);
 
 typedef McxStatus (* fChannelUpdate)(Channel * channel, TimeInterval * time);
@@ -78,11 +76,6 @@ struct Channel {
      * Update the value of the channel to the specified start time in time.
      */
     fChannelUpdate Update;
-
-    /**
-     * Return info struct of channel.
-     */
-    fChannelGetInfo GetInfo;
 
     /**
      * Virtual method.

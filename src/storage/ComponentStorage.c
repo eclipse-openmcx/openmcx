@@ -50,7 +50,7 @@ static McxStatus ComponentStorageRegisterChannel(ComponentStorage * compStore, C
     ChannelStorage * channels = compStore->channels[chType];
 
     if (compStore->storeLevel > STORE_NONE) {
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         if (compStore->storage->channelStoreEnabled[chType] && info->writeResult) {
             return channels->RegisterChannel(channels, channel);
         }
