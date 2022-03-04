@@ -27,16 +27,23 @@ extern "C" {
 
 static int TaskSubmodelIsFinished(SubModel * subModel) {
     size_t i = 0;
-
     ObjectContainer * eval = subModel->evaluationList;
+    size_t numComps = eval->Size(eval);
+    int modelContainsOnlyNeverFinishingComps = numComps ? TRUE : FALSE;
 
-    for (i = 0; i < eval->Size(eval); i++) {
+    for (i = 0; i < numComps; i++) {
         CompAndGroup * compAndGroup = (CompAndGroup *) eval->At(eval, i);
         Component * comp = (Component *) compAndGroup->comp;
 
         if (comp->GetFinishState(comp) == COMP_IS_NOT_FINISHED) {
             return FALSE;
+        } else if (comp->GetFinishState(comp) != COMP_NEVER_FINISHES) {
+            modelContainsOnlyNeverFinishingComps = FALSE;
         }
+    }
+
+    if (modelContainsOnlyNeverFinishingComps) {
+        return FALSE;
     }
 
     return TRUE;
