@@ -32,6 +32,9 @@ typedef enum StepTypeType {
 } StepTypeType;
 
 
+int IsStepTypeMultiThreading(StepTypeType type);
+
+
 typedef McxStatus (* fStepTypeDoStep)(StepType * stepType, StepTypeParams * params, SubModel * subModel);
 typedef McxStatus (* fStepTypeFinish)(StepType * stepType, StepTypeParams * params, SubModel * subModel, FinishState * finishState);
 typedef McxStatus (* fStepTypeConfigure)(StepType * stepType, StepTypeParams * params, SubModel * subModel);

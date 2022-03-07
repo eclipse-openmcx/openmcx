@@ -276,6 +276,11 @@ McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param) {
 // ----------------------------------------------------------------------
 // Step Type
 
+int IsStepTypeMultiThreading(StepTypeType type) {
+    return (type == STEP_TYPE_PARALLEL_MT
+           );
+}
+
 static McxStatus StepTypeConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel) {
     return RETURN_OK;
 }

@@ -56,7 +56,7 @@ struct StorageBackend {
     struct ResultsStorage * storage;
 };
 
-typedef McxStatus (* fResultsStorageRead)(ResultsStorage * storage, ResultsInput * resultsInput, const Config * config);
+typedef McxStatus (* fResultsStorageRead)(ResultsStorage * storage, ResultsInput * resultsInput, const Config * config, int multiThreaded);
 typedef McxStatus (* fResultsStorageSetup)(ResultsStorage * storage, double startTime);
 typedef McxStatus (* fResultsStorageFinished)(ResultsStorage * storage);
 

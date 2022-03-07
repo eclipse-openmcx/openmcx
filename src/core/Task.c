@@ -281,7 +281,7 @@ static McxStatus TaskRead(Task * task, TaskInput * taskInput) {
     }
 
     task->rtFactorEnabled = taskInput->timingOutput.defined ? taskInput->timingOutput.value : FALSE;
-    retVal = task->storage->Read(task->storage, taskInput->results, task->config);
+    retVal = task->storage->Read(task->storage, taskInput->results, task->config, IsStepTypeMultiThreading(task->stepTypeType));
 
     return retVal;
 }

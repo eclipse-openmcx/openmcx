@@ -396,7 +396,7 @@ static McxStatus ResultsStorageSetChannelStoreEnabled(ResultsStorage * storage, 
     return RETURN_OK;
 }
 
-static McxStatus StorageRead(ResultsStorage * storage, ResultsInput * resultsInput, const Config * config) {
+static McxStatus StorageRead(ResultsStorage * storage, ResultsInput * resultsInput, const Config * config, int multiThreaded) {
     BackendsInput * backendsInput = resultsInput->backends;
     size_t i = 0;
     McxStatus retVal = RETURN_OK;
