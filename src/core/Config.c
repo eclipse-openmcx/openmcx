@@ -49,7 +49,7 @@ void CreateLogHeader(Config * config, LogSeverity sev) {
     char * currentWorkingDirectory;
 
     time(&config->timeStamp);
-    strftime(timeString, TIMESTAMPLENGTH-1, "%a, %d.%m.%Y %H:%M:%S", localtime(&config->timeStamp));
+    strftime(timeString, TIMESTAMPLENGTH-1, "%a, %Y-%m-%d %H:%M:%S", localtime(&config->timeStamp));
     strcpy(compileTimeString, __DATE__ );
     strcat(compileTimeString, "-");
     strcat(compileTimeString, __TIME__ );
