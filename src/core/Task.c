@@ -84,19 +84,25 @@ static McxStatus TaskPrepareRun(Task * task, Model * model) {
     McxStatus retVal = RETURN_OK;
 
 #if defined (ENABLE_STORAGE)
+    mcx_signal_handler_set_function("ResultsStorageSetup");
     retVal = task->storage->Setup(task->storage, task->timeStart);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Could not setup storage");
         return RETURN_ERROR;
     }
 
+    mcx_signal_handler_set_function("ResultsStorageAddModelComponents");
     retVal = task->storage->AddModelComponents(task->storage, model->subModel);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Could not setup component storage");
         return RETURN_ERROR;
     }
 
+    mcx_signal_handler_set_function("ResultsStorageSetupBackends");
     retVal = task->storage->SetupBackends(task->storage);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Could not setup storage backends");
         return RETURN_ERROR;
