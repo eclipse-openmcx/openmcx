@@ -34,6 +34,106 @@ static Fmu2ValueData * Fmu2ValueDataCreate(Fmu2ValueData * data) {
 
 OBJECT_CLASS(Fmu2ValueData, Object);
 
+Fmu2VariableInfo * Fmu2VariableInfoMake(fmi2_import_variable_t * var) {
+    Fmu2VariableInfo * info = (Fmu2VariableInfo *)object_create(Fmu2VariableInfo);
+
+    if (info) {
+        fmi2_base_type_enu_t type = fmi2_import_get_variable_base_type(var);
+        ChannelValueData min = { 0 };
+        int minDefined = FALSE;
+        ChannelValueData max = { 0 };
+        int maxDefined = FALSE;
+
+        char * xmlDesc = fmi2_import_get_variable_description(var);
+        info->desc = mcx_string_copy(xmlDesc);
+        if (xmlDesc && !info->desc) {
+            goto cleanup;
+        }
+
+        switch (type) {
+            case fmi2_base_type_real:
+                info->type = CHANNEL_DOUBLE;
+                min.d = fmi2_import_get_real_variable_min(fmi2_import_get_variable_as_real(var));
+                minDefined = min.d != -DBL_MAX;
+                max.d = fmi2_import_get_real_variable_max(fmi2_import_get_variable_as_real(var));
+                maxDefined = max.d != DBL_MAX;
+                break;
+            case fmi2_base_type_int:
+                info->type = CHANNEL_INTEGER;
+                min.i = fmi2_import_get_integer_variable_min(fmi2_import_get_variable_as_integer(var));
+                minDefined = min.i != -INT_MIN;
+                max.i = fmi2_import_get_integer_variable_max(fmi2_import_get_variable_as_integer(var));
+                maxDefined = max.i != INT_MAX;
+                break;
+            case fmi2_base_type_enum:
+                info->type = CHANNEL_INTEGER;
+                min.i = fmi2_import_get_enum_variable_min(fmi2_import_get_variable_as_enum(var));
+                minDefined = min.i != -INT_MIN;
+                max.i = fmi2_import_get_enum_variable_max(fmi2_import_get_variable_as_enum(var));
+                maxDefined = max.i != INT_MAX;
+                break;
+            case fmi2_base_type_str:
+                info->type = CHANNEL_STRING;
+                break;
+            case fmi2_base_type_bool:
+                info->type = CHANNEL_BOOL;
+                break;
+            default:
+                info->type = CHANNEL_UNKNOWN;
+                break;
+        }
+
+        if (minDefined) {
+            info->min = (ChannelValueData *)mcx_calloc(1, sizeof(ChannelValueData));
+            if (!info->min) {
+                goto cleanup;
+            }
+            ChannelValueDataSetFromReference(info->min, info->type, &min);
+        }
+
+        if (maxDefined) {
+            info->max = (ChannelValueData*)mcx_calloc(1, sizeof(ChannelValueData));
+            if (!info->max) {
+                goto cleanup;
+            }
+            ChannelValueDataSetFromReference(info->max, info->type, &max);
+        }
+    }
+
+    return info;
+
+cleanup:
+    object_destroy(info);
+    return NULL;
+}
+
+static void Fmu2VariableInfoDestructor(Fmu2VariableInfo * info) {
+    if (info->min) {
+        ChannelValueDataDestructor(info->min, info->type);
+        mcx_free(info->min);
+    }
+    if (info->max) {
+        ChannelValueDataDestructor(info->max, info->type);
+        mcx_free(info->max);
+    }
+
+    if (info->desc) { mcx_free(info->desc); }
+}
+
+static Fmu2VariableInfo * Fmu2VariableInfoCreate(Fmu2VariableInfo * info) {
+    info->type = CHANNEL_UNKNOWN;
+
+    info->min = NULL;
+    info->max = NULL;
+
+    info->desc = NULL;
+
+    return info;
+}
+
+OBJECT_CLASS(Fmu2VariableInfo, Object);
+
+
 Fmu2ValueData * Fmu2ValueDataScalarMake(fmi2_import_variable_t * scalar) {
     Fmu2ValueData * data = (Fmu2ValueData *) object_create(Fmu2ValueData);
 
@@ -136,6 +236,7 @@ static void Fmu2ValueDestructor(Fmu2Value * v) {
         v->unit = NULL;
     }
     object_destroy(v->data);
+    object_destroy(v->info);
     ChannelValueDestructor(&v->val);
 }
 
@@ -148,6 +249,8 @@ static Fmu2Value * Fmu2ValueCreate(Fmu2Value * v) {
     v->unit = NULL;
     v->data = NULL;
     v->channel = NULL;
+    v->info = NULL;
+
     ChannelValueInit(&v->val, CHANNEL_UNKNOWN);
 
     return v;
@@ -173,6 +276,8 @@ Fmu2Value * Fmu2ValueMake(const char * name, Fmu2ValueData * data, const char * 
 Fmu2Value * Fmu2ValueScalarMake(const char * name, fmi2_import_variable_t * scalar, const char * unit, Channel * channel) {
     Fmu2ValueData * data = Fmu2ValueDataScalarMake(scalar);
     Fmu2Value * value = Fmu2ValueMake(name, data, unit, channel);
+
+    value->info = Fmu2VariableInfoMake(scalar);
 
     return value;
 }
