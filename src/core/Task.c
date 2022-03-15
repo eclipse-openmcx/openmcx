@@ -160,7 +160,9 @@ static McxStatus TaskRun(Task * task, Model * model) {
             stepParams->timeEndStep += task->params->timeStepSize;
         }
 
+        mcx_signal_handler_set_function("StepTypeDoStep");
         status = task->stepType->DoStep(task->stepType, stepParams, subModel);
+        mcx_signal_handler_unset_function();
         if (status != RETURN_OK) {
             break;
         }
