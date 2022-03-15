@@ -481,7 +481,9 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_cpu_time_get(&clock_init_begin);
     mcx_time_get(&time_init_begin);
 
+    mcx_signal_handler_set_function("TaskInitialize");
     retVal = task->Initialize(task, model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -505,7 +507,9 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_log(LOG_INFO, " ");
     mcx_cpu_time_get(&clock_sim_begin);
     mcx_time_get(&time_sim_begin);
+    mcx_signal_handler_set_function("TaskRun");
     retVal = task->Run(task, model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
