@@ -435,6 +435,8 @@ static McxStatus Fmu2SetupChannelOut(ObjectContainer /* Fmu2Values */ * vals, Da
             channelName = ChannelInfoGetName(info);
         }
 
+        val->SetChannel(val, info->channel);
+
         if (val->val.type != info->type) {
             ChannelValueInit(&val->val, info->type);
         }
