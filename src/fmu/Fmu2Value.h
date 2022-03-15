@@ -56,6 +56,21 @@ struct Fmu2ValueData {
 Fmu2ValueData * Fmu2ValueDataScalarMake(fmi2_import_variable_t * scalar);
 Fmu2ValueData * Fmu2ValueDataBinaryMake(fmi2_import_variable_t * hi, fmi2_import_variable_t * lo, fmi2_import_variable_t * size);
 
+
+extern const struct ObjectClass _Fmu2VariableInfo;
+
+typedef struct Fmu2VariableInfo {
+    Object _;
+
+    ChannelType type;
+
+    ChannelValueData * min;
+    ChannelValueData * max;
+
+    char * desc;
+} Fmu2VariableInfo;
+
+
 struct Fmu2Value;
 
 typedef struct Fmu2Value Fmu2Value;
@@ -78,6 +93,7 @@ struct Fmu2Value {
 
     Channel * channel;
     Fmu2ValueData * data;
+    Fmu2VariableInfo * info;
     ChannelValue val;
 };
 
