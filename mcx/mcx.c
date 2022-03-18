@@ -540,6 +540,7 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_cpu_time_get(&clock_cleanup_begin);
     mcx_time_get(&time_cleanup_begin);
 
+    mcx_signal_handler_set_function("RunMCX:Cleanup");
     object_destroy(task);
     object_destroy(model);
     object_destroy(config);
@@ -582,6 +583,7 @@ cleanup:
         mcx_log(LOG_INFO, "**********************************************************************");
     }
 
+    mcx_signal_handler_unset_function(); // RunMCX:Cleanup
 
     return retVal;
 }
