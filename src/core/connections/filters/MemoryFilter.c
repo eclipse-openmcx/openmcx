@@ -24,7 +24,7 @@ static McxStatus MemoryFilterSetValue(ChannelFilter * filter, double time, Chann
     MemoryFilter * memoryFilter = (MemoryFilter *) filter;
 
     if (InCommunicationMode != * filter->state) {
-        if (memoryFilter->numEntriesWrite == memoryFilter->historySize) {
+        if (memoryFilter->numEntriesWrite >= memoryFilter->historySize) {
             mcx_log(LOG_ERROR, "MemoryFilter: History buffer too small");
             return RETURN_ERROR;
         }
