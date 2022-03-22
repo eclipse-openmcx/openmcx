@@ -12,7 +12,11 @@
 
 #include "util/compare.h"
 
-#define MEM_FILTER_IDX_FLAG ((size_t) (-1))
+#include <limits.h>
+
+#ifndef SIZE_MAX
+#define SIZE_MAX ((size_t) (-1))
+#endif // !SIZE_MAX
 
 
 #ifdef __cplusplus
@@ -51,8 +55,8 @@ static McxStatus MemoryFilterSetValue(ChannelFilter * filter, double time, Chann
 static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, double time) {
     MemoryFilter * memoryFilter = (MemoryFilter *) filter;
     int i = 0;
-    size_t smallerIdx = MEM_FILTER_IDX_FLAG;
-    size_t biggerIdx = MEM_FILTER_IDX_FLAG;
+    size_t smallerIdx = SIZE_MAX;
+    size_t biggerIdx = SIZE_MAX;
 
     for (i = memoryFilter->numEntriesRead - 1 ; i >= 0; --i) {
         if (double_eq(memoryFilter->timeHistoryRead[i], time)) {
@@ -72,16 +76,16 @@ static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, doub
         // find out closest stored time points
         if (time < memoryFilter->timeHistoryRead[i]) {
             biggerIdx = i;
-        } else if (smallerIdx == MEM_FILTER_IDX_FLAG) {
+        } else if (smallerIdx == SIZE_MAX) {
             smallerIdx = i;
         } else {
             break;
         }
     }
 
-    if (smallerIdx == MEM_FILTER_IDX_FLAG) {
+    if (smallerIdx == SIZE_MAX) {
         i = biggerIdx;
-    } else if (biggerIdx == MEM_FILTER_IDX_FLAG) {
+    } else if (biggerIdx == SIZE_MAX) {
         i = smallerIdx;
     } else if ((time - memoryFilter->timeHistoryRead[smallerIdx]) < (memoryFilter->timeHistoryRead[biggerIdx] - time)) {
         i = smallerIdx;
@@ -105,8 +109,8 @@ static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, doub
 static ChannelValueData MemoryFilterGetValue(ChannelFilter * filter, double time) {
     MemoryFilter * memoryFilter = (MemoryFilter *) filter;
     int i = 0;
-    size_t smallerIdx = MEM_FILTER_IDX_FLAG;
-    size_t biggerIdx = MEM_FILTER_IDX_FLAG;
+    size_t smallerIdx = SIZE_MAX;
+    size_t biggerIdx = SIZE_MAX;
 
     for (i = 0; i < memoryFilter->numEntriesRead; ++i) {
         if (double_eq(memoryFilter->timeHistoryRead[i], time)) {
@@ -126,16 +130,16 @@ static ChannelValueData MemoryFilterGetValue(ChannelFilter * filter, double time
         // find out closest stored time points
         if (time > memoryFilter->timeHistoryRead[i]) {
             smallerIdx = i;
-        } else if (biggerIdx == MEM_FILTER_IDX_FLAG) {
+        } else if (biggerIdx == SIZE_MAX) {
             biggerIdx = i;
         } else {
             break;
         }
     }
 
-    if (smallerIdx == MEM_FILTER_IDX_FLAG) {
+    if (smallerIdx == SIZE_MAX) {
         i = biggerIdx;
-    } else if (biggerIdx == MEM_FILTER_IDX_FLAG) {
+    } else if (biggerIdx == SIZE_MAX) {
         i = smallerIdx;
     } else if ((time - memoryFilter->timeHistoryRead[smallerIdx]) < (memoryFilter->timeHistoryRead[biggerIdx] - time)) {
         i = smallerIdx;
