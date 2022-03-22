@@ -381,7 +381,7 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
         if (str) {
             int size = atoi(str);
             if (size <= 0) {
-                mcx_log(LOG_WARNING, "Invalid memory filter history size limit (%d)", size);
+                mcx_log(LOG_WARNING, "Invalid memory filter history size limit (%s)", str);
             } else {
                 config->memFilterHistoryLimit = (size_t) size;
                 mcx_log(LOG_INFO, "Memory filter history size limit: %zu", config->memFilterHistoryLimit);
@@ -395,7 +395,7 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
         if (str) {
             int size = atoi(str);
             if (size <= 0) {
-                mcx_log(LOG_WARNING, "Invalid memory filter extra history size (%d)", size);
+                mcx_log(LOG_WARNING, "Invalid memory filter extra history size (%s)", str);
             } else {
                 config->memFilterHistoryExtra = (size_t) size;
                 mcx_log(LOG_INFO, "Memory filter extra history size: %zu", config->memFilterHistoryExtra);
