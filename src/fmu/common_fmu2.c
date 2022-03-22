@@ -21,6 +21,7 @@
 
 #include "util/string.h"
 #include "util/stdlib.h"
+#include "util/signals.h"
 
 #include "fmilib.h"
 
@@ -191,11 +192,13 @@ McxStatus Fmu2CommonStructSetup(FmuCommon * common, Fmu2CommonStruct * fmu2, fmi
     }
 
     mcx_log(LOG_DEBUG, "%s: instantiatefn: %x", common->instanceName, fmi2_import_instantiate);
+    mcx_signal_handler_set_function("fmi2_import_instantiate"),
     jmStatus = fmi2_import_instantiate(fmu2->fmiImport,
                                        common->instanceName,
                                        fmu_type,
                                        NULL,
                                        fmi2_false /* visible */);
+    mcx_signal_handler_unset_function();
     if (jm_status_error == jmStatus) {
         mcx_log(LOG_ERROR, "%s: Instantiate failed", common->instanceName);
         return RETURN_ERROR;
@@ -634,7 +637,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = {fmuVal->data->vr.scalar};
 
+        mcx_signal_handler_set_function("fmi2_import_set_real");
         status = fmi2_import_set_real(fmu->fmiImport, vr, 1, (const fmi2_real_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         MCX_DEBUG_LOG("Set %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueReference(chVal));
 
@@ -644,7 +649,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
+        mcx_signal_handler_set_function("fmi2_import_set_integer");
         status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, (const fmi2_integer_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         MCX_DEBUG_LOG("Set %s(%d)=%d", fmuVal->name, vr[0], *(int*)ChannelValueReference(chVal));
 
@@ -654,7 +661,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
+        mcx_signal_handler_set_function("fmi2_import_set_boolean");
         status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, (const fmi2_boolean_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         break;
     }
@@ -662,7 +671,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
+        mcx_signal_handler_set_function("fmi2_import_set_string");
         status = fmi2_import_set_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         break;
     }
@@ -681,7 +692,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
                                 , (fmi2_integer_t) binary->len
                                 };
 
+        mcx_signal_handler_set_function("fmi2_import_set_integer");
         status = fmi2_import_set_integer(fmu->fmiImport, vrs, 3, vals);
+        mcx_signal_handler_unset_function();
 
         break;
     }
@@ -738,7 +751,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
+        mcx_signal_handler_set_function("fmi2_import_get_real");
         status = fmi2_import_get_real(fmu->fmiImport, vr, 1, (fmi2_real_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         MCX_DEBUG_LOG("Get %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueReference(chVal));
 
@@ -748,7 +763,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
+        mcx_signal_handler_set_function("fmi2_import_get_integer");
         status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, (fmi2_integer_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         break;
     }
@@ -756,7 +773,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
+        mcx_signal_handler_set_function("fmi2_import_get_boolean");
         status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, (fmi2_boolean_t *) ChannelValueReference(chVal));
+        mcx_signal_handler_unset_function();
 
         break;
     }
@@ -766,7 +785,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
 
         char * buffer = NULL;
 
+        mcx_signal_handler_set_function("fmi2_import_get_string");
         status = fmi2_import_get_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) &buffer);
+        mcx_signal_handler_unset_function();
         ChannelValueSetFromReference(chVal, &buffer);
 
         break;
@@ -783,7 +804,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
 
         binary_string binary;
 
+        mcx_signal_handler_set_function("fmi2_import_get_integer");
         status = fmi2_import_get_integer(fmu->fmiImport, vrs, 3, vs);
+        mcx_signal_handler_unset_function();
 
     binary.len = vs[2];
     binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
