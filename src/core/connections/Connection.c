@@ -35,8 +35,6 @@ extern "C" {
 
 static void UpdateInChannelInfo(Component * comp, size_t idx) {
     Databus * db = comp->GetDatabus(comp);
-    ChannelInfo * src = DatabusGetInChannelInfo(db, idx);
-
     Channel * channel = (Channel *) DatabusGetInChannel(db, idx);
 
     if (channel) {
@@ -46,8 +44,6 @@ static void UpdateInChannelInfo(Component * comp, size_t idx) {
 
 static void UpdateOutChannelInfo(Component * comp, size_t idx) {
     Databus * db = comp->GetDatabus(comp);
-    ChannelInfo * src = DatabusGetOutChannelInfo(db, idx);
-
     Channel * channel = (Channel *) DatabusGetOutChannel(db, idx);
 
     if (channel) {
