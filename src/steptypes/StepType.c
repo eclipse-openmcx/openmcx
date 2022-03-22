@@ -89,7 +89,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
         }
 #endif // MCX_DEBUG
 
-        TimeSnapshotStart(&comp->data->rtData.funcTimings.rtStoreIn);
+        TimeSnapshotStart((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStoreIn);
         if (TRUE == ComponentGetStoreInputsAtCouplingStepEndTime(comp)) {
             retVal = comp->Store(comp, CHANNEL_STORE_IN, interval.endTime, level);
         } else if (FALSE == ComponentGetStoreInputsAtCouplingStepEndTime(comp)) {
@@ -102,7 +102,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             mcx_log(LOG_ERROR, "%s: Storing inport failed", comp->GetName(comp));
             return RETURN_ERROR;
         }
-        TimeSnapshotEnd(&comp->data->rtData.funcTimings.rtStoreIn);
+        TimeSnapshotEnd((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStoreIn);
 
 #ifdef MCX_DEBUG
         if (time < MCX_DEBUG_LOG_TIME) {
@@ -147,7 +147,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
         }
 #endif // MCX_DEBUG
 
-        TimeSnapshotStart(&comp->data->rtData.funcTimings.rtStore);
+        TimeSnapshotStart((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStore);
         retVal = comp->Store(comp, CHANNEL_STORE_OUT, comp->GetTime(comp), level);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "%s: Storing outport failed", comp->GetName(comp));
@@ -163,7 +163,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             mcx_log(LOG_ERROR, "%s: Storing real time factors failed", comp->GetName(comp));
             return RETURN_ERROR;
         }
-        TimeSnapshotEnd(&comp->data->rtData.funcTimings.rtStore);
+        TimeSnapshotEnd((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStore);
     }
 
     if (comp->GetFinishState(comp) == COMP_IS_FINISHED) {

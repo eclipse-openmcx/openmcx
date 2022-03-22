@@ -54,7 +54,7 @@ static McxStatus MemoryFilterSetValue(ChannelFilter * filter, double time, Chann
 
 static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, double time) {
     MemoryFilter * memoryFilter = (MemoryFilter *) filter;
-    int i = 0;
+    size_t i = 0;
     size_t smallerIdx = SIZE_MAX;
     size_t biggerIdx = SIZE_MAX;
 
@@ -108,7 +108,7 @@ static ChannelValueData MemoryFilterGetValueReverse(ChannelFilter * filter, doub
 
 static ChannelValueData MemoryFilterGetValue(ChannelFilter * filter, double time) {
     MemoryFilter * memoryFilter = (MemoryFilter *) filter;
-    int i = 0;
+    size_t i = 0;
     size_t smallerIdx = SIZE_MAX;
     size_t biggerIdx = SIZE_MAX;
 

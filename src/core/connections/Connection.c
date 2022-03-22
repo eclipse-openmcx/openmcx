@@ -145,7 +145,7 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
         buffSize = model->config->interpolationBuffSize;
     }
     else {
-        buffSize = ceil(synchStep / sourceStep) + 1;
+        buffSize = (size_t) ceil(synchStep / sourceStep) + 1;
     }
 
     buffSize += model->config->interpolationBuffSizeSafetyExt;
@@ -970,7 +970,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
             if (EXTRAPOLATING == isInterExtrapol || INTEREXTRAPOLATING == isInterExtrapol) {
                     size_t memFilterHist = MemoryFilterHistorySize(info, params->extrapolationOrder);
                     if (0 != memFilterHist) {
-                        filter = SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
                         if (!filter) {
                             return NULL;
                         }
@@ -997,7 +997,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
             } else {
                 size_t memFilterHist = MemoryFilterHistorySize(info, degree);
                 if (0 != memFilterHist) {
-                    filter = SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
                     if (!filter) {
                         return NULL;
                     }
@@ -1044,7 +1044,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
 
         size_t memFilterHist = MemoryFilterHistorySize(info, 0);
         if (0 != memFilterHist) {
-            filter = SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
+            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, info->GetType(info), memFilterHist);
             if (!filter) {
                 return NULL;
             }
