@@ -155,6 +155,11 @@ static McxStatus VectorAppend(Vector * vector, Vector * appendee) {
     }
 
     appendeeSize = appendee->Size(appendee);
+    retVal = VectorReserve(vector, vector->size_ + appendeeSize);
+    if (RETURN_ERROR == retVal) {
+        return RETURN_ERROR;
+    }
+
     for (i = 0; i < appendeeSize; i++) {
         retVal = vector->PushBack(vector, appendee->At(appendee, i));
         if (RETURN_OK != retVal) {
