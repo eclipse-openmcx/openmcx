@@ -24,6 +24,8 @@ __declspec( thread ) static const char * _signalThreadName = NULL;
 __declspec( thread ) static const char * _signalFunctionName = NULL;
 __declspec( thread ) static const char * _signalFunctionNameStack1 = NULL;
 __declspec( thread ) static const char * _signalFunctionNameStack2 = NULL;
+__declspec( thread ) static const char * _signalFunctionNameStack3 = NULL;
+__declspec( thread ) static const char * _signalFunctionNameStack4 = NULL;
 
 #ifdef __cplusplus
 extern "C" {
@@ -121,11 +123,13 @@ void mcx_signal_handler_unset_name(void) {
 
 void mcx_signal_handler_set_function(const char * functionName) {
 #if defined(MCX_DEBUG)
-    if (_signalFunctionNameStack2 != NULL) {
+    if (_signalFunctionNameStack4 != NULL) {
         mcx_log(LOG_ERROR, "Signal handler function callstack overflow!");
         exit(1); // I guess there is a better way to handle this
     }
 #endif
+    _signalFunctionNameStack4 = _signalFunctionNameStack3;
+    _signalFunctionNameStack3 = _signalFunctionNameStack2;
     _signalFunctionNameStack2 = _signalFunctionNameStack1;
     _signalFunctionNameStack1 = _signalFunctionName;
     _signalFunctionName = functionName;
@@ -139,7 +143,9 @@ void mcx_signal_handler_unset_function(void) {
 #endif
     _signalFunctionName = _signalFunctionNameStack1;
     _signalFunctionNameStack1 = _signalFunctionNameStack2;
-    _signalFunctionNameStack2 = NULL;
+    _signalFunctionNameStack2 = _signalFunctionNameStack3;
+    _signalFunctionNameStack3 = _signalFunctionNameStack4;
+    _signalFunctionNameStack4 = NULL;
 }
 
 void mcx_signal_handler_enable(void) {
