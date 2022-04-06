@@ -48,6 +48,8 @@ typedef McxStatus (* fComponentUpdateOutChannels)(Component * comp);
 
 typedef McxStatus (* fComponentUpdateInChannels)(Component * comp);
 
+typedef int (* fComponentContainsComponent)(Component * comp, const Component * otherComp);
+
 typedef struct ComponentStorage * (* fComponentGetStorage)(const Component * comp);
 typedef McxStatus (* fComponentDoStep)(Component * comp, size_t group, double time,
     double deltaTime, double endTime, int isNewStep);
@@ -193,6 +195,8 @@ struct Component {
     fComponentUpdateTime UpdateTime;
 
     fComponentSetModel SetModel;
+
+    fComponentContainsComponent ContainsComponent;
 
     fComponentGetDatabus GetDatabus;
     fComponentGetName    GetName;

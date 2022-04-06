@@ -1239,6 +1239,8 @@ static Component * ComponentCreate(Component * comp) {
 
     comp->SetModel = ComponentSetModel;
 
+    comp->ContainsComponent = NULL;
+
     comp->GetDatabus = ComponentGetDatabus;
     comp->GetName    = ComponentGetName;
     comp->GetModel   = ComponentGetModel;
