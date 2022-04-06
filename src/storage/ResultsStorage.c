@@ -169,7 +169,7 @@ static McxStatus StorageFinishModel(ResultsStorage * storage, SubModel * subMode
     // Get values from Components
     for (i = 0; i < storage->numComponents; i++) {
         ComponentStorage * compStore = storage->componentStorage[i];
-        if (subModel->IsElement(subModel, compStore->comp)) {
+        if (subModel->ContainsOrIsElement(subModel, compStore->comp)) {
             compStore->Finished(compStore);
         }
     }
