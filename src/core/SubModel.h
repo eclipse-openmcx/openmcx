@@ -67,6 +67,7 @@ struct SubModel {
     fSubModelLoopEvaluationList LoopEvaluationList;
     fSubModelLoopComponents LoopComponents;
     fSubModelIsElement IsElement;
+    fSubModelIsElement ContainsOrIsElement;
 
     ObjectContainer * evaluationList; // contains CompAndGroup
     ObjectContainer * components; // contains Component

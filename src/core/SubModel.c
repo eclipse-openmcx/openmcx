@@ -395,6 +395,27 @@ static int SubModelIsElement(SubModel * subModel, const Component * comp) {
     return 0;
 }
 
+static int SubModelContainsOrIsElement(SubModel * subModel, const Component * comp) {
+    ObjectContainer * comps = subModel->components;
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * iComp = (Component *) comps->At(comps, i);
+        if (!iComp) {
+            mcx_log(LOG_DEBUG, "Model: nullptr in submodel at idx %d", i);
+            continue;
+        }
+
+        if (comp == iComp) {
+            return TRUE;
+        } else if (iComp->ContainsComponent && iComp->ContainsComponent(iComp, comp)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 // only need to consider DECOUPLE_IFNEEDED since DECOUPLE_ALWAYS is handled at connection->Setup()
 McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectContainer * comps) {
     size_t i; size_t k;
@@ -579,6 +600,7 @@ static SubModel * SubModelCreate(SubModel * subModel) {
     subModel->LoopEvaluationList = SubModelLoopEvaluationList;
     subModel->LoopComponents = SubModelLoopComponents;
     subModel->IsElement = SubModelIsElement;
+    subModel->ContainsOrIsElement = SubModelContainsOrIsElement;
 
     subModel->outConnections = (ObjectContainer *) object_create(ObjectContainer);
     if (!subModel->outConnections) {
