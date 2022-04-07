@@ -716,14 +716,19 @@ McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
 
     McxStatus retVal = RETURN_OK;
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2SetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }
@@ -823,15 +828,20 @@ McxStatus Fmu2GetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
 
     McxStatus retVal = RETURN_OK;
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2GetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "FMU: Getting of variable array failed at element %u", i);
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }
