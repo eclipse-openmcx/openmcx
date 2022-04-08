@@ -30,7 +30,7 @@ struct Fmu2CommonStruct;
 
 typedef struct Fmu2CommonStruct Fmu2CommonStruct;
 
-ObjectContainer * Fmu2ReadParams(ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore);
+McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams, ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore);
 
 // TODO: rename all variablearrays to something better
 McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals);
@@ -52,6 +52,8 @@ struct Fmu2CommonStruct {
     ObjectContainer * out;
     ObjectContainer * params;
     ObjectContainer * initialValues;
+
+    ObjectContainer * arrayParams;   // proxy views to array parameter elements (from params) (type: ArrayParameterProxy)
 
     ObjectContainer * connectedIn;
 
