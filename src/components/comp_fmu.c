@@ -804,20 +804,17 @@ static McxStatus Fmu2Read(Component * comp, ComponentInput * input, const struct
         ParametersInput * parametersInput = input->parameters;
 
         if (parametersInput) {
-            vals = Fmu2ReadParams(parametersInput,
-                                  compFmu->fmu2.fmiImport,
-                                  NULL
+            retVal = Fmu2ReadParams(
+                fmu2->params,
+                fmu2->arrayParams,
+                parametersInput,
+                compFmu->fmu2.fmiImport,
+                NULL
             );
-            if (!vals) {
+            if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not read parameters");
                 return RETURN_ERROR;
             }
-            retVal = fmu2->params->Append(fmu2->params, vals);
-            if (RETURN_OK != retVal) {
-                ComponentLog(comp, LOG_ERROR, "Could not add parameters");
-                return RETURN_ERROR;
-            }
-            object_destroy(vals);
 
         }
     }
@@ -826,17 +823,11 @@ static McxStatus Fmu2Read(Component * comp, ComponentInput * input, const struct
         ParametersInput * parametersInput = input->initialValues;
 
         if (parametersInput) {
-            vals = Fmu2ReadParams(parametersInput, compFmu->fmu2.fmiImport, NULL);
-            if (!vals) {
+            retVal = Fmu2ReadParams(fmu2->initialValues, NULL, parametersInput, compFmu->fmu2.fmiImport, NULL);
+            if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not read initial values");
                 return RETURN_ERROR;
             }
-            retVal = fmu2->initialValues->Append(fmu2->initialValues, vals);
-            if (RETURN_OK != retVal) {
-                ComponentLog(comp, LOG_ERROR, "Could not add initial values");
-                return RETURN_ERROR;
-            }
-            object_destroy(vals);
         }
     }
 

@@ -93,6 +93,8 @@ McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->tunableParams = (ObjectContainer *) object_create(ObjectContainer);
     fmu->initialValues = (ObjectContainer *) object_create(ObjectContainer);
 
+    fmu->arrayParams = (ObjectContainer *) object_create(ObjectContainer);
+
     fmu->connectedIn = (ObjectContainer *) object_create(ObjectContainer);
 
     fmu->numLogCategories = 0;
@@ -241,6 +243,11 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
     if (fmu->params) {
         fmu->params->DestroyObjects(fmu->params);
         object_destroy(fmu->params);
+    }
+
+    if (fmu->arrayParams) {
+        fmu->arrayParams->DestroyObjects(fmu->arrayParams);
+        object_destroy(fmu->arrayParams);
     }
 
     if (fmu->initialValues) {
@@ -451,98 +458,141 @@ fmu2_read_array_param_values_cleanup:
 }
 
 // Reads parameters from the input file (both scalar and array).
-//
+// If arrayParams is given, creates proxy views to array elements.
 // Ignores parameters provided via the `ignore` argument.
-ObjectContainer * Fmu2ReadParams(ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore) {
-    ObjectContainer * params = (ObjectContainer *) object_create(ObjectContainer);
-    ObjectContainer * ret = params;                  // used for unified cleanup via goto
+McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams, ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore) {
+    McxStatus retVal = RETURN_OK;
 
     size_t i = 0;
     size_t num = 0;
-    McxStatus retVal = RETURN_OK;
 
     if (!params) {
-        return NULL;
+        return RETURN_ERROR;
     }
 
     num = input->parameters->Size(input->parameters);
     for (i = 0; i < num; i++) {
         ParameterInput * parameterInput = (ParameterInput *) input->parameters->At(input->parameters, i);
-
         char * name = NULL;
-        Fmu2Value * val = NULL;
-        ObjectContainer * vals = NULL;
-
 
         name = mcx_string_copy(parameterInput->parameter.arrayParameter->name);
         if (!name) {
-            ret = NULL;
-            goto fmu2_read_params_for_cleanup;
+            retVal = RETURN_ERROR;
+            goto cleanup_0;
         }
 
         // ignore the parameter if it is in the `ignore` container
         if (ignore && ignore->GetNameIndex(ignore, name) >= 0) {
-            goto fmu2_read_params_for_cleanup;
+            goto cleanup_0;
         }
 
         if (parameterInput->type == PARAMETER_ARRAY) {
+            ObjectContainer * vals = NULL;
+            ArrayParameterProxy * proxy = NULL;
+            size_t j = 0;
+
             // read parameter dimensions (if any) - should only be defined for array parameters
             if (parameterInput->parameter.arrayParameter->numDims >=2 &&
                 parameterInput->parameter.arrayParameter->dims[1] &&
                 !parameterInput->parameter.arrayParameter->dims[0]) {
                 mcx_log(LOG_ERROR, "FMU: Array parameter %s: Missing definition for the first dimension "
                         "while the second dimension is defined.", parameterInput->parameter.arrayParameter->name);
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                retVal = RETURN_ERROR;
+                goto cleanup_1;
             }
 
             // array - split it into scalars
             vals = Fmu2ReadArrayParamValues(name, parameterInput->parameter.arrayParameter, import, params);
             if (vals == NULL) {
                 mcx_log(LOG_ERROR, "FMU: Could not read array parameter %s", name);
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                retVal = RETURN_ERROR;
+                goto cleanup_1;
+            }
+
+            if (arrayParams) {
+                // set up a proxy that will reference the individual scalars
+                proxy = (ArrayParameterProxy *) object_create(ArrayParameterProxy);
+                if (!proxy) {
+                    mcx_log(LOG_ERROR, "FMU: Creating an array proxy failed: No memory");
+                    retVal = RETURN_ERROR;
+                    goto cleanup_1;
+                }
+
+                retVal = proxy->Setup(proxy, name, parameterInput->parameter.arrayParameter->numDims, parameterInput->parameter.arrayParameter->dims);
+                if (RETURN_ERROR == retVal) {
+                    mcx_log(LOG_ERROR, "FMU Array parameter %s: Array proxy setup failed", name);
+                    goto cleanup_1;
+                }
             }
 
             // store the scalar values
-            size_t j = 0;
             for (j = 0; j < vals->Size(vals); j++) {
-                Object * v = vals->At(vals, j);
-                retVal = params->PushBackNamed(params, v, ((Fmu2Value*)v)->name);
+                Fmu2Value * v = (Fmu2Value *) vals->At(vals, j);
+                retVal = params->PushBackNamed(params, (Object *) v, v->name);
                 if (RETURN_OK != retVal) {
-                    ret = NULL;
-                    goto fmu2_read_params_for_cleanup;
+                    mcx_log(LOG_ERROR, "FMU: Adding element #%zu of parameter %s failed", j, name);
+                    goto cleanup_1;
+                }
+
+                vals->SetAt(vals, j, NULL);
+
+                if (arrayParams) {
+                    retVal = proxy->AddValue(proxy, v);
+                    if (RETURN_ERROR == retVal) {
+                        mcx_log(LOG_ERROR, "FMU: Adding proxy to element #%zu of parameter %s failed", j, name);
+                        goto cleanup_1;
+                    }
+                }
+            }
+
+            if (arrayParams) {
+                retVal = arrayParams->PushBackNamed(arrayParams, (Object *) proxy, proxy->GetName(proxy));
+                if (RETURN_ERROR == retVal) {
+                    mcx_log(LOG_ERROR, "FMU: Adding proxy for %s failed", name);
+                    goto cleanup_1;
+                }
+            }
+
+cleanup_1:
+            if (RETURN_ERROR == retVal) {
+                object_destroy(proxy);
+                if (vals) {
+                    vals->DestroyObjects(vals);
                 }
             }
 
             object_destroy(vals);
+
+            if (RETURN_ERROR == retVal) {
+                goto cleanup_0;
+            }
         } else {
+            Fmu2Value * val = NULL;
+
             // read the scalar value
             val = Fmu2ReadParamValue(parameterInput->parameter.scalarParameter, import);
             if (val == NULL) {
                 mcx_log(LOG_ERROR, "FMU: Could not read parameter value of parameter %s", name);
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                retVal = RETURN_ERROR;
+                goto cleanup_2;
             }
 
             // store the read value
             retVal = params->PushBackNamed(params, (Object * ) val, name);
             if (RETURN_OK != retVal) {
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                goto cleanup_2;
+            }
+
+cleanup_2:
+            if (RETURN_ERROR == retVal) {
+                object_destroy(val);
             }
         }
 
-fmu2_read_params_for_cleanup:
+cleanup_0:
         if (name) { mcx_free(name); }
-        if (ret == NULL) {
-            if (val)  { object_destroy(val); }
-            if (vals) {
-                vals->DestroyObjects(vals);
-                object_destroy(vals);
-            }
-
-            goto cleanup;
+        if (retVal == RETURN_ERROR) {
+            return RETURN_ERROR;
         }
     }
 
@@ -555,30 +605,22 @@ fmu2_read_params_for_cleanup:
             status = params->Sort(params, NaturalComp, NULL);
             if (RETURN_OK != status) {
                 mcx_log(LOG_ERROR, "FMU: Unable to sort parameters");
-                ret = NULL;
-                goto cleanup;
+                return RETURN_ERROR;
             }
 
             for (i = 0; i < n - 1; i++) {
                 Fmu2Value * a = (Fmu2Value *) params->At(params, i);
                 Fmu2Value * b = (Fmu2Value *) params->At(params, i + 1);
 
-                if (! strcmp(a->name, b->name)) {
+                if (!strcmp(a->name, b->name)) {
                     mcx_log(LOG_ERROR, "FMU: Duplicate definition of parameter %s", a->name);
-                    ret = NULL;
-                    goto cleanup;
+                    return RETURN_ERROR;
                 }
             }
         }
     }
 
-cleanup:
-    if (ret == NULL) {
-        params->DestroyObjects(params);
-        object_destroy(params);
-    }
-
-    return ret;
+    return retVal;
 }
 
 
