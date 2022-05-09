@@ -965,7 +965,7 @@ ObjectContainer * Fmu2ValueScalarListFromVarList(fmi2_import_variable_list_t * v
 
         Fmu2Value * value = Fmu2ValueScalarMake(name, var, NULL, NULL);
         if (value) {
-            list->PushBack(list, (Object *) value);
+            list->PushBackNamed(list, (Object *) value, name);
         } else {
             list->DestroyObjects(list);
             object_destroy(list);

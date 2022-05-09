@@ -526,7 +526,7 @@ static ObjectContainer * ObjectContainerFilterCtx(ObjectContainer * container, f
     for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         if (predicate(obj, ctx)) {
-            filtered->PushBack(filtered, obj);
+            filtered->PushBackNamed(filtered, obj, container->GetElementName(container, i));
         }
     }
 
