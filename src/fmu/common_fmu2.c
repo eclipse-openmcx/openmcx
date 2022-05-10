@@ -14,6 +14,7 @@
 #include "fmu/Fmu2Value.h"
 
 #include "core/channels/ChannelInfo.h"
+#include "core/parameters/ParameterProxies.h"
 
 #include "reader/model/parameters/ArrayParameterDimensionInput.h"
 #include "reader/model/parameters/ParameterInput.h"
