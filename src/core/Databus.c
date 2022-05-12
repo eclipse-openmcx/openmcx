@@ -310,7 +310,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
             mcx_log(LOG_DEBUG, "    Port: \"%s\"", name);
         }
 
-        if (RETURN_OK != dbInfos->PushBack(dbInfos, (Object *) object_strong_reference(info), name)) {
+        if (RETURN_OK != dbInfos->PushBack(dbInfos, info)) {
             mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %d", i);
             return RETURN_ERROR;
         }
