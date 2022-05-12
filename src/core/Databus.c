@@ -98,7 +98,7 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
 
         size_t dims[1] = { endIdx - startIdx + 1 };
 
-        if (RETURN_OK != ChannelInfoInit(info,
+        if (RETURN_OK != ChannelInfoSetup(info,
                                          vectorPortInput->name,
                                          vectorPortInput->nameInModel,
                                          vectorPortInput->description,
