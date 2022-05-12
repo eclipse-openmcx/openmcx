@@ -168,10 +168,10 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
         ChannelInfoSetID(info, scalarPortInput->id);
         ChannelInfoSetType(info, scalarPortInput->type);
 
-        if (!ChannelInfoIsBinary(&info)) {
-            ChannelInfoSetUnit(&info, scalarPortInput->unit);
+        if (!ChannelInfoIsBinary(info)) {
+            ChannelInfoSetUnit(info, scalarPortInput->unit);
         } else {
-            ChannelInfoSetUnit(&info, "-");
+            ChannelInfoSetUnit(info, "-");
         }
 
         ChannelType * expectedType = info->type;
