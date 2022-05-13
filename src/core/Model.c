@@ -197,7 +197,7 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
             goto cleanup_1;
         }
 
-        ChannelValueInit(src, srcChannelInfo->type);
+        ChannelValueInit(src, ChannelTypeClone(srcChannelInfo->type));
         retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->sourceChannel));
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;

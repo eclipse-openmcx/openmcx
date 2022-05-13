@@ -241,11 +241,11 @@ static McxStatus MemoryFilterSetup(MemoryFilter * filter, ChannelType * type, si
     }
 
     for (i = 0; i < filter->historySize; i++) {
-        ChannelValueInit(filter->valueHistoryRead + i, type);
+        ChannelValueInit(filter->valueHistoryRead + i, ChannelTypeClone(type));
     }
 
     for (i = 0; i < filter->historySize; i++) {
-        ChannelValueInit(filter->valueHistoryWrite + i, type);
+        ChannelValueInit(filter->valueHistoryWrite + i, ChannelTypeClone(type));
     }
 
     return RETURN_OK;
