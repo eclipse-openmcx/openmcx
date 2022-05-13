@@ -115,28 +115,6 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
         }
 
         // TODO: multiplexing here?
-        if (connInput->fromType == ENDPOINT_VECTOR) {
-            ChannelDimension * sourceDimension = (ChannelDimension *) object_create(ChannelDimension);
-            if (!sourceDimension) {
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
-                mcx_log(LOG_ERROR, "Could not setup ChannelDimension");
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, (size_t) connInput->from.vectorEndpoint->startIndex, (size_t) connInput->from.vectorEndpoint->endIndex)) {
-                mcx_log(LOG_ERROR, "Could not SetDimension");
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            info->sourceDimension = sourceDimension;
-        }
-
         info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
         if (info->sourceChannel < 0) {
             // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
@@ -166,15 +144,6 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
         if (0 == strlen(strToChannel)) {
             retVal = input_element_error((InputElement*)connInput, "Target port name is empty");
             goto cleanup;
-        }
-
-        if (connInput->toType == ENDPOINT_VECTOR) {
-            mcx_free(strToChannel);
-            strToChannel = CreateIndexedName(inputToChannel, connInput->to.vectorEndpoint->startIndex);
-            if (!strToChannel) {
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
         }
 
         if (0 == connectionInverted) {
@@ -210,6 +179,36 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
 
         mcx_log(LOG_DEBUG, "Connection: Inverted connection (%s, %s) -- (%s, %s)",
             info->targetComponent->GetName(info->targetComponent), strFromChannel, info->sourceComponent->GetName(info->sourceComponent), strToChannel);
+    }
+
+    // source dimension
+    {
+        EndpointInputType endpointType = connectionInverted ? connInput->toType : connInput->fromType;
+
+        if (endpointType == ENDPOINT_VECTOR) {
+            size_t startIndex = (size_t) (connectionInverted ? connInput->to.vectorEndpoint->startIndex : connInput->from.vectorEndpoint->startIndex);
+            size_t endIndex = (size_t)(connectionInverted ? connInput->to.vectorEndpoint->endIndex : connInput->from.vectorEndpoint->endIndex);
+
+            ChannelDimension* sourceDimension = (ChannelDimension*)object_create(ChannelDimension);
+            if (!sourceDimension) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
+                mcx_log(LOG_ERROR, "Could not setup ChannelDimension");
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, startIndex, endIndex)) {
+                mcx_log(LOG_ERROR, "Could not SetDimension");
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            info->sourceDimension = sourceDimension;
+        }
     }
 
     // extrapolation
