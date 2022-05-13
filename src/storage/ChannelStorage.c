@@ -306,15 +306,12 @@ static void ChannelStorageDestructor(ChannelStorage * channelStore) {
 
         if (channels) {
             size_t i = 0;
-            if (channels->Size(channels) > 0) {
-                Channel * channel = (Channel *) channels->At(channels, 0);
-                ChannelInfo * timeInfo = &channel->info;
-                object_destroy(timeInfo);
-            }
+
             for (i = 0; i < channels->Size(channels); i++) {
                 Channel * channel = (Channel *) channels->At(channels, i);
                 object_destroy(channel);
             }
+
             object_destroy(channels);
         }
     }
