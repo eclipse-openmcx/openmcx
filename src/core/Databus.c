@@ -104,12 +104,12 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
         size_t dims[1] = { endIdx - startIdx + 1 };
 
         if (RETURN_OK != ChannelInfoSetup(info,
-                                         vectorPortInput->name,
-                                         vectorPortInput->nameInModel,
-                                         vectorPortInput->description,
-                                         vectorPortInput->unit,
-                                         ChannelTypeArray(vectorPortInput->type, 1, dims),
-                                         vectorPortInput->id)) {
+                                          vectorPortInput->name,
+                                          vectorPortInput->nameInModel,
+                                          vectorPortInput->description,
+                                          vectorPortInput->unit,
+                                          ChannelTypeArray(vectorPortInput->type, 1, dims),
+                                          vectorPortInput->id)) {
             mcx_log(LOG_ERROR, "Could not Init ChannelInfo");
             retVal = RETURN_ERROR;
             goto vector_cleanup_0;
