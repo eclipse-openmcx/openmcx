@@ -57,6 +57,11 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
         return NULL;
     }
 
+    retVal = ChannelInfoInit(info);
+    if (RETURN_ERROR == retVal) {
+        goto cleanup_0;
+    }
+
     if (input->type == PORT_VECTOR) {
         VectorPortInput * vectorPortInput = input->port.vectorPort;
         InputElement * vectorPortElement = (InputElement *) vectorPortInput;
