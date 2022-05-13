@@ -57,19 +57,14 @@ static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
     Component * comp = (Component *) (compConstant);
     Databus * db = comp->GetDatabus(comp);
     size_t numOut = DatabusGetOutChannelsNum(db);
-    size_t i = 0;
-    size_t sum = 0;
     ChannelValue * value = NULL;
-    size_t numCh = 0;
-    size_t startIdx = 0;
-    size_t endIdx = 0;
 
-    if (i >= numOut) {
+    if (idx >= numOut) {
         ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%zu) provided", idx);
         return NULL;
     }
 
-    value = compConstant->values[i];
+    value = compConstant->values[idx];
 
     return value;
 }
