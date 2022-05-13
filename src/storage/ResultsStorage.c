@@ -161,6 +161,25 @@ static McxStatus StorageStoreModelLocal(ResultsStorage * storage, SubModel * sub
     return RETURN_OK;
 }
 
+static McxStatus StorageStoreModelRTFactor(ResultsStorage * storage, SubModel * subModel, double time, StoreLevel level) {
+    size_t i = 0;
+
+    McxStatus retVal = RETURN_OK;
+
+    // Get values from Components
+    for (i = 0; i < storage->numComponents; i++) {
+        ComponentStorage * compStore = storage->componentStorage[i];
+        if (subModel->IsElement(subModel, compStore->comp)) {
+            retVal = compStore->StoreChannels(compStore, CHANNEL_STORE_RTFACTOR, time, level);
+            if (RETURN_OK != retVal) {
+                return RETURN_ERROR;
+            }
+        }
+    }
+
+    return RETURN_OK;
+}
+
 static McxStatus StorageFinishModel(ResultsStorage * storage, SubModel * subModel) {
     size_t i = 0;
 
@@ -525,6 +544,7 @@ static ResultsStorage * ResultsStorageCreate(ResultsStorage * storage) {
     storage->StoreModel = StorageStoreModel;
     storage->StoreModelOut = StorageStoreModelOut;
     storage->StoreModelLocal = StorageStoreModelLocal;
+    storage->StoreModelRTFactor = StorageStoreModelRTFactor;
     storage->FinishModel = StorageFinishModel;
     storage->Finished   = StorageFinished;
 

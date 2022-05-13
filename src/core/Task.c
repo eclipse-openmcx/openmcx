@@ -135,6 +135,7 @@ static McxStatus TaskInitialize(Task * task, Model * model) {
 
     task->storage->StoreModelOut(task->storage, model->subModel, stepParams->time, STORE_SYNCHRONIZATION);
     task->storage->StoreModelLocal(task->storage, model->subModel, stepParams->time, STORE_SYNCHRONIZATION);
+    task->storage->StoreModelRTFactor(task->storage, model->subModel, stepParams->time, STORE_SYNCHRONIZATION);
 
     task->stepType->Configure(task->stepType, stepParams, subModel);
 
