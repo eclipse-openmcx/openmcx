@@ -82,7 +82,7 @@ McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type) {
         return RETURN_ERROR;
     }
 
-    info->type = type;
+    info->type = ChannelTypeClone(type);
 
     if (ChannelInfoIsBinary(info)) {
         // the default for binary is off
@@ -168,7 +168,7 @@ McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other) {
         return RETURN_ERROR;
     }
 
-    info->type = other->type;
+    info->type = ChannelTypeClone(other->type);
     info->mode = other->mode;
     info->writeResult = other->writeResult;
     info->connected = other->connected;
@@ -265,7 +265,7 @@ void ChannelInfoDestroy(ChannelInfo * info) {
 
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
-    info->type = &ChannelTypeUnknown;
+    info->type = ChannelTypeClone(&ChannelTypeUnknown);
     info->connected = FALSE;
     info->writeResult = TRUE;
 }
@@ -288,7 +288,7 @@ McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->scale = NULL;
     info->offset = NULL;
 
-    info->type = &ChannelTypeUnknown;
+    info->type = ChannelTypeClone(&ChannelTypeUnknown);
     info->defaultValue = NULL;
     info->initialValue = NULL;
 
