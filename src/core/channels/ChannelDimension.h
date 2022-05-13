@@ -20,7 +20,7 @@ extern "C" {
 extern const struct ObjectClass _ChannelDimension;
 
 typedef struct ChannelDimension {
-    Object * _; // super class first
+    Object _; // super class first
 
     size_t num;
     size_t * startIdxs;
