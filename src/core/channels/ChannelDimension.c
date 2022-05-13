@@ -76,6 +76,42 @@ size_t ChannelDimensionNumElements(ChannelDimension * dimension) {
     return n;
 }
 
+ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension) {
+    ChannelDimension * clone = NULL;
+    McxStatus retVal = RETURN_OK;
+    size_t i = 0;
+
+    if (!dimension) {
+        return NULL;
+    }
+
+    clone = (ChannelDimension *) object_create(ChannelDimension);
+    if (!clone) {
+        mcx_log(LOG_ERROR, "ChannelDimensionClone: Not enough memory");
+        return NULL;
+    }
+
+    retVal = ChannelDimensionSetup(clone, dimension->num);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Channel dimension setup failed");
+        goto cleanup;
+    }
+
+    for (i = 0; i < dimension->num; i++) {
+        retVal = ChannelDimensionSetDimension(clone, i, dimension->startIdxs[i], dimension->endIdxs[i]);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Channel dimension %zu set failed", i);
+            goto cleanup;
+        }
+    }
+
+    return clone;
+
+cleanup:
+    object_destroy(clone);
+    return NULL;
+}
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
