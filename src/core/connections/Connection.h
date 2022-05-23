@@ -67,6 +67,7 @@ typedef void (* fConnectionUpdateFromInput)(Connection * connection, TimeInterva
 typedef McxStatus (* fConnectionUpdateToOutput)(Connection * connection, TimeInterval * time);
 
 typedef McxStatus (* fConnectionUpdateInitialValue)(Connection * connection);
+typedef McxStatus (* fConnectionInitSetToStore)(Connection * connection);
 
 typedef McxStatus (* fConnectionEnterInitializationMode)(Connection * connection);
 typedef McxStatus (* fConnectionExitInitializationMode)(Connection * connection, double time);
@@ -137,6 +138,8 @@ struct Connection {
     fConnectionGetValueDimension GetValueDimension;
 
     fConnectionGetValueType GetValueType;
+
+    fConnectionInitSetToStore InitSetToStore;
 
     /**
      * Set the reference to the value of the connection. This value will be
