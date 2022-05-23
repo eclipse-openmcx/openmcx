@@ -1269,6 +1269,28 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
     // Do nothing
 }
 
+static McxStatus ConnectionInitSetToStore(Connection * connection) {
+    Channel* channel = (Channel*)connection->out_;
+    ChannelInfo* info = &channel->info;
+    ChannelValueRef * storeRef = (ChannelValueRef *) object_create(ChannelValueRef);
+
+    if (!storeRef) {
+        mcx_log(LOG_ERROR, "Could not create store reference for initial connection");
+        return RETURN_ERROR;
+    }
+    storeRef->type = CHANNEL_VALUE_REF_VALUE;
+    storeRef->ref.value = &connection->store_;
+
+    ConnectionInfo * connInfo = connection->GetInfo(connection);
+    ChannelDimension * clone = ChannelDimensionClone(connInfo->sourceDimension);
+    ChannelDimensionNormalize(clone, info->dimension);
+    if (RETURN_OK != ChannelValueRefSetFromReference(storeRef, channel->GetValueReference(channel), clone, NULL)) {
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
 static McxStatus ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
     Channel * channel = (Channel *) connection->out_;
     ChannelInfo * info = &channel->info;
@@ -1281,18 +1303,7 @@ static McxStatus ConnectionInitUpdateTo(Connection * connection, TimeInterval * 
 #endif
 
     if (!connection->useInitialValue_) {
-        ChannelValueRef * storeRef = (ChannelValueRef *) object_create(ChannelValueRef);
-        if (!storeRef) {
-            mcx_log(LOG_ERROR, "Could not create store reference for initial connection");
-            return RETURN_ERROR;
-        }
-        storeRef->type = CHANNEL_VALUE_REF_VALUE;
-        storeRef->ref.value = &connection->store_;
-
-        ConnectionInfo * connInfo = connection->GetInfo(connection);
-        ChannelDimension * clone = ChannelDimensionClone(connInfo->sourceDimension);
-        ChannelDimensionNormalize(clone, info->dimension);
-        if (RETURN_OK != ChannelValueRefSetFromReference(storeRef, channel->GetValueReference(channel), clone, NULL)) {
+        if (RETURN_OK != connection->InitSetToStore(connection)) {
             return RETURN_ERROR;
         }
         if (channel->IsDefinedDuringInit(channel)) {
@@ -1481,6 +1492,8 @@ static Connection * ConnectionCreate(Connection * connection) {
     connection->NormalUpdateFrom_ = NULL;
     connection->NormalUpdateTo_ = NULL;
     connection->normalValue_ = NULL;
+
+    connection->InitSetToStore = ConnectionInitSetToStore;
 
     return connection;
 }
