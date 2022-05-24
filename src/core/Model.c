@@ -24,6 +24,7 @@
 
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelValueReference.h"
 #include "core/channels/ChannelInfo.h"
 #include "core/connections/Connection.h"
 #include "core/connections/FilteredConnection.h"
@@ -177,10 +178,12 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         CompConstant * srcCompConst = NULL;
         Databus * srcDb = srcComp->GetDatabus(srcComp);
         ChannelInfo * srcChannelInfo = DatabusGetOutChannelInfo(srcDb, info->sourceChannel);
+        ChannelDimension * srcDim = NULL;
 
         Component * trgComp = info->targetComponent;
         Databus * trgDb = trgComp->GetDatabus(trgComp);
         ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->targetChannel);
+        ChannelDimension * trgDim = NULL;
 
         // if not a const conn, add to the filtered conns
         if (0 != strcmp(compConstantTypeString, srcComp->GetType(srcComp))) {
@@ -203,34 +206,61 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
             goto cleanup_1;
         }
 
+        if (!trgChannelInfo->defaultValue) {
+            trgChannelInfo->defaultValue = (ChannelValue *) mcx_calloc(1, sizeof(ChannelValue));
+            ChannelValueInit(trgChannelInfo->defaultValue, ChannelTypeClone(trgChannelInfo->type));
+        }
+
+        // prepare slice dimensions
+        srcDim = ChannelDimensionClone(info->sourceDimension);
+        if (info->sourceDimension && !srcDim) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension slice allocation failed");
+            goto cleanup_1;
+        }
+
+        retVal = ChannelDimensionNormalize(srcDim, srcChannelInfo->dimension);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension normalization failed");
+            goto cleanup_1;
+        }
+
+        trgDim = ChannelDimensionClone(info->targetDimension);
+        if (info->targetDimension && !trgDim) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension slice allocation failed");
+            goto cleanup_1;
+        }
+
+        retVal = ChannelDimensionNormalize(trgDim, trgChannelInfo->dimension);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension normalization failed");
+            goto cleanup_1;
+        }
+
         // out channel range and linear conversions
-        retVal = ConvertRange(srcChannelInfo->min, srcChannelInfo->max, src);
+        retVal = ConvertRange(srcChannelInfo->min, srcChannelInfo->max, src, srcDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
-        retVal = ConvertLinear(srcChannelInfo->scale, srcChannelInfo->offset, src);
+        retVal = ConvertLinear(srcChannelInfo->scale, srcChannelInfo->offset, src, srcDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // type conversion
-        retVal = ConvertType(srcChannelInfo->type, trgChannelInfo->type, src);
+        retVal = ConvertType(trgChannelInfo->defaultValue, trgDim, src, srcDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // unit conversion
-        retVal = ConvertUnit(srcChannelInfo->unitString, trgChannelInfo->unitString, src);
+        retVal = ConvertUnit(srcChannelInfo->unitString, trgChannelInfo->unitString, trgChannelInfo->defaultValue, trgDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
-        // set the default value
-        if (trgChannelInfo->defaultValue) {
-            ChannelValueDestructor(trgChannelInfo->defaultValue);
-        }
-        trgChannelInfo->defaultValue = src;
+        object_destroy(srcDim);
+        object_destroy(trgDim);
 
         continue;
 
@@ -239,6 +269,9 @@ cleanup_1:
             ChannelValueDestructor(src);
             mcx_free(src);
         }
+
+        object_destroy(srcDim);
+        object_destroy(trgDim);
 
         retVal = RETURN_ERROR;
         goto cleanup;
