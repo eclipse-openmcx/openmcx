@@ -52,6 +52,8 @@ ChannelType * ChannelValueRefGetType(ChannelValueRef * ref);
 typedef McxStatus (*fChannelValueRefElemMapFunc)(void * element, size_t idx, ChannelType * type, void * ctx);
 McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapFunc fn, void * ctx);
 
+ChannelValueRef * MakeChannelValueRef(ChannelValue * val, ChannelDimension * slice);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

@@ -208,6 +208,26 @@ ChannelType * ChannelValueRefGetType(ChannelValueRef * ref) {
 }
 
 
+ChannelValueRef * MakeChannelValueRef(ChannelValue * val, ChannelDimension * slice) {
+    ChannelValueRef * ref = (ChannelValueRef *)object_create(ChannelValueRef);
+    if (!ref) {
+        return NULL;
+    }
+
+    if (slice) {
+        ref->type = CHANNEL_VALUE_REF_SLICE;
+        ref->ref.slice = (ArraySlice *) mcx_calloc(1, sizeof(ArraySlice));
+        ref->ref.slice->dimension = slice;
+        ref->ref.slice->ref = val;
+    } else {
+        ref->type = CHANNEL_VALUE_REF_VALUE;
+        ref->ref.value = val;
+    }
+
+    return ref;
+}
+
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

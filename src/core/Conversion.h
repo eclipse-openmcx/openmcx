@@ -59,7 +59,7 @@ typedef struct RangeConversion {
 
 } RangeConversion;
 
-McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value);
+McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value, ChannelDimension * slice);
 
 
 // ----------------------------------------------------------------------
@@ -87,7 +87,7 @@ struct UnitConversion {
     fUnitConversionVector convertVector;
 };
 
-McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value);
+McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value, ChannelDimension * slice);
 
 
 // ----------------------------------------------------------------------
@@ -113,7 +113,7 @@ typedef struct LinearConversion {
 
 } LinearConversion;
 
-McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value);
+McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value, ChannelDimension * slice);
 
 
 // ----------------------------------------------------------------------
@@ -141,7 +141,7 @@ struct TypeConversion {
     ChannelDimension * sourceSlice;
 };
 
-McxStatus ConvertType(ChannelType * fromType, ChannelType * toType, ChannelValue * value);
+McxStatus ConvertType(ChannelValue * dest, ChannelDimension * destSlice, ChannelValue * src, ChannelDimension * srcSlice);
 
 
 #ifdef __cplusplus
