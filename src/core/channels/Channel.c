@@ -301,9 +301,8 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
 
 
     // Conversions
-    {
+    if (numConns > 0) {
         ChannelValue * val =  &channel->value;
-
 
         // linear
         if (in->data->linearConversion) {
