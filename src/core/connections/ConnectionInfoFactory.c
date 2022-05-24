@@ -138,6 +138,23 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             info->sourceDimension = sourceDimension;
         }
 
+        info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
+        if (info->sourceChannel < 0) {
+            // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
+
+            databusInfo = DatabusGetInInfo(databus);
+            info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
+
+            if (info->sourceChannel < 0) {
+                mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
+                    strFromChannel, info->sourceComponent->GetName(info->sourceComponent));
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            } else {
+                connectionInverted = 1;
+            }
+        }
+
         // check that the source endpoint "fits" into the channel
         sourceInfo = DatabusInfoGetChannel(databusInfo, info->sourceChannel);
         if (!ChannelDimensionIncludedIn(info->sourceDimension, sourceInfo->dimension)) {
@@ -159,23 +176,6 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             }
 
             goto cleanup;
-        }
-
-        info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
-        if (info->sourceChannel < 0) {
-            // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
-
-            databusInfo = DatabusGetInInfo(databus);
-            info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
-
-            if (info->sourceChannel < 0) {
-                mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
-                    strFromChannel, info->sourceComponent->GetName(info->sourceComponent));
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            } else {
-                connectionInverted = 1;
-            }
         }
     }
 
@@ -226,6 +226,19 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             info->targetDimension = targetDimension;
         }
 
+        info->targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
+        if (info->targetChannel < 0) {
+            if (0 == connectionInverted) {
+                mcx_log(LOG_ERROR, "Connection: Target port %s of element %s does not exist",
+                    strToChannel, info->targetComponent->GetName(info->targetComponent));
+            } else {
+                mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
+                    strToChannel, info->targetComponent->GetName(info->targetComponent));
+            }
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
         // check that the target endpoint "fits" into the channel
         targetInfo = DatabusInfoGetChannel(databusInfo, info->targetChannel);
         if (!ChannelDimensionIncludedIn(info->targetDimension, targetInfo->dimension)) {
@@ -246,19 +259,6 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
                 mcx_free(connDimString);
             }
 
-            goto cleanup;
-        }
-
-        info->targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
-        if (info->targetChannel < 0) {
-            if (0 == connectionInverted) {
-                mcx_log(LOG_ERROR, "Connection: Target port %s of element %s does not exist",
-                    strToChannel, info->targetComponent->GetName(info->targetComponent));
-            } else {
-                mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
-                    strToChannel, info->targetComponent->GetName(info->targetComponent));
-            }
-            retVal = RETURN_ERROR;
             goto cleanup;
         }
     }
