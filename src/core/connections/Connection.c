@@ -1242,7 +1242,7 @@ cleanup_1:
             mcx_free(buffer);
         }
 
-        ChannelType * storeType = ChannelTypeFromDimension(info->connType_, info->sourceDimension);
+        ChannelType * storeType = ChannelTypeFromDimension(ConnectionInfoGetType(info), info->sourceDimension);
         if (!storeType) {
             mcx_log(LOG_ERROR, "Creating type from the dimension failed");
             retVal = RETURN_ERROR;
