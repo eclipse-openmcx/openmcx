@@ -303,6 +303,13 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
     Vector * dbInfos = dbInfo->data->infos;
     size_t requiredSize = 0;
+    StringContainer * portNames = StringContainerCreate(numChildren);
+
+    if (!portNames) {
+        mcx_log(LOG_ERROR, "Ports: Port name container allocation failed");
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
 
     for (i = 0; i < numChildren; i++) {
         PortInput * portInput = (PortInput *) input->ports->At(input->ports, i);
@@ -315,7 +322,8 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
         ChannelInfo * info = DatabusReadPortInput(portInput);
         if (!info) {
             mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read info of port %d", i);
-            return RETURN_ERROR;
+            retVal = RETURN_ERROR;
+            goto cleanup;
         }
 
         info->mode = mode;
@@ -327,13 +335,41 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
             mcx_log(LOG_DEBUG, "    Port: \"%s\"", name);
         }
 
+        {
+            // check for duplicates
+            int n = StringContainerGetIndex(portNames, name);
+            if (n >= 0) {  // key already exists
+                mcx_log(LOG_ERROR, "Ports: Duplicate port %s", name);
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+        }
+
+        if (SpecificRead) {
+            retVal = SpecificRead(comp, info, portInput, i);
+            if (RETURN_ERROR == retVal) {
+                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %d", i);
+                goto cleanup;
+            }
+        }
+
         if (RETURN_OK != dbInfos->PushBack(dbInfos, info)) {
             mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %d", i);
-            return RETURN_ERROR;
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
+        retVal = StringContainerAddString(portNames, name);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Ports: Storing port name failed");
+            goto cleanup;
         }
     }
 
-    return RETURN_OK;
+cleanup:
+    StringContainerDestroy(portNames);
+
+    return retVal;
 }
 
 static int IsWriteResults(void * elem, void * ignore) {
