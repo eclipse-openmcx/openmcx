@@ -1233,7 +1233,7 @@ cleanup_1:
             goto cleanup;
         }
 
-        ChannelValueRefSetFromReference(storeRef, outInfo->initialValue, targetDim, NULL);
+        ChannelValueRefSetFromReference(storeRef, ChannelValueReference(outInfo->initialValue), targetDim, NULL);
         connection->useInitialValue_ = TRUE;
     } else {
         {
