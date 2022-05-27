@@ -900,15 +900,15 @@ static McxStatus ArraysValidForConversion(ChannelValueRef * dest,
     // check dimensions match
     if (srcDimension) {
         if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-            return ChannelDimensionsConform(srcDimension, dest->ref.value->type->ty.a.dims, dest->ref.value->type->ty.a.numDims) ? RETURN_OK : RETURN_ERROR;
+            return ChannelDimensionConformsTo(srcDimension, dest->ref.value->type->ty.a.dims, dest->ref.value->type->ty.a.numDims) ? RETURN_OK : RETURN_ERROR;
         } else {
-            return ChannelDimensionConformable(dest->ref.slice->dimension, srcDimension) ? RETURN_OK : RETURN_ERROR;
+            return ChannelDimensionConformsToDimension(dest->ref.slice->dimension, srcDimension) ? RETURN_OK : RETURN_ERROR;
         }
     } else {
         if (dest->type == CHANNEL_VALUE_REF_VALUE) {
             return mcx_array_dims_match(&dest->ref.value->value.a, src) ? RETURN_OK : RETURN_ERROR;
         } else {
-            return ChannelDimensionsConform(dest->ref.slice->dimension, src->dims, src->numDims) ? RETURN_OK : RETURN_ERROR;
+            return ChannelDimensionConformsTo(dest->ref.slice->dimension, src->dims, src->numDims) ? RETURN_OK : RETURN_ERROR;
         }
     }
 
@@ -1404,9 +1404,9 @@ static McxStatus TypeConversionConvertId(TypeConversion * conversion, ChannelVal
 static int DimensionsMatch(ChannelType * fromType, ChannelDimension * fromDimension, ChannelType * toType, ChannelDimension * toDimension) {
     if (fromDimension) {
         if (!toDimension) {
-            return ChannelDimensionsConform(fromDimension, toType->ty.a.dims, toType->ty.a.numDims);
+            return ChannelDimensionConformsTo(fromDimension, toType->ty.a.dims, toType->ty.a.numDims);
         } else {
-            return ChannelDimensionConformable(toDimension, fromDimension);
+            return ChannelDimensionConformsToDimension(toDimension, fromDimension);
         }
     } else {
         if (!toDimension) {
@@ -1423,7 +1423,7 @@ static int DimensionsMatch(ChannelType * fromType, ChannelDimension * fromDimens
 
             return 1;
         } else {
-            return ChannelDimensionsConform(toDimension, fromType->ty.a.dims, fromType->ty.a.numDims);
+            return ChannelDimensionConformsTo(toDimension, fromType->ty.a.dims, fromType->ty.a.numDims);
         }
     }
 }

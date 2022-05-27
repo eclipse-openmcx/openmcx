@@ -426,8 +426,8 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         valRef->type = CHANNEL_VALUE_REF_SLICE;
         valRef->ref.slice = (ArraySlice *) mcx_calloc(1, sizeof(ArraySlice));
         valRef->ref.slice->ref = &channel->value;
-        valRef->ref.slice->dimension = ChannelDimensionClone(dimension);
-        retVal = ChannelDimensionNormalize(valRef->ref.slice->dimension, inInfo->dimension);
+        valRef->ref.slice->dimension = CloneChannelDimension(dimension);
+        retVal = ChannelDimensionAlignIndicesWithZero(valRef->ref.slice->dimension, inInfo->dimension);
         if (retVal == RETURN_ERROR) {
             ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Normalizing array slice dimension failed");
             return RETURN_ERROR;

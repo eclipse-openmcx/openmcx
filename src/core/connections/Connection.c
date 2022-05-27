@@ -1177,13 +1177,13 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         ChannelValue * inChannelValue = inInfo->initialValue;
         ChannelDimension * srcDim = NULL;
 
-        srcDim = ChannelDimensionClone(info->targetDimension);
+        srcDim = CloneChannelDimension(info->targetDimension);
         if (srcDim) {
             mcx_log(LOG_ERROR, "Could not clone source dimension");
             retVal = RETURN_ERROR;
             goto cleanup_1;
         }
-        retVal = ChannelDimensionNormalize(srcDim, inInfo->dimension);
+        retVal = ChannelDimensionAlignIndicesWithZero(srcDim, inInfo->dimension);
         if (retVal == RETURN_ERROR) {
             mcx_log(LOG_ERROR, "Dimension normalization failed");
             goto cleanup_1;
@@ -1219,14 +1219,14 @@ cleanup_1:
             goto cleanup;
         }
     } else if (outInfo->initialValue) {
-        ChannelDimension * targetDim = ChannelDimensionClone(info->sourceDimension);
+        ChannelDimension * targetDim = CloneChannelDimension(info->sourceDimension);
         if (targetDim) {
             mcx_log(LOG_ERROR, "Could not clone target dimension");
             retVal = RETURN_ERROR;
             goto cleanup;
         }
 
-        retVal = ChannelDimensionNormalize(targetDim, outInfo->dimension);
+        retVal = ChannelDimensionAlignIndicesWithZero(targetDim, outInfo->dimension);
         if (retVal == RETURN_ERROR) {
             mcx_log(LOG_ERROR, "Dimension normalization failed");
             object_destroy(targetDim);
@@ -1282,8 +1282,8 @@ static McxStatus ConnectionInitSetToStore(Connection * connection) {
     storeRef->ref.value = &connection->store_;
 
     ConnectionInfo * connInfo = connection->GetInfo(connection);
-    ChannelDimension * clone = ChannelDimensionClone(connInfo->sourceDimension);
-    ChannelDimensionNormalize(clone, info->dimension);
+    ChannelDimension * clone = CloneChannelDimension(connInfo->sourceDimension);
+    ChannelDimensionAlignIndicesWithZero(clone, info->dimension);
     if (RETURN_OK != ChannelValueRefSetFromReference(storeRef, channel->GetValueReference(channel), clone, NULL)) {
         return RETURN_ERROR;
     }

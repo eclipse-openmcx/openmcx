@@ -117,7 +117,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
 
         // arrays/multiplexing: source slice dimensions
         if (connInput->fromType == ENDPOINT_VECTOR) {
-            ChannelDimension* sourceDimension = (ChannelDimension*)object_create(ChannelDimension);
+            ChannelDimension * sourceDimension = MakeChannelDimension();
             if (!sourceDimension) {
                 retVal = RETURN_ERROR;
                 goto cleanup;
@@ -126,12 +126,14 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
                 mcx_log(LOG_ERROR, "Source port %s: Could not set number of dimensions", strFromChannel);
                 retVal = RETURN_ERROR;
+                DestroyChannelDimension(&sourceDimension);
                 goto cleanup;
             }
 
             if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, connInput->from.vectorEndpoint->startIndex, connInput->from.vectorEndpoint->endIndex)) {
                 mcx_log(LOG_ERROR, "Source port %s: Could not set dimension boundaries", strFromChannel);
                 retVal = RETURN_ERROR;
+                DestroyChannelDimension(&sourceDimension);
                 goto cleanup;
             }
 
@@ -201,7 +203,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
 
         // arrays/multiplexing: target slice dimensions
         if (connInput->toType == ENDPOINT_VECTOR) {
-            ChannelDimension * targetDimension = (ChannelDimension *) object_create(ChannelDimension);
+            ChannelDimension * targetDimension = MakeChannelDimension();
             if (!targetDimension) {
                 retVal = RETURN_ERROR;
                 goto cleanup;
@@ -210,6 +212,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             if (RETURN_OK != ChannelDimensionSetup(targetDimension, 1)) {
                 mcx_log(LOG_ERROR, "Target port %s: Could not set number of dimensions", strToChannel);
                 retVal = RETURN_ERROR;
+                DestroyChannelDimension(&targetDimension);
                 goto cleanup;
             }
 
@@ -220,6 +223,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             {
                 mcx_log(LOG_ERROR, "Target port %s: Could not set dimension boundaries", strToChannel);
                 retVal = RETURN_ERROR;
+                DestroyChannelDimension(&targetDimension);
                 goto cleanup;
             }
 
@@ -280,36 +284,6 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
 
         mcx_log(LOG_DEBUG, "Connection: Inverted connection (%s, %s) -- (%s, %s)",
             info->targetComponent->GetName(info->targetComponent), strFromChannel, info->sourceComponent->GetName(info->sourceComponent), strToChannel);
-    }
-
-    // source dimension
-    {
-        EndpointInputType endpointType = connectionInverted ? connInput->toType : connInput->fromType;
-
-        if (endpointType == ENDPOINT_VECTOR) {
-            size_t startIndex = (size_t) (connectionInverted ? connInput->to.vectorEndpoint->startIndex : connInput->from.vectorEndpoint->startIndex);
-            size_t endIndex = (size_t)(connectionInverted ? connInput->to.vectorEndpoint->endIndex : connInput->from.vectorEndpoint->endIndex);
-
-            ChannelDimension* sourceDimension = (ChannelDimension*)object_create(ChannelDimension);
-            if (!sourceDimension) {
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
-                mcx_log(LOG_ERROR, "Could not setup ChannelDimension");
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, startIndex, endIndex)) {
-                mcx_log(LOG_ERROR, "Could not SetDimension");
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            info->sourceDimension = sourceDimension;
-        }
     }
 
     {
