@@ -212,25 +212,25 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         }
 
         // prepare slice dimensions
-        srcDim = ChannelDimensionClone(info->sourceDimension);
+        srcDim = CloneChannelDimension(info->sourceDimension);
         if (info->sourceDimension && !srcDim) {
             mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension slice allocation failed");
             goto cleanup_1;
         }
 
-        retVal = ChannelDimensionNormalize(srcDim, srcChannelInfo->dimension);
+        retVal = ChannelDimensionAlignIndicesWithZero(srcDim, srcChannelInfo->dimension);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension normalization failed");
             goto cleanup_1;
         }
 
-        trgDim = ChannelDimensionClone(info->targetDimension);
+        trgDim = CloneChannelDimension(info->targetDimension);
         if (info->targetDimension && !trgDim) {
             mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension slice allocation failed");
             goto cleanup_1;
         }
 
-        retVal = ChannelDimensionNormalize(trgDim, trgChannelInfo->dimension);
+        retVal = ChannelDimensionAlignIndicesWithZero(trgDim, trgChannelInfo->dimension);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension normalization failed");
             goto cleanup_1;

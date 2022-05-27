@@ -83,7 +83,7 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
             goto vector_cleanup_0;
         }
 
-        info->dimension = (ChannelDimension *) object_create(ChannelDimension);
+        info->dimension = MakeChannelDimension();
         if (!info->dimension) {
             retVal = RETURN_ERROR;
             goto vector_cleanup_0;

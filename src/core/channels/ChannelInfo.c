@@ -233,7 +233,7 @@ McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other) {
 
     object_destroy(info->dimension);
     if (other->dimension) {
-        info->dimension = ChannelDimensionClone(other->dimension);
+        info->dimension = CloneChannelDimension(other->dimension);
         if (!info->dimension) {
             mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set dimension");
             return RETURN_ERROR;

@@ -9,27 +9,15 @@
  ********************************************************************************/
 
 #include "core/channels/ChannelDimension.h"
+
 #include "util/stdlib.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 
-void ChannelDimensionDestructor(ChannelDimension * dimension) {
-    if (dimension->startIdxs) { mcx_free(dimension->startIdxs); }
-    if (dimension->endIdxs) { mcx_free(dimension->endIdxs); }
-}
-
-ChannelDimension * ChannelDimensionCreate(ChannelDimension * dimension) {
-    dimension->num = 0;
-    dimension->startIdxs = NULL;
-    dimension->endIdxs = NULL;
-
-    return dimension;
-}
-
-OBJECT_CLASS(ChannelDimension, Object);
 
 McxStatus ChannelDimensionSetup(ChannelDimension * dimension, size_t num) {
     dimension->num = num;
@@ -63,8 +51,9 @@ McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t num,
     return RETURN_OK;
 }
 
-size_t ChannelDimensionNumElements(ChannelDimension * dimension) {
-    size_t i = 0, n = 1;
+size_t ChannelDimensionNumElements(const ChannelDimension * dimension) {
+    size_t i = 0;
+    size_t n = 1;
 
     if (dimension->num == 0) {
         return 0;
@@ -77,7 +66,7 @@ size_t ChannelDimensionNumElements(ChannelDimension * dimension) {
     return n;
 }
 
-ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension) {
+ChannelDimension * CloneChannelDimension(const ChannelDimension * dimension) {
     ChannelDimension * clone = NULL;
     McxStatus retVal = RETURN_OK;
     size_t i = 0;
@@ -86,22 +75,22 @@ ChannelDimension * ChannelDimensionClone(ChannelDimension * dimension) {
         return NULL;
     }
 
-    clone = (ChannelDimension *) object_create(ChannelDimension);
+    clone = MakeChannelDimension();
     if (!clone) {
-        mcx_log(LOG_ERROR, "ChannelDimensionClone: Not enough memory");
+        mcx_log(LOG_ERROR, "CloneChannelDimension: Not enough memory");
         return NULL;
     }
 
     retVal = ChannelDimensionSetup(clone, dimension->num);
     if (RETURN_ERROR == retVal) {
-        mcx_log(LOG_ERROR, "Channel dimension setup failed");
+        mcx_log(LOG_ERROR, "CloneChannelDimension: Channel dimension setup failed");
         goto cleanup;
     }
 
     for (i = 0; i < dimension->num; i++) {
         retVal = ChannelDimensionSetDimension(clone, i, dimension->startIdxs[i], dimension->endIdxs[i]);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Channel dimension %zu set failed", i);
+            mcx_log(LOG_ERROR, "CloneChannelDimension: Channel dimension %zu set failed", i);
             goto cleanup;
         }
     }
@@ -113,7 +102,7 @@ cleanup:
     return NULL;
 }
 
-int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second) {
+int ChannelDimensionEq(const ChannelDimension * first, const ChannelDimension * second) {
     size_t i = 0;
 
     if (!first && !second) {
@@ -135,7 +124,7 @@ int ChannelDimensionEq(ChannelDimension * first, ChannelDimension * second) {
     return TRUE;
 }
 
-int ChannelDimensionConformable(ChannelDimension * first, ChannelDimension * second) {
+int ChannelDimensionConformsToDimension(const ChannelDimension * first, const ChannelDimension * second) {
     size_t i = 0;
 
     if (!first && !second) {
@@ -157,7 +146,7 @@ int ChannelDimensionConformable(ChannelDimension * first, ChannelDimension * sec
     return TRUE;
 }
 
-int ChannelDimensionsConform(ChannelDimension * dimension, size_t * dims, size_t numDims) {
+int ChannelDimensionConformsTo(const ChannelDimension * dimension, const size_t * dims, size_t numDims) {
     size_t i = 0;
     if (dimension->num != numDims) {
         return 0;
@@ -172,7 +161,7 @@ int ChannelDimensionsConform(ChannelDimension * dimension, size_t * dims, size_t
     return 1;
 }
 
-int ChannelDimensionIncludedIn(const ChannelDimension* first, const ChannelDimension* second) {
+int ChannelDimensionIncludedIn(const ChannelDimension * first, const ChannelDimension * second) {
     size_t i = 0;
 
     if (!first && !second) {
@@ -198,7 +187,7 @@ int ChannelDimensionIncludedIn(const ChannelDimension* first, const ChannelDimen
     return TRUE;
 }
 
-size_t ChannelDimensionGetIndex(ChannelDimension * dimension, size_t elem_idx, size_t * sizes) {
+size_t ChannelDimensionGetIndex(const ChannelDimension * dimension, size_t elem_idx, const size_t * sizes) {
     switch (dimension->num) {
         case 1:
             {
@@ -232,7 +221,7 @@ size_t ChannelDimensionGetIndex(ChannelDimension * dimension, size_t elem_idx, s
     return (size_t) -1;
 }
 
-size_t ChannelDimensionGetSliceIndex(ChannelDimension * dimension, size_t slice_idx, size_t * dims) {
+size_t ChannelDimensionGetSliceIndex(const ChannelDimension * dimension, size_t slice_idx, const size_t * dims) {
     switch (dimension->num) {
         case 1:
             {
@@ -304,7 +293,7 @@ char * ChannelDimensionString(const ChannelDimension * dimension) {
     return str;
 }
 
-McxStatus ChannelDimensionNormalize(ChannelDimension * target, ChannelDimension * base) {
+McxStatus ChannelDimensionAlignIndicesWithZero(ChannelDimension * target, const ChannelDimension * base) {
     size_t i = 0;
     if (!target && !base) {
         return RETURN_OK;
@@ -324,30 +313,19 @@ McxStatus ChannelDimensionNormalize(ChannelDimension * target, ChannelDimension 
     return RETURN_OK;
 }
 
-ChannelType * ChannelDimensionToChannelType(ChannelDimension * dimension, ChannelType * sourceType) {
-    if (dimension) {
-        // source data is an array
-        size_t i = 0;
-        ChannelType * type = NULL;
-        size_t * dims = (size_t *) mcx_calloc(sizeof(size_t), dimension->num);
+ChannelDimension * MakeChannelDimension() {
+    ChannelDimension * dimension = (ChannelDimension *) mcx_calloc(1, sizeof(ChannelDimension));
 
-        if (!dims) {
-            mcx_log(LOG_ERROR, "ChannelDimensionToChannelType: Not enough memory for dimension calculation");
-            return NULL;
-        }
-
-        for (i = 0; i < dimension->num; i++) {
-            dims[i] = dimension->endIdxs[i] - dimension->startIdxs[i] + 1;    // indices are inclusive
-        }
-
-        type = ChannelTypeArray(ChannelTypeClone(ChannelTypeBaseType(sourceType)), dimension->num, dims);
-        mcx_free(dims);
-        return type;
-    } else {
-        // source data is a scalar
-        return ChannelTypeClone(sourceType);
-    }
+    return dimension;
 }
+
+void DestroyChannelDimension(ChannelDimension ** dimension) {
+    if ((*dimension)->startIdxs) { mcx_free((*dimension)->startIdxs); }
+    if ((*dimension)->endIdxs) { mcx_free((*dimension)->endIdxs); }
+
+    *dimension = NULL;
+}
+
 
 
 #ifdef __cplusplus
