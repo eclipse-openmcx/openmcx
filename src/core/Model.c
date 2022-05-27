@@ -540,6 +540,35 @@ static McxStatus ModelSignalConnectionsDone(ObjectContainer * comps) {
     return RETURN_OK;
 }
 
+int ComponentsHaveVectorChannels(ObjectContainer * components) {
+    size_t numComps = components->Size(components);
+    size_t i = 0;
+
+    for (i = 0; i < numComps; i++) {
+        Component * comp = (Component *) components->At(components, i);
+        Databus * db = comp->GetDatabus(comp);
+        size_t numIns = DatabusGetInChannelsNum(db);
+        size_t numOuts = DatabusGetOutChannelsNum(db);
+        size_t j = 0;
+
+        for (j = 0; j < numIns; j++) {
+            ChannelInfo * info = DatabusGetInChannelInfo(db, j);
+            if (ChannelTypeIsArray(info->type)) {
+                return TRUE;
+            }
+        }
+
+        for (j = 0; j < numOuts; j++) {
+            ChannelInfo* info = DatabusGetOutChannelInfo(db, j);
+            if (ChannelTypeIsArray(info->type)) {
+                return TRUE;
+            }
+        }
+    }
+
+    return FALSE;
+}
+
 static McxStatus ModelConnectionsDone(Model * model) {
     OrderedNodes * orderedNodes = NULL;
     McxStatus retVal = RETURN_OK;
@@ -564,6 +593,13 @@ static McxStatus ModelConnectionsDone(Model * model) {
 
     // determine initialization evaluation order
     if (model->config->cosimInitEnabled) {
+        // separate triggering of array elements is not supported at the moment
+        // therefore some models with array ports might not work
+        if (ComponentsHaveVectorChannels(model->components)) {
+            mcx_log(LOG_ERROR, "Co-Simulation initialization: Components with vector ports are not supported");
+            return RETURN_ERROR;
+        }
+
         retVal = ModelCreateInitSubModel(model);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Model: InitSubModel could not be created");

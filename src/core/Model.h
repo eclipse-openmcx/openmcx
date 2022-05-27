@@ -97,6 +97,8 @@ McxStatus ModelConnectionsEnterInitMode(ObjectContainer * comps);
 McxStatus ModelConnectionsExitInitMode(ObjectContainer * comps, double time);
 McxStatus ModelDoConnectionsInitialization(ObjectContainer * comps, int onlyIfDecoupled);
 
+int ComponentsHaveVectorChannels(ObjectContainer * components);
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
