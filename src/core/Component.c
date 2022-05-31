@@ -384,7 +384,7 @@ McxStatus ComponentRegisterStorage(Component * comp, ResultsStorage * storage) {
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *) DatabusGetInChannel(db, i);
 
-        if (channel->IsValid(channel)) {
+        if (channel->ProvidesValue(channel)) {
             retVal = compStore->RegisterChannel(compStore, CHANNEL_STORE_IN, channel);
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not register inport %d at storage", i);
@@ -650,7 +650,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
     for (i = 0; i < numIn; i++) {
         Channel * channel = (Channel *) DatabusGetInChannel(db, i);
         char * id = channel->info.id;
-        int isValid = DatabusChannelInIsValid(db, i);
+        int isValid = channel->IsConnected(channel) || channel->info.defaultValue;
 
         if (NULL != id && isValid) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -661,7 +661,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
     for (i = 0; i < numLocal; i++) {
         Channel * channel = (Channel *) DatabusGetLocalChannel(db, i);
         char * id = channel->info.id;
-        int isValid = DatabusChannelLocalIsValid(db, i);
+        int isValid = channel->ProvidesValue(channel);
 
         if (NULL != id && isValid) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -672,7 +672,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
     for (i = 0; i < numRTFactor; i++) {
         Channel * channel = (Channel *) DatabusGetRTFactorChannel(db, i);
         char * id = channel->info.id;
-        int isValid = DatabusChannelRTFactorIsValid(db, i);
+        int isValid = channel->ProvidesValue(channel);
 
         if (NULL != id && isValid) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -690,7 +690,7 @@ static size_t ComponentGetNumConnectedOutChannels(const Component * comp) {
 
     for (i = 0; (int) i < DatabusInfoGetChannelNum(DatabusGetOutInfo(comp->data->databus)); i++) {
         Channel * channel = (Channel *) DatabusGetOutChannel(comp->data->databus, i);
-        if (channel->IsValid(channel)) {
+        if (channel->IsConnected(channel)) {
             count++;
         }
     }

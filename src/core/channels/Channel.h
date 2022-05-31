@@ -37,6 +37,8 @@ typedef int (* fChannelIsValid)(Channel * channel);
 
 typedef int (* fChannelIsConnected)(Channel * channel);
 
+typedef int (* fChannelIsFullyConnected)(Channel * channel);
+
 typedef int (* fChannelIsDefinedDuringInit)(Channel * channel);
 
 typedef void (* fChannelSetDefinedDuringInit)(Channel * channel);
@@ -82,12 +84,17 @@ struct Channel {
      *
      * Returns true if a channel provides a value (connected or default value)
      */
-    fChannelIsValid IsValid;
+    fChannelIsValid ProvidesValue;
 
     /**
-     * Returns true if a channel is connected
+     * Returns true if a channel is connected (i.e., atleast one element of the channel)
      */
     fChannelIsConnected IsConnected;
+
+    /**
+     * Returns true if all elements of the channel are connected
+     */
+    fChannelIsFullyConnected IsFullyConnected;
 
     /**
      * Getter for the flag data->isDefinedDuringInit

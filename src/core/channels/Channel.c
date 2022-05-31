@@ -139,9 +139,10 @@ static Channel * ChannelCreate(Channel * channel) {
     // virtual functions
     channel->GetValueReference = NULL;
     channel->Update = NULL;
-    channel->IsValid = NULL;
+    channel->ProvidesValue = NULL;
 
     channel->IsConnected = NULL;
+    channel->IsFullyConnected = NULL;
 
     return channel;
 }
@@ -247,7 +248,7 @@ static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, Channel
 
 static const void * ChannelInGetValueReference(Channel * channel) {
     ChannelIn * in = (ChannelIn *) channel;
-    if (!channel->IsValid(channel)) {
+    if (!channel->ProvidesValue(channel)) {
         const static int maxCountError = 10;
         static int i = 0;
         if (i < maxCountError) {
@@ -341,9 +342,28 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     return RETURN_OK;
 }
 
-static int ChannelInIsValid(Channel * channel) {
+static int ChannelInIsFullyConnected(Channel * channel) {
+    ChannelIn * in = (ChannelIn *) channel;
+    size_t i = 0;
+    size_t connectedElems = 0;
+    size_t channelNumElems = channel->info.dimension ? ChannelDimensionNumElements(channel->info.dimension) : 1;
 
-    if (channel->IsConnected(channel)) {
+    for (i = 0; i < in->data->connections->Size(in->data->connections); i++) {
+        Connection * conn = (Connection *) in->data->connections->At(in->data->connections, i);
+        ConnectionInfo * info = &conn->info;
+
+        connectedElems += info->targetDimension ? ChannelDimensionNumElements(info->targetDimension) : 1;
+    }
+
+    if (connectedElems == channelNumElems) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static int ChannelInProvidesValue(Channel * channel) {
+    if (ChannelInIsFullyConnected(channel)) {
         return TRUE;
     } else {
         ChannelInfo * info = &channel->info;
@@ -574,9 +594,10 @@ static ChannelIn * ChannelInCreate(ChannelIn * in) {
 
     // virtual functions
     channel->GetValueReference = ChannelInGetValueReference;
-    channel->IsValid           = ChannelInIsValid;
+    channel->ProvidesValue     = ChannelInProvidesValue;
     channel->Update            = ChannelInUpdate;
     channel->IsConnected       = ChannelInIsConnected;
+    channel->IsFullyConnected  = ChannelInIsFullyConnected;
 
     in->Setup        = ChannelInSetup;
     in->SetReference = ChannelInSetReference;
@@ -718,7 +739,7 @@ static const void * ChannelOutGetValueReference(Channel * channel) {
     ChannelInfo * info = &channel->info;
 
     // check if out is initialized
-    if (!channel->IsValid(channel)) {
+    if (!channel->ProvidesValue(channel)) {
         mcx_log(LOG_ERROR, "Port %s: Get value reference: No Value Reference", ChannelInfoGetLogName(info));
         return NULL;
     }
@@ -734,7 +755,7 @@ static ObjectList * ChannelOutGetConnections(ChannelOut * out) {
     return out->data->connections;
 }
 
-static int ChannelOutIsValid(Channel * channel) {
+static int ChannelOutProvidesValue(Channel * channel) {
     return (NULL != channel->internalValue);
 }
 
@@ -751,6 +772,43 @@ static int ChannelOutIsConnected(Channel * channel) {
     }
 
     return FALSE;
+}
+
+static int ChannelOutIsFullyConnected(Channel * channel) {
+    ChannelOut * out = (ChannelOut *) channel;
+
+    if (ChannelTypeIsArray(&channel->info.type)) {
+        ObjectList* conns = out->data->connections;
+        size_t i = 0;
+        size_t num_elems = ChannelDimensionNumElements(channel->info.dimension);
+
+        int * connected = (int *) mcx_calloc(num_elems, sizeof(int));
+        if (!connected) {
+            mcx_log(LOG_ERROR, "ChannelOutIsFullyConnected: Not enough memory");
+            return -1;
+        }
+
+        for (i = 0; i < conns->Size(conns); i++) {
+            Connection * conn = (Connection *) out->data->connections->At(out->data->connections, i);
+            ConnectionInfo * info = &conn->info;
+            size_t j = 0;
+
+            for (j = 0; j < ChannelDimensionNumElements(info->sourceDimension); i++) {
+                size_t idx = ChannelDimensionGetIndex(info->sourceDimension, j, channel->info.type->ty.a.dims);
+                connected[idx] = 1;
+            }
+        }
+
+        for (i = 0; i < num_elems; i++) {
+            if (!connected[i]) {
+                return FALSE;
+            }
+        }
+
+        return TRUE;
+    } else {
+        return ChannelOutIsConnected(channel);
+    }
 }
 
 static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference, ChannelType * type) {
@@ -978,9 +1036,10 @@ static ChannelOut * ChannelOutCreate(ChannelOut * out) {
 
     // virtual functions
     channel->GetValueReference = ChannelOutGetValueReference;
-    channel->IsValid           = ChannelOutIsValid;
+    channel->ProvidesValue     = ChannelOutProvidesValue;
     channel->Update            = ChannelOutUpdate;
     channel->IsConnected       = ChannelOutIsConnected;
+    channel->IsFullyConnected  = ChannelOutIsFullyConnected;
 
     out->Setup                = ChannelOutSetup;
     out->RegisterConnection   = ChannelOutRegisterConnection;
@@ -1020,7 +1079,7 @@ static McxStatus ChannelLocalUpdate(Channel * channel, TimeInterval * time) {
     return RETURN_OK;
 }
 
-static int ChannelLocalIsValid(Channel * channel) {
+static int ChannelLocalProvidesValue(Channel * channel) {
     return (channel->internalValue != NULL);
 }
 
@@ -1068,9 +1127,9 @@ static ChannelLocal * ChannelLocalCreate(ChannelLocal * local) {
     // virtual functions
     channel->GetValueReference = ChannelLocalGetValueReference;
     channel->Update            = ChannelLocalUpdate;
-    channel->IsValid           = ChannelLocalIsValid;
+    channel->ProvidesValue     = ChannelLocalProvidesValue;
 
-    channel->IsConnected       = ChannelLocalIsValid;
+    channel->IsConnected       = ChannelLocalProvidesValue;
 
     local->Setup        = ChannelLocalSetup;
     local->SetReference = ChannelLocalSetReference;

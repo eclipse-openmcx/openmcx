@@ -50,11 +50,12 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
     numChannels = DatabusInfoGetChannelNum(dbInfo);
     vals = fmu1->in;
     for (i = 0; i < numChannels; i++) {
+        Channel * ch = (Channel *) DatabusGetInChannel(db, i);
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
         ChannelDimension * dimension = info->dimension;
         ChannelType * type = info->type;
 
-        if (DatabusChannelInIsValid(db, i)) {
+        if (ch->IsConnected(ch) || ch->info.defaultValue) {
             Fmu1Value * val = NULL;
             fmi1_import_variable_t * var = NULL;
 
@@ -375,10 +376,11 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
     numChannels = DatabusInfoGetChannelNum(dbInfo);
 
     for (i = 0; i < numChannels; i++) {
+        Channel * ch = (Channel *)DatabusGetInChannel(db, i);
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
         Fmu2Value * val = (Fmu2Value *) vals->At(vals, i);
 
-        if (DatabusChannelInIsValid(db, i)) {
+        if (ch->IsConnected(ch) || ch->info.defaultValue) {
             const char * channelName = info->nameInTool;
             if (NULL == channelName) {
                 channelName = ChannelInfoGetName(info);
@@ -1132,8 +1134,9 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
 
     for (i = 0; i < num_in_vars; ++i) {
         Fmu2Value *val = (Fmu2Value *)in_vars->At(in_vars, i);
+        Channel * ch = (Channel *) DatabusGetInChannel(db, i);
         ChannelInfo * info = DatabusInfoGetChannel(db_info, i);
-        if (DatabusChannelInIsValid(db, k) && info->connected) {
+        if (ch->IsConnected(ch)) {
             // key i in the map means channel i is connected
             in_channel_connectivity->Add(in_channel_connectivity, i, 1 /* true */);
         }
@@ -1284,7 +1287,8 @@ static struct Dependencies* Fmu2GetInOutGroupsInitialDependency(const Component 
             size_t dummy_num_out = 1;
             dependencies = DependenciesCreate(num_in, dummy_num_out);
             for (j = 0; j < num_in; ++j) {
-                if (DatabusChannelInIsValid(db, j)) {
+                Channel * ch = (Channel *) DatabusGetInChannel(db, j);
+                if (ch->IsConnected(ch) || ch->info.defaultValue) {
                     retVal = SetDependency(dependencies, j, 0, DEP_DEPENDENT);
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Initial dependency matrix for %s could not be created", comp->GetName(comp));
