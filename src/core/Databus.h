@@ -150,37 +150,6 @@ struct ChannelInfo * DatabusGetInChannelInfo (struct Databus * db, size_t channe
  */
 struct ChannelInfo * DatabusGetOutChannelInfo(struct Databus * db, size_t channel);
 
-/**
- * \return \c TRUE if the in channel \a channel in \a db is connected or
- * provides a default value, and \c FALSE if it is not connected or \a db or \a
- * channel are invalid.
- */
-int DatabusChannelInIsValid(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the in channel \a channel in \a db is connected or
- * and \c FALSE otherwise
- */
-int DatabusChannelInIsConnected(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the out channel \a channel in \a db is connected, and \c
- * FALSE if it is not connected or \a db or \a channel are invalid.
- */
-int DatabusChannelOutIsValid(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the local channel \a channel in \a db has a reference, and \c
- * FALSE if it has no reference or \a db or \a channel are invalid.
- */
-int DatabusChannelLocalIsValid(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the rtfactor channel \a channel in \a db has a reference, and \c
- * FALSE if it has no reference or \a db or \a channel are invalid.
- */
-int DatabusChannelRTFactorIsValid(struct Databus * db, size_t channel);
-
 
 /** private interface for Component **/
 

@@ -950,12 +950,11 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *)DatabusGetInChannel(db, i);
+        ChannelIn * in = (ChannelIn *) channel;
         ChannelInfo * info = &channel->info;
 
-        if ((info->mode == CHANNEL_MANDATORY)
-            && !channel->IsValid(channel)) {
-            mcx_log(LOG_ERROR, "Model: %d. inport (%s) of element %s not connected"
-                , i+1, ChannelInfoGetName(info), comp->GetName(comp));
+        if (info->mode == CHANNEL_MANDATORY && !channel->ProvidesValue(channel)) {
+            mcx_log(LOG_ERROR, "Model: %d. inport (%s) of element %s not connected", i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }
@@ -964,10 +963,8 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
         Channel * channel = (Channel *)DatabusGetOutChannel(db, i);
         ChannelInfo * info = &channel->info;
 
-        if ((info->mode == CHANNEL_MANDATORY)
-            && !channel->IsValid(channel)) {
-            mcx_log(LOG_ERROR, "Model: %d. outport (%s) of element %s not connected"
-                , i+1, ChannelInfoGetName(info), comp->GetName(comp));
+        if (info->mode == CHANNEL_MANDATORY && !channel->ProvidesValue(channel)) {
+            mcx_log(LOG_ERROR, "Model: %d. outport (%s) of element %s not connected", i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }

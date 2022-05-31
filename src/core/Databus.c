@@ -656,7 +656,7 @@ McxStatus DatabusTriggerInConnections(Databus * db, TimeInterval * consumerTime)
 
     for (i = 0; i < numIn; i++) {
         Channel * channel = (Channel *) db->data->in[i];
-        if (channel->IsValid(channel)) {
+        if (channel->IsConnected(channel) || channel->info.defaultValue) {
             retVal = channel->Update(channel, consumerTime);
             if (RETURN_OK != retVal) {
                 ChannelInfo * info = &channel->info;
@@ -1292,81 +1292,6 @@ ChannelInfo * DatabusGetLocalChannelInfo(Databus * db, size_t channel) {
     }
 
     return (ChannelInfo *) data->infos->At(data->infos, channel);
-}
-
-int DatabusChannelInIsValid(Databus * db, size_t channel) {
-    Channel * in = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    in = (Channel *) DatabusGetInChannel(db, channel);
-    if (!in) {
-        return FALSE;
-    }
-
-    return in->IsValid(in);
-}
-
-int DatabusChannelInIsConnected(struct Databus * db, size_t channel) {
-    Channel * in = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    in = (Channel *) DatabusGetInChannel(db, channel);
-    if (!in) {
-        return FALSE;
-    }
-
-    return in->IsConnected(in);
-}
-
-int DatabusChannelOutIsValid(Databus * db, size_t channel) {
-    Channel * out = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    out = (Channel *) DatabusGetOutChannel(db, channel);
-    if (!out) {
-        return FALSE;
-    }
-
-    return out->IsValid(out);
-}
-
-int DatabusChannelLocalIsValid(Databus * db, size_t channel) {
-    Channel * local = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    local = (Channel *) DatabusGetLocalChannel(db, channel);
-    if (!local) {
-        return FALSE;
-    }
-
-    return local->IsValid(local);
-}
-
-int DatabusChannelRTFactorIsValid(Databus * db, size_t channel) {
-    Channel * rtfactor = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    rtfactor = (Channel *) DatabusGetRTFactorChannel(db, channel);
-    if (!rtfactor) {
-        return FALSE;
-    }
-
-    return rtfactor->IsValid(rtfactor);
 }
 
 McxStatus DatabusCollectModeSwitchData(Databus * db) {
