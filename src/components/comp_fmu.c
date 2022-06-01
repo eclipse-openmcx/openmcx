@@ -1095,6 +1095,41 @@ static ChannelMode GetInChannelDefaultMode(struct Component * comp) {
     return CHANNEL_OPTIONAL;
 }
 
+typedef struct ConnectedElems{
+    int is_connected;
+    size_t num_elems;
+    size_t * elems;
+} ConnectedElems;
+
+typedef struct ChannelElement {
+    size_t channel_idx;
+    size_t elem_idx;
+} ChannelElement;
+
+static Vector * GetAllElems(ChannelElement * elems, size_t num, size_t channel_idx) {
+    size_t i = 0;
+    Vector * indices = (Vector *) object_create(Vector);
+
+    if (!indices) {
+        mcx_log(LOG_ERROR, "GetAllElems: Not enough memory");
+        return NULL;
+    }
+
+    indices->Setup(indices, sizeof(size_t), NULL, NULL, NULL);
+
+    for (i = 0; i < num; i++) {
+        if (elems[i].channel_idx == channel_idx) {
+            if (RETURN_ERROR == indices->PushBack(indices, &elems[i].elem_idx)) {
+                mcx_log(LOG_ERROR, "GetAllElems: Collecting element indices failed");
+                object_destroy(indices);
+                return NULL;
+            }
+        }
+    }
+
+    return indices;
+}
+
 static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps) {
     Component * comp = (Component *) compFmu;
     McxStatus ret_val = RETURN_OK;
@@ -1107,12 +1142,10 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
     size_t num_dependencies = 0;
     size_t dep_idx = 0;
 
+    // mapping between dependency indices (from the modelDescription file) and the dependency <-> channel mapping
     SizeTSizeTMap *dependencies_to_in_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
-    // dictionary used to store input connection information
-    SizeTSizeTMap *in_channel_connectivity = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
+    // mapping between unknown indices (from the modelDescription file) and the unknowns <-> channel list
     SizeTSizeTMap *unknowns_to_out_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
-    // dictionary used to later find ommitted <Unknown> elements
-    SizeTSizeTMap *processed_out_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
 
     // get dependency information via the fmi library
     fmi2_import_variable_list_t * init_unknowns = fmi2_import_get_initial_unknowns_list(compFmu->fmu2.fmiImport);
@@ -1132,19 +1165,104 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
     DatabusInfo * db_info = DatabusGetInInfo(db);
     size_t num_in_channels = DatabusInfoGetChannelNum(db_info);
 
+    // list describing for each channel which channel elements are connected
+    ConnectedElems * in_channel_connectivity = (ConnectedElems *) mcx_calloc(num_in_channels, sizeof(ConnectedElems));
+    if (!in_channel_connectivity) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity map allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    // List which for each dependency describes which channel and element index it corresponds to
+    // The index of elements in this list doesn't correspond to the dependency index from the modelDescription file
+    ChannelElement * dependencies_to_inputs = (ChannelElement *) mcx_calloc(DatabusGetInChannelsElemNum(db), sizeof(ChannelElement));
+    if (!dependencies_to_inputs) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Dependencies to inputs map allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    // list used to know the mapping between unknowns and channels/elements
+    ChannelElement * unknowns_to_outputs = (ChannelElement *) mcx_calloc(DatabusGetOutChannelsElemNum(db), sizeof(ChannelElement));
+    if (!unknowns_to_outputs) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Unknowns to outputs map allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    // List used to later find ommitted <Unknown> elements
+    ChannelElement * processed_output_elems = (ChannelElement *) mcx_calloc(DatabusGetOutChannelsElemNum(db), sizeof(ChannelElement));
+    if (!processed_output_elems) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Processed output elements allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
     for (i = 0; i < num_in_vars; ++i) {
         Fmu2Value *val = (Fmu2Value *)in_vars->At(in_vars, i);
         Channel * ch = (Channel *) DatabusGetInChannel(db, i);
+        ChannelIn * in = (ChannelIn *) ch;
         ChannelInfo * info = DatabusInfoGetChannel(db_info, i);
         if (ch->IsConnected(ch)) {
-            // key i in the map means channel i is connected
-            in_channel_connectivity->Add(in_channel_connectivity, i, 1 /* true */);
+            if (ChannelTypeIsArray(info->type)) {
+                in_channel_connectivity[i].is_connected = TRUE;
+                in_channel_connectivity[i].num_elems = 0;
+                in_channel_connectivity[i].elems = (int *) mcx_calloc(ChannelDimensionNumElements(info->dimension), sizeof(size_t));
+                if (!in_channel_connectivity[i].elems) {
+                    mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element container allocation failed");
+                    ret_val = RETURN_ERROR;
+                    goto cleanup;
+                }
+
+                // if an element index appears in elems, it means that element is connected
+                ObjectContainer * connInfos = in->GetConnectionInfos(in);
+                for (j = 0; j < connInfos->Size(connInfos); j++) {
+                    ConnectionInfo * connInfo = (ConnectionInfo *) connInfos->At(connInfos, j);
+                    size_t k = 0;
+
+                    for (k = 0; k < ChannelDimensionNumElements(connInfo->targetDimension); k++) {
+                        size_t idx = ChannelDimensionGetIndex(connInfo->targetDimension, k, info->type->ty.a.dims) - info->dimension->startIdxs[0];
+                        in_channel_connectivity[i].elems[in_channel_connectivity[i].num_elems++] = idx;
+                    }
+                }
+            } else {
+                in_channel_connectivity[i].is_connected = TRUE;
+                // scalar channels are treated like they have 1 element (equal to zero)
+                in_channel_connectivity[i].num_elems = 1;
+                in_channel_connectivity[i].elems = (int*)mcx_calloc(1, sizeof(size_t));
+                if (!in_channel_connectivity[i].elems) {
+                    mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element allocation failed");
+                    ret_val = RETURN_ERROR;
+                    goto cleanup;
+                }
+                in_channel_connectivity[i].elems[0] = 0;
+            }
         }
 
         if (val->data->type == FMU2_VALUE_SCALAR) {
             fmi2_import_variable_t *var = val->data->data.scalar;
             size_t idx = fmi2_import_get_variable_original_order(var) + 1;
-            dependencies_to_in_channels->Add(dependencies_to_in_channels, idx, i);
+            dependencies_to_in_channels->Add(dependencies_to_in_channels, idx, dep_idx);
+
+            dependencies_to_inputs[dep_idx].channel_idx = i;
+            dep_idx++;
+        } else if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                fmi2_import_variable_t * var = val->data->data.array.values[j];
+                size_t idx = fmi2_import_get_variable_original_order(var) + 1;
+                dependencies_to_in_channels->Add(dependencies_to_in_channels, idx, dep_idx);
+
+                dependencies_to_inputs[dep_idx].channel_idx = i;
+                dependencies_to_inputs[dep_idx].elem_idx = j;
+                dep_idx++;
+            }
         }
     }
 
@@ -1153,8 +1271,7 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
     if (start_index == NULL) {
         for (i = 0; i < GetDependencyNumOut(deps); ++i) {
             for (j = 0; j < GetDependencyNumIn(deps); ++j) {
-                SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, j);
-                if (elem) {
+                if (in_channel_connectivity[j].is_connected) {
                     ret_val = SetDependency(deps, j, i, DEP_DEPENDENT);
                     if (RETURN_OK != ret_val) {
                         goto cleanup;
@@ -1167,20 +1284,42 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
     }
 
     // map each initial_unkown index to an output channel index
+    // for array channels, there might be multiple entries initial_unknown_idx -> channel_idx
     ObjectContainer *out_vars = compFmu->fmu2.out;
     size_t num_out_vars = out_vars->Size(out_vars);
-
+    size_t unknown_idx = 0;
     for (i = 0; i < num_out_vars; ++i) {
         Fmu2Value *val = (Fmu2Value *)out_vars->At(out_vars, i);
 
         if (val->data->type == FMU2_VALUE_SCALAR) {
             fmi2_import_variable_t *var = val->data->data.scalar;
             size_t idx = fmi2_import_get_variable_original_order(var) + 1;
-            unknowns_to_out_channels->Add(unknowns_to_out_channels, idx, i);
+            unknowns_to_out_channels->Add(unknowns_to_out_channels, idx, unknown_idx);
+
+            unknowns_to_outputs[unknown_idx].channel_idx = i;
+            unknown_idx++;
+        } else if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                fmi2_import_variable_t * var = val->data->data.array.values[j];
+                size_t idx = fmi2_import_get_variable_original_order(var) + 1;
+                unknowns_to_out_channels->Add(unknowns_to_out_channels, idx, unknown_idx);
+
+                unknowns_to_outputs[unknown_idx].channel_idx = i;
+                unknowns_to_outputs[unknown_idx].elem_idx = j;
+                unknown_idx++;
+            }
         }
     }
 
     // fill up the dependency matrix
+    size_t processed_elems = 0;
     for (i = 0; i < num_init_unknowns; ++i) {
         fmi2_import_variable_t *init_unknown = fmi2_import_get_variable(init_unknowns, i);
         size_t init_unknown_idx = fmi2_import_get_variable_original_order(init_unknown) + 1;
@@ -1190,7 +1329,11 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
             continue;      // in case some variables are ommitted from the input file
         }
 
-        processed_out_channels->Add(processed_out_channels, out_pair->value, 1);
+        ChannelElement * out_elem = &unknowns_to_outputs[out_pair->value];
+
+        processed_output_elems[processed_elems].channel_idx = out_elem->channel_idx;
+        processed_output_elems[processed_elems].elem_idx = out_elem->elem_idx;
+        processed_elems++;
 
         num_dependencies = start_index[i + 1] - start_index[i];
         for (j = 0; j < num_dependencies; ++j) {
@@ -1199,9 +1342,8 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
                 // The <Unknown> element does not explicitly define a `dependencies` attribute
                 // In this case it depends on all inputs
                 for (k = 0; k < num_in_channels; ++k) {
-                    SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
-                    if (elem) {
-                        ret_val = SetDependency(deps, k, out_pair->value, DEP_DEPENDENT);
+                    if (in_channel_connectivity[k].is_connected) {
+                        ret_val = SetDependency(deps, k, out_elem->channel_idx, DEP_DEPENDENT);
                         if (RETURN_OK != ret_val) {
                             goto cleanup;
                         }
@@ -1210,13 +1352,20 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
             } else {
                 // The <Unknown> element explicitly defines its dependencies
                 SizeTSizeTElem * in_pair = dependencies_to_in_channels->Get(dependencies_to_in_channels, dep_idx);
-
                 if (in_pair) {
-                    SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, in_pair->value);
-                    if (elem) {
-                        ret_val = SetDependency(deps, in_pair->value, out_pair->value, DEP_DEPENDENT);
-                        if (RETURN_OK != ret_val) {
-                            goto cleanup;
+                    ChannelElement * dep = &dependencies_to_inputs[in_pair->value];
+
+                    ConnectedElems * elems = &in_channel_connectivity[dep->channel_idx];
+                    if (elems->is_connected) {
+                        size_t k = 0;
+                        for (k = 0; k < elems->num_elems; k++) {
+                            if (elems->elems[k] == dep->elem_idx) {
+                                ret_val = SetDependency(deps, dep->channel_idx, out_elem->channel_idx, DEP_DEPENDENT);
+                                if (RETURN_OK != ret_val) {
+                                    goto cleanup;
+                                }
+                                break;
+                            }
                         }
                     }
                 }
@@ -1227,16 +1376,23 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
     // Initial unknowns which are ommitted from the <InitialUnknowns> element in
     // modelDescription.xml file depend on all inputs
     for (i = 0; i < num_out_vars; ++i) {
-        if (processed_out_channels->Get(processed_out_channels, i) == NULL) {
-            Fmu2Value *val = (Fmu2Value *)out_vars->At(out_vars, i);
+        Fmu2Value * val = (Fmu2Value *) out_vars->At(out_vars, i);
 
-            if (val->data->type == FMU2_VALUE_ARRAY) {
-                size_t elem_idx = 0;
-                for (elem_idx = 0; elem_idx < val->data->data.array.numDims; elem_idx++) {
-                    if (fmi2_import_get_initial(val->data->data.array.values[elem_idx]) != fmi2_initial_enu_exact) {
+        Vector * elems = GetAllElems(processed_output_elems, processed_elems, i);
+
+        if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                if (!elems->Contains(elems, &j)) {
+                    if (fmi2_import_get_initial(val->data->data.array.values[j]) != fmi2_initial_enu_exact) {
                         for (k = 0; k < num_in_channels; ++k) {
-                            SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
-                            if (elem) {
+                            if (in_channel_connectivity[k].is_connected) {
                                 ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
                                 if (RETURN_OK != ret_val) {
                                     goto cleanup;
@@ -1245,27 +1401,37 @@ static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps
                         }
                     }
                 }
-            } else {
+            }
+        } else {
+            if (elems->Size(elems) == 0) {
                 if (fmi2_import_get_initial(val->data->data.scalar) != fmi2_initial_enu_exact) {
                     for (k = 0; k < num_in_channels; ++k) {
-                        SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
-                        if (elem) {
+                        if (in_channel_connectivity[k].is_connected) {
                             ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
                             if (RETURN_OK != ret_val) {
-                                goto cleanup;
+                                goto cleanup_1;
                             }
                         }
                     }
                 }
             }
         }
+
+        object_destroy(elems);
+        continue;
+
+cleanup_1:
+        object_destroy(elems);
+        goto cleanup;
     }
 
 cleanup:    // free dynamically allocated objects
     object_destroy(dependencies_to_in_channels);
-    object_destroy(in_channel_connectivity);
     object_destroy(unknowns_to_out_channels);
-    object_destroy(processed_out_channels);
+    if (in_channel_connectivity) { mcx_free(in_channel_connectivity); }
+    if (dependencies_to_inputs) { mcx_free(dependencies_to_inputs); }
+    if (unknowns_to_outputs) { mcx_free(unknowns_to_outputs); }
+    if (processed_output_elems) { mcx_free(processed_output_elems); }
     fmi2_import_free_variable_list(init_unknowns);
 
     return ret_val;
