@@ -24,7 +24,7 @@ typedef enum DependencyDef {
     DEP_FIXED = 3,
 } Dependency;
 
-struct Dependencies;
+typedef struct Dependencies Dependencies;
 
 struct Dependencies * DependenciesCreate(size_t numIn, size_t numOut);
 
