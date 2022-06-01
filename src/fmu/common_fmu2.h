@@ -19,6 +19,8 @@
 #include "reader/model/components/specific_data/FmuInput.h"
 #include "reader/model/parameters/ParametersInput.h"
 
+#include "core/Dependency.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -31,6 +33,8 @@ struct Fmu2CommonStruct;
 typedef struct Fmu2CommonStruct Fmu2CommonStruct;
 
 McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams, ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore);
+
+McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencies * deps, int init);
 
 // TODO: rename all variablearrays to something better
 McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals);
