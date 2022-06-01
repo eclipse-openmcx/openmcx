@@ -191,6 +191,11 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
             continue;
         }
 
+        if (!ChannelDimensionEq(trgChannelInfo->dimension, info->targetDimension)) {
+            filteredConns->PushBack(filteredConns, info);
+            continue;
+        }
+
         // else kick the connection and update the channel default value
         srcCompConst = (CompConstant *) srcComp;
         src = (ChannelValue *) mcx_calloc(1, sizeof(ChannelValue));
