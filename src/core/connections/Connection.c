@@ -1203,7 +1203,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
             }
         }
 
-        retVal = ChannelValueRefSetFromReference(storeRef, ChannelValueReference(inChannelValue), srcDim, typeConv);
+        retVal = ChannelValueRefSetFromReference(storeRef, ChannelValueDataPointer(inChannelValue), srcDim, typeConv);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Could not set up initial value in connection");
             goto cleanup_1;
@@ -1233,7 +1233,7 @@ cleanup_1:
             goto cleanup;
         }
 
-        ChannelValueRefSetFromReference(storeRef, ChannelValueReference(outInfo->initialValue), targetDim, NULL);
+        ChannelValueRefSetFromReference(storeRef, ChannelValueDataPointer(outInfo->initialValue), targetDim, NULL);
         connection->useInitialValue_ = TRUE;
     } else {
         {
@@ -1338,7 +1338,7 @@ static McxStatus ConnectionEnterInitializationMode(Connection * connection) {
     // set functions for initialization mode
     connection->UpdateFromInput = ConnectionInitUpdateFrom;
     connection->UpdateToOutput = ConnectionInitUpdateTo;
-    connection->value_ = ChannelValueReference(&connection->store_);
+    connection->value_ = ChannelValueDataPointer(&connection->store_);
     connection->IsDefinedDuringInit = ConnectionIsDefinedDuringInit;
     connection->SetDefinedDuringInit = ConnectionSetDefinedDuringInit;
 

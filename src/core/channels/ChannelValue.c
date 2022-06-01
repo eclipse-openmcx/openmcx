@@ -718,7 +718,7 @@ ChannelType * ChannelValueType(ChannelValue * value) {
     return value->type;
 }
 
-void * ChannelValueReference(ChannelValue * value) {
+void * ChannelValueDataPointer(ChannelValue * value) {
     if (value->type->con == CHANNEL_UNKNOWN) {
         return NULL;
     } else {
@@ -900,7 +900,7 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
         return RETURN_ERROR;
     }
 
-    if (RETURN_OK != ChannelValueSetFromReference(value, ChannelValueReference((ChannelValue *) source))) {
+    if (RETURN_OK != ChannelValueSetFromReference(value, ChannelValueDataPointer((ChannelValue *) source))) {
         return RETURN_ERROR;
     }
 

@@ -262,7 +262,7 @@ static const void * ChannelInGetValueReference(Channel * channel) {
         return NULL;
     }
 
-    return ChannelValueReference(&channel->value);
+    return ChannelValueDataPointer(&channel->value);
 }
 
 static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
@@ -681,7 +681,7 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 
     // default value
     if (info->defaultValue) {
-        channel->internalValue = ChannelValueReference(channel->info.defaultValue);
+        channel->internalValue = ChannelValueDataPointer(channel->info.defaultValue);
     }
 
 
@@ -744,7 +744,7 @@ static const void * ChannelOutGetValueReference(Channel * channel) {
         return NULL;
     }
 
-    return ChannelValueReference(&channel->value);
+    return ChannelValueDataPointer(&channel->value);
 }
 
 static const proc * ChannelOutGetFunction(ChannelOut * out) {
@@ -825,7 +825,7 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
         return RETURN_ERROR;
     }
     if (channel->internalValue
-        && !(info->defaultValue && channel->internalValue == ChannelValueReference(info->defaultValue))) {
+        && !(info->defaultValue && channel->internalValue == ChannelValueDataPointer(info->defaultValue))) {
         mcx_log(LOG_ERROR, "Port %s: Set outport reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
@@ -873,7 +873,7 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
     ChannelValueInit(&out->data->valueFunctionRes, ChannelTypeClone(type));
 
     // Setup value reference to point to internal value
-    channel->internalValue = ChannelValueReference(&channel->value);
+    channel->internalValue = ChannelValueDataPointer(&channel->value);
 
     return RETURN_OK;
 }
@@ -923,7 +923,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                               out->data->valueFunctionRes.value.d);
             }
 #endif // MCX_DEBUG
-            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, ChannelValueReference(&out->data->valueFunctionRes))) {
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, ChannelValueDataPointer(&out->data->valueFunctionRes))) {
                 return RETURN_ERROR;
             }
         } else {
@@ -1096,7 +1096,7 @@ static McxStatus ChannelLocalSetReference(ChannelLocal * local,
         return RETURN_ERROR;
     }
     if (channel->internalValue
-        && !(info->defaultValue && channel->internalValue == ChannelValueReference(info->defaultValue))) {
+        && !(info->defaultValue && channel->internalValue == ChannelValueDataPointer(info->defaultValue))) {
         mcx_log(LOG_ERROR, "Port %s: Set local value reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }

@@ -308,11 +308,11 @@ static int RangeConversionElementEqualsMax(void * element, ChannelType * type) {
 static int RangeConversionIsEmpty(RangeConversion * conversion) {
     switch (conversion->type->con) {
         case CHANNEL_DOUBLE:
-            return (!conversion->min || *(double *) ChannelValueReference(conversion->min) == (-DBL_MAX)) &&
-                   (!conversion->max || *(double *) ChannelValueReference(conversion->max) == DBL_MAX);
+            return (!conversion->min || *(double *) ChannelValueDataPointer(conversion->min) == (-DBL_MAX)) &&
+                   (!conversion->max || *(double *) ChannelValueDataPointer(conversion->max) == DBL_MAX);
         case CHANNEL_INTEGER:
-            return (!conversion->min || *(int *) ChannelValueReference(conversion->min) == INT_MIN) &&
-                   (!conversion->max || *(int *) ChannelValueReference(conversion->max) == INT_MAX);
+            return (!conversion->min || *(int *) ChannelValueDataPointer(conversion->min) == INT_MIN) &&
+                   (!conversion->max || *(int *) ChannelValueDataPointer(conversion->max) == INT_MAX);
         case CHANNEL_ARRAY:
             return (!conversion->min || mcx_array_all(&conversion->min->value.a, RangeConversionElementEqualsMin)) &&
                    (!conversion->max || mcx_array_all(&conversion->max->value.a, RangeConversionElementEqualsMax));
@@ -391,7 +391,7 @@ static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * v
             *elem = UnitConversionConvertValue(conversion, *elem);
         }
     } else {
-        double val = UnitConversionConvertValue(unitConversion, *(double *) ChannelValueReference(value));
+        double val = UnitConversionConvertValue(unitConversion, *(double *) ChannelValueDataPointer(value));
         if (RETURN_OK != ChannelValueSetFromReference(value, &val)) {
             return RETURN_ERROR;
         }
@@ -691,12 +691,12 @@ static int LinearConversionIsEmpty(LinearConversion * conversion) {
     switch (conversion->type->con) {
     case CHANNEL_DOUBLE:
         return
-            (!conversion->factor || * (double *) ChannelValueReference(conversion->factor) == 1.0) &&
-            (!conversion->offset || * (double *) ChannelValueReference(conversion->offset) == 0.0);
+            (!conversion->factor || * (double *) ChannelValueDataPointer(conversion->factor) == 1.0) &&
+            (!conversion->offset || * (double *) ChannelValueDataPointer(conversion->offset) == 0.0);
     case CHANNEL_INTEGER:
         return
-            (!conversion->factor || * (int *) ChannelValueReference(conversion->factor) == 1) &&
-            (!conversion->offset || * (int *) ChannelValueReference(conversion->offset) == 0);
+            (!conversion->factor || * (int *) ChannelValueDataPointer(conversion->factor) == 1) &&
+            (!conversion->offset || * (int *) ChannelValueDataPointer(conversion->offset) == 0);
     case CHANNEL_ARRAY:
         return (!conversion->factor || mcx_array_all(&conversion->factor->value.a, LinearConversionElementEqualsOne)) &&
                (!conversion->offset || mcx_array_all(&conversion->offset->value.a, LinearConversionElementEqualsZero));
@@ -835,7 +835,7 @@ McxStatus ConvertType(ChannelValue * dest, ChannelDimension * destSlice, Channel
         goto cleanup;
     }
 
-    ChannelValueRefSetFromReference(ref, ChannelValueReference(src), srcSlice, typeConv);
+    ChannelValueRefSetFromReference(ref, ChannelValueDataPointer(src), srcSlice, typeConv);
 
 cleanup:
     object_destroy(typeConv);

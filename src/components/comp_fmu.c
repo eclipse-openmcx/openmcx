@@ -83,7 +83,7 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
                 return RETURN_ERROR;
             }
 
-            retVal = DatabusSetInReference(db, i, ChannelValueReference(&val->val), ChannelValueType(&val->val));
+            retVal = DatabusSetInReference(db, i, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not set reference for channel %s", channelName);
                 return RETURN_ERROR;
@@ -125,7 +125,7 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
             return RETURN_ERROR;
         }
 
-        retVal = DatabusSetOutReference(db, i, ChannelValueReference(&val->val), ChannelValueType(&val->val));
+        retVal = DatabusSetOutReference(db, i, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not set reference for channel %s", channelName);
             return RETURN_ERROR;
@@ -392,7 +392,7 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
                 ChannelValueInit(&val->val, ChannelTypeClone(info->type));
             }
             retVal = DatabusSetInReference(db, i,
-                           ChannelValueReference(&val->val),
+                           ChannelValueDataPointer(&val->val),
                            ChannelValueType(&val->val));
             if (RETURN_OK != retVal) {
                 mcx_log(LOG_ERROR, "%s: Could not set reference for channel %s", logPrefix, val->name);
@@ -430,7 +430,7 @@ static McxStatus Fmu2SetupChannelOut(ObjectContainer /* Fmu2Values */ * vals, Da
             ChannelValueInit(&val->val, ChannelTypeClone(info->type));
         }
         retVal = DatabusSetOutReference(db, i,
-                                        ChannelValueReference(&val->val),
+                                        ChannelValueDataPointer(&val->val),
                                         ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "%s: Could not set reference for channel %s", logPrefix, channelName);
