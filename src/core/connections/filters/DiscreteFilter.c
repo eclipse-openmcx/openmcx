@@ -29,7 +29,7 @@ static McxStatus DiscreteFilterSetValue(ChannelFilter * filter, double time, Cha
 static ChannelValueData DiscreteFilterGetValue(ChannelFilter * filter, double time) {
     DiscreteFilter * discreteFilter = (DiscreteFilter *) filter;
 
-    return * (ChannelValueData *) ChannelValueReference(&discreteFilter->lastSynchronizationStepValue);
+    return * (ChannelValueData *) ChannelValueDataPointer(&discreteFilter->lastSynchronizationStepValue);
 }
 
 static McxStatus DiscreteFilterEnterCouplingStepMode(ChannelFilter * filter

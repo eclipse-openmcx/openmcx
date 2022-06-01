@@ -1039,9 +1039,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = {fmuVal->data->vr.scalar};
 
-        status = fmi2_import_set_real(fmu->fmiImport, vr, 1, (const fmi2_real_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_real(fmu->fmiImport, vr, 1, (const fmi2_real_t *) ChannelValueDataPointer(chVal));
 
-        MCX_DEBUG_LOG("Set %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueReference(chVal));
+        MCX_DEBUG_LOG("Set %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -1049,9 +1049,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, (const fmi2_integer_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, (const fmi2_integer_t *) ChannelValueDataPointer(chVal));
 
-        MCX_DEBUG_LOG("Set %s(%d)=%d", fmuVal->name, vr[0], *(int*)ChannelValueReference(chVal));
+        MCX_DEBUG_LOG("Set %s(%d)=%d", fmuVal->name, vr[0], *(int*)ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -1059,7 +1059,7 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, (const fmi2_boolean_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, (const fmi2_boolean_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -1067,14 +1067,14 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
     case CHANNEL_BINARY:
     case CHANNEL_BINARY_REFERENCE:
     {
-        binary_string * binary = (binary_string *) ChannelValueReference(chVal);
+        binary_string * binary = (binary_string *) ChannelValueDataPointer(chVal);
 
         fmi2_value_reference_t vrs [] = { fmuVal->data->vr.binary.lo
                                         , fmuVal->data->vr.binary.hi
@@ -1093,7 +1093,7 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     case CHANNEL_ARRAY:
     {
         fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
-        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&fmuVal->val);
 
         size_t num = mcx_array_num_elements(a);
         void * vals = a->data;
@@ -1167,9 +1167,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_real(fmu->fmiImport, vr, 1, (fmi2_real_t *) ChannelValueReference(chVal));
+        status = fmi2_import_get_real(fmu->fmiImport, vr, 1, (fmi2_real_t *) ChannelValueDataPointer(chVal));
 
-        MCX_DEBUG_LOG("Get %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueReference(chVal));
+        MCX_DEBUG_LOG("Get %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -1177,7 +1177,7 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, (fmi2_integer_t *) ChannelValueReference(chVal));
+        status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, (fmi2_integer_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -1185,7 +1185,7 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, (fmi2_boolean_t *) ChannelValueReference(chVal));
+        status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, (fmi2_boolean_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -1228,7 +1228,7 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     case CHANNEL_ARRAY:
     {
         fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
-        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&fmuVal->val);
 
         size_t num = mcx_array_num_elements(a);
         void * vals = a->data;
@@ -1339,7 +1339,7 @@ McxStatus Fmi2RegisterLocalChannelsAtDatabus(ObjectContainer * vals, const char 
             return RETURN_ERROR;
         }
 
-        retVal = DatabusAddLocalChannel(db, name, buffer, unitName, ChannelValueReference(&val->val), ChannelValueType(&val->val));
+        retVal = DatabusAddLocalChannel(db, name, buffer, unitName, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "%s: Adding channel %s to databus failed", compName, name);
             return RETURN_ERROR;

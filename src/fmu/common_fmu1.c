@@ -587,7 +587,7 @@ McxStatus Fmu1SetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     case CHANNEL_ARRAY:
     {
         fmi1_value_reference_t * vrs = fmuVal->data->vr.array.values;
-        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&fmuVal->val);
 
         size_t num = mcx_array_num_elements(a);
         void * vals = a->data;
@@ -656,7 +656,7 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     case CHANNEL_DOUBLE:
     {
         fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
-        status = fmi1_import_get_real(fmu->fmiImport, vr, 1, (fmi1_real_t *) ChannelValueReference(chVal));
+        status = fmi1_import_get_real(fmu->fmiImport, vr, 1, (fmi1_real_t *) ChannelValueDataPointer(chVal));
         if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             fmuVal->val.value.d *= -1.;
         }
@@ -665,7 +665,7 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     case CHANNEL_INTEGER:
     {
         fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
-        status = fmi1_import_get_integer(fmu->fmiImport, vr, 1, (fmi1_integer_t *) ChannelValueReference(chVal));
+        status = fmi1_import_get_integer(fmu->fmiImport, vr, 1, (fmi1_integer_t *) ChannelValueDataPointer(chVal));
         if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             fmuVal->val.value.i *= -1;
         }
@@ -674,7 +674,7 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     case CHANNEL_BOOL:
     {
         fmi1_value_reference_t vr[] = {fmuVal->data->vr.scalar};
-        status = fmi1_import_get_boolean(fmu->fmiImport, vr, 1, (fmi1_boolean_t *) ChannelValueReference(chVal));
+        status = fmi1_import_get_boolean(fmu->fmiImport, vr, 1, (fmi1_boolean_t *) ChannelValueDataPointer(chVal));
         if (fmi1_variable_is_negated_alias == fmi1_import_get_variable_alias_kind(fmuVal->data->var.scalar)) {
             fmuVal->val.value.i = !fmuVal->val.value.i;
         }
@@ -694,7 +694,7 @@ McxStatus Fmu1GetVariable(Fmu1CommonStruct * fmu, Fmu1Value * fmuVal) {
     case CHANNEL_ARRAY:
     {
         fmi1_value_reference_t * vrs = fmuVal->data->vr.array.values;
-        mcx_array * a = (mcx_array *) ChannelValueReference(&fmuVal->val);
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&fmuVal->val);
 
         size_t num = mcx_array_num_elements(a);
         void * vals = a->data;
@@ -816,7 +816,7 @@ McxStatus fmi1AddLocalChannelsFromLocalValues(ObjectContainer * vals, const char
         }
 
 
-        retVal = DatabusAddLocalChannel(db, name, buffer, unitName, ChannelValueReference(&val->val), ChannelValueType(&val->val));
+        retVal = DatabusAddLocalChannel(db, name, buffer, unitName, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
         mcx_free(buffer);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "%s: Adding channel %s to databus failed", compName, name);

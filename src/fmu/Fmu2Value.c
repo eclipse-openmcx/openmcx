@@ -350,7 +350,7 @@ static McxStatus Fmu2ValueSetup(Fmu2Value * v, const char * name, Fmu2ValueData 
             n *= data->data.array.dims[i];
         }
 
-        mcx_array * a = (mcx_array *) ChannelValueReference(&v->val);
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&v->val);
 
         for (i = 0; i < n; i++) {
             if (RETURN_OK != Fmu2ValueGetArrayVariableStart(t, data->data.array.values[i], a, i)) {

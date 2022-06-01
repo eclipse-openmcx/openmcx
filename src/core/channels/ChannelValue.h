@@ -148,7 +148,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
 McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 
 ChannelType * ChannelValueType(ChannelValue * value);
-void *      ChannelValueReference(ChannelValue * value);
+void *      ChannelValueDataPointer(ChannelValue * value);
 
 void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
 void ChannelValueDataInit(ChannelValueData * data, ChannelType * type);

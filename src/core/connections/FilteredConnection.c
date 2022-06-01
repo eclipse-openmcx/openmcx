@@ -75,7 +75,7 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     ChannelValueInit(&filteredConnection->data->store, storeType);  // steals ownership of storeType -> no clone needed
 
     // value reference
-    connection->value_ = ChannelValueReference(&filteredConnection->data->store);
+    connection->value_ = ChannelValueDataPointer(&filteredConnection->data->store);
 
     // initialize the buffer for channel function calls
     ChannelValueInit(&filteredConnection->data->updateBuffer, ChannelTypeClone(storeType));
@@ -222,7 +222,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
             return RETURN_ERROR;
         }
 
-        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, ChannelValueReference(&filteredConnection->data->updateBuffer))) {
+        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, ChannelValueDataPointer(&filteredConnection->data->updateBuffer))) {
             mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
             return RETURN_ERROR;
         }
@@ -244,7 +244,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
                 size_t numFilters = FilteredConnectionGetNumFilters(filteredConnection);
                 ChannelType * type = info->type;
 
-                mcx_array * elements = (mcx_array *) ChannelValueReference(&filteredConnection->data->updateBuffer);
+                mcx_array * elements = (mcx_array *) ChannelValueDataPointer(&filteredConnection->data->updateBuffer);
                 char * dest = (char *) elements->data;
                 for (i = 0; i < numFilters; i++) {
                     filter = filteredConnection->GetReadFilter(filteredConnection, i);

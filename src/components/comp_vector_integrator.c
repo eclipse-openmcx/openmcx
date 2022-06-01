@@ -96,13 +96,13 @@ static McxStatus Setup(Component * comp) {
         ChannelInfo * inInfo = DatabusGetInChannelInfo(db, i);
         ChannelInfo * outInfo = DatabusGetOutChannelInfo(db, i);
 
-        retVal = DatabusSetInReference(db, i, ChannelValueReference(&integrator->deriv[i]), inInfo->type);
+        retVal = DatabusSetInReference(db, i, ChannelValueDataPointer(&integrator->deriv[i]), inInfo->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register in channel reference");
             return RETURN_ERROR;
         }
 
-        retVal = DatabusSetOutReference(db, i, ChannelValueReference(&integrator->state[i]), outInfo->type);
+        retVal = DatabusSetOutReference(db, i, ChannelValueDataPointer(&integrator->state[i]), outInfo->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register out channel reference");
             return RETURN_ERROR;
@@ -119,8 +119,8 @@ static McxStatus DoStep(Component * comp, size_t group, double time, double delt
     size_t i;
     for (i = 0; i < integrator->num; i++) {
         if (ChannelTypeIsArray(ChannelValueType(&integrator->state[i]))) {
-            mcx_array * state = ChannelValueReference(&integrator->state[i]);
-            mcx_array * deriv = ChannelValueReference(&integrator->deriv[i]);
+            mcx_array * state = ChannelValueDataPointer(&integrator->state[i]);
+            mcx_array * deriv = ChannelValueDataPointer(&integrator->deriv[i]);
 
             size_t j = 0;
             for (j = 0; j < mcx_array_num_elements(state); j++) {
@@ -128,8 +128,8 @@ static McxStatus DoStep(Component * comp, size_t group, double time, double delt
             }
 
         } else {
-            double * state = (double *) ChannelValueReference(&integrator->state[i]);
-            double * deriv = (double *) ChannelValueReference(&integrator->deriv[i]);
+            double * state = (double *) ChannelValueDataPointer(&integrator->state[i]);
+            double * deriv = (double *) ChannelValueDataPointer(&integrator->deriv[i]);
 
             (*state) = (*state) + (*deriv) * deltaTime;
         }
@@ -144,7 +144,7 @@ static McxStatus Initialize(Component * comp, size_t idx, double startTime) {
     size_t i;
     for (i = 0; i < integrator->num; i++) {
         if (ChannelTypeIsArray(ChannelValueType(&integrator->state[i]))) {
-            mcx_array * a = (mcx_array *) ChannelValueReference(&integrator->state[i]);
+            mcx_array * a = (mcx_array *) ChannelValueDataPointer(&integrator->state[i]);
             size_t j;
 
             for (j = 0; j < mcx_array_num_elements(a); j++) {
