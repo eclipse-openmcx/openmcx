@@ -17,7 +17,11 @@ extern "C" {
 
 
 void ChannelValueRefDestructor(ChannelValueRef * ref) {
-    // TODO ???
+    if (ref->type == CHANNEL_VALUE_REF_SLICE) {
+        if (ref->ref.slice->dimension) {
+            DestroyChannelDimension(&ref->ref.slice->dimension);
+        }
+    }
 }
 
 ChannelValueRef * ChannelValueRefCreate(ChannelValueRef * ref) {
