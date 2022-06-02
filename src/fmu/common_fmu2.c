@@ -1516,6 +1516,31 @@ void Fmu2MarkTunableParamsAsInputAsDiscrete(ObjectContainer * in) {
                 mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
                 in->SetDiscrete(in);
             }
+        } else if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+            int all_tunable = TRUE;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                fmi2_import_variable_t * var = val->data->data.array.values[j];
+                fmi2_causality_enu_t causality = fmi2_import_get_causality(var);
+
+                if (fmi2_causality_enu_input == causality) {
+                    all_tunable = FALSE;
+                    break;
+                }
+            }
+
+            if (all_tunable) {
+                ChannelIn * in = (ChannelIn *) val->channel;
+                ChannelInfo * info = &((Channel *) in)->info;
+                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
+                in->SetDiscrete(in);
+            }
         }
     }
 }
