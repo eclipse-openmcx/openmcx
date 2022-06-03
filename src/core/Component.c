@@ -507,9 +507,11 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
         retVal = comp->DoStep(comp, group, time, deltaTime, endTime, isNewStep);
         mcx_signal_handler_unset_function();
         mcx_signal_handler_unset_name();
-        if (RETURN_OK != retVal) {
-            ComponentLog(comp, LOG_DEBUG, "Component specific DoStep failed");
+        if (RETURN_ERROR == retVal) {
+            ComponentLog(comp, LOG_ERROR, "Component specific DoStep failed");
             return RETURN_ERROR;
+        } else if (RETURN_WARNING == retVal) {
+            ComponentLog(comp, LOG_DEBUG, "Component specific DoStep returned with a warning");
         }
     }
 
