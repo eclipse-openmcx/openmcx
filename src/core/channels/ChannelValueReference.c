@@ -19,7 +19,7 @@ extern "C" {
 void DestroyChannelValueReference(ChannelValueReference * ref) {
     if (ref->type == CHANNEL_VALUE_REF_SLICE) {
         if (ref->ref.slice.dimension) {
-            DestroyChannelDimension(&ref->ref.slice.dimension);
+            DestroyChannelDimension(ref->ref.slice.dimension);
         }
     }
 

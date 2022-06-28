@@ -55,6 +55,8 @@ typedef struct ConnectionInfo {
 
 
 McxStatus ConnectionInfoInit(ConnectionInfo * info);
+McxStatus ConnectionInfoSetFrom(ConnectionInfo * info, const ConnectionInfo * other);
+void DestroyConnectionInfo(ConnectionInfo * info);
 
 
 ChannelType * ConnectionInfoGetType(ConnectionInfo * info);
