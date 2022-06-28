@@ -20,7 +20,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-typedef struct ChannelValueRef ChannelValueRef;
+typedef struct ChannelValueReference ChannelValueReference;
 
 typedef struct Conversion Conversion;
 
@@ -70,7 +70,7 @@ typedef void(*fUnitConversionVector)(UnitConversion * conversion, double * value
 
 typedef McxStatus (* fUnitConversionSetup)(UnitConversion * conversion, const char * fromUnit, const char * toUnit);
 typedef int (* fUnitConversionIsEmpty)(UnitConversion * conversion);
-typedef McxStatus (*fUnitConversionConvertValueRef)(UnitConversion * conversion, ChannelValueRef * ref);
+typedef McxStatus (*fUnitConversionConvertValueRef)(UnitConversion * conversion, ChannelValueReference * ref);
 
 extern const struct ObjectClass _UnitConversion;
 
@@ -126,9 +126,9 @@ typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion,
                                           const ChannelType * toType,
                                           ChannelDimension * toDimension);
 
-// TODO: Ideally the `src` argument would also be ChannelValueRef, but that requires quite of lot of changes
+// TODO: Ideally the `src` argument would also be ChannelValueReference, but that requires quite of lot of changes
 //       in the API of databus definition (i.e. DatabusSetIn(Out)Reference)
-typedef McxStatus (*fTypeConversionConvert)(TypeConversion * conversion, ChannelValueRef * dest, void * src);
+typedef McxStatus (*fTypeConversionConvert)(TypeConversion * conversion, ChannelValueReference * dest, void * src);
 
 extern const struct ObjectClass _TypeConversion;
 

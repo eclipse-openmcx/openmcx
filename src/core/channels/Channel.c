@@ -279,16 +279,16 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         ConnectionInfo * connInfo = &conn->info;
         TypeConversion * typeConv = (TypeConversion *) in->data->typeConversions->At(in->data->typeConversions, i);
         UnitConversion * unitConv = (UnitConversion *) in->data->unitConversions->At(in->data->unitConversions, i);
-        ChannelValueRef * valueRef = (ChannelValueRef *) in->data->valueReferences->At(in->data->valueReferences, i);
+        ChannelValueReference * valueRef = (ChannelValueReference *) in->data->valueReferences->At(in->data->valueReferences, i);
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
             return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "UpdateToOutput failed");
         }
 
-        // TODO: ideally make conn->GetValueReference return ChannelValueRef
-        if (RETURN_OK != ChannelValueRefSetFromReference(valueRef, conn->GetValueReference(conn), conn->GetValueDimension(conn), typeConv)) {
-            return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "ChannelValueRefSetFromReference failed");
+        // TODO: ideally make conn->GetValueReference return ChannelValueReference
+        if (RETURN_OK != ChannelValueReferenceSetFromPointer(valueRef, conn->GetValueReference(conn), conn->GetValueDimension(conn), typeConv)) {
+            return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "ChannelValueReferenceSetFromPointer failed");
         }
 
         // unit conversion
@@ -424,7 +424,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     ConnectionInfo * connInfo = &connection->info;
     Channel * channel = (Channel *) in;
     ChannelInfo * inInfo = &channel->info;
-    ChannelValueRef * valRef = NULL;
+    ChannelValueReference * valRef = NULL;
 
     McxStatus retVal = RETURN_OK;
 
