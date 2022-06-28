@@ -33,25 +33,25 @@ typedef enum ChannelValueRefType {
 } ChannelValueRefType;
 
 
-typedef struct ChannelValueRef {
+typedef struct ChannelValueReference {
     ChannelValueRefType type;
     union {
         ChannelValue * value;
         ArraySlice slice;
     } ref;
-} ChannelValueRef;
+} ChannelValueReference;
 
 
-ChannelValueRef * MakeChannelValueReference(ChannelValue * value, ChannelDimension * slice);
-void DestroyChannelValueReference(ChannelValueRef * ref);
+ChannelValueReference * MakeChannelValueReference(ChannelValue * value, ChannelDimension * slice);
+void DestroyChannelValueReference(ChannelValueReference * ref);
 
 
 McxStatus
-ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * typeConv);
-ChannelType * ChannelValueRefGetType(ChannelValueRef * ref);
+ChannelValueReferenceSetFromPointer(ChannelValueReference * ref, const void * ptr, ChannelDimension * srcDimension, TypeConversion * typeConv);
+ChannelType * ChannelValueReferenceGetType(ChannelValueReference * ref);
 
-typedef McxStatus (*fChannelValueRefElemMapFunc)(void * element, size_t idx, ChannelType * type, void * ctx);
-McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapFunc fn, void * ctx);
+typedef McxStatus (*fChannelValueReferenceElemMapFunc)(void * element, size_t idx, ChannelType * type, void * ctx);
+McxStatus ChannelValueReferenceElemMap(ChannelValueReference * ref, fChannelValueReferenceElemMapFunc fn, void * ctx);
 
 
 #ifdef __cplusplus

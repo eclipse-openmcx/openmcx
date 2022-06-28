@@ -1146,7 +1146,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
     ChannelInfo * inInfo = &in->info;
     ChannelInfo * outInfo = &out->info;
 
-    ChannelValueRef * storeRef = NULL;
+    ChannelValueReference * storeRef = NULL;
 
     McxStatus retVal = RETURN_OK;
 
@@ -1201,7 +1201,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
             }
         }
 
-        retVal = ChannelValueRefSetFromReference(storeRef, ChannelValueDataPointer(inChannelValue), srcDim, typeConv);
+        retVal = ChannelValueReferenceSetFromPointer(storeRef, ChannelValueDataPointer(inChannelValue), srcDim, typeConv);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Could not set up initial value in connection");
             goto cleanup_1;
@@ -1231,7 +1231,7 @@ cleanup_1:
             goto cleanup;
         }
 
-        ChannelValueRefSetFromReference(storeRef, ChannelValueDataPointer(outInfo->initialValue), targetDim, NULL);
+        ChannelValueReferenceSetFromPointer(storeRef, ChannelValueDataPointer(outInfo->initialValue), targetDim, NULL);
         connection->useInitialValue_ = TRUE;
     } else {
         {
@@ -1270,7 +1270,7 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
 static McxStatus ConnectionInitSetToStore(Connection * connection) {
     Channel* channel = (Channel*)connection->out_;
     ChannelInfo* info = &channel->info;
-    ChannelValueRef * storeRef = MakeChannelValueReference(&connection->store_, NULL);
+    ChannelValueReference * storeRef = MakeChannelValueReference(&connection->store_, NULL);
     McxStatus retVal = RETURN_OK;
 
     if (!storeRef) {
@@ -1281,7 +1281,7 @@ static McxStatus ConnectionInitSetToStore(Connection * connection) {
     ConnectionInfo * connInfo = connection->GetInfo(connection);
     ChannelDimension * clone = CloneChannelDimension(connInfo->sourceDimension);
     ChannelDimensionAlignIndicesWithZero(clone, info->dimension);
-    retVal = ChannelValueRefSetFromReference(storeRef, channel->GetValueReference(channel), clone, NULL);
+    retVal = ChannelValueReferenceSetFromPointer(storeRef, channel->GetValueReference(channel), clone, NULL);
     if (RETURN_ERROR == retVal) {
         goto cleanup;
     }

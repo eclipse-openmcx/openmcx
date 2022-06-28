@@ -16,7 +16,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-void DestroyChannelValueReference(ChannelValueRef * ref) {
+void DestroyChannelValueReference(ChannelValueReference * ref) {
     if (ref->type == CHANNEL_VALUE_REF_SLICE) {
         if (ref->ref.slice.dimension) {
             DestroyChannelDimension(&ref->ref.slice.dimension);
@@ -27,8 +27,8 @@ void DestroyChannelValueReference(ChannelValueRef * ref) {
 }
 
 
-ChannelValueRef * MakeChannelValueReference(ChannelValue * value, ChannelDimension * slice) {
-    ChannelValueRef * ref = (ChannelValueRef *) mcx_calloc(1, sizeof(ChannelValueRef));
+ChannelValueReference * MakeChannelValueReference(ChannelValue * value, ChannelDimension * slice) {
+    ChannelValueReference * ref = (ChannelValueReference *) mcx_calloc(1, sizeof(ChannelValueReference));
 
     if (!ref) {
         return NULL;
@@ -47,18 +47,18 @@ ChannelValueRef * MakeChannelValueReference(ChannelValue * value, ChannelDimensi
 }
 
 
-McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * conv) {
+McxStatus ChannelValueReferenceSetFromPointer(ChannelValueReference * ref, const void * ptr, ChannelDimension * srcDimension, TypeConversion * conv) {
     if (conv) {
-        return conv->Convert(conv, ref, reference);
+        return conv->Convert(conv, ref, ptr);
     }
 
     if (ref->type == CHANNEL_VALUE_REF_VALUE) {
         if (ChannelTypeIsArray(ref->ref.value->type)) {
             mcx_array * destArray = &ref->ref.value->value.a;
-            mcx_array * srcArray = (mcx_array *) reference;
+            mcx_array * srcArray = (mcx_array *) ptr;
 
             if (srcArray->data == NULL || destArray->data == NULL) {
-                mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Empty array data given");
+                mcx_log(LOG_ERROR, "ChannelValueReferenceSetFromPointer: Empty array data given");
                 return RETURN_ERROR;
             }
 
@@ -87,10 +87,10 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
             return RETURN_OK;
         } else {
             if (srcDimension) {
-                mcx_array * src = (mcx_array *) (reference);
+                mcx_array * src = (mcx_array *) (ptr);
 
                 if (ChannelDimensionNumElements(srcDimension) != 1) {
-                    mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Setting scalar value from an array");
+                    mcx_log(LOG_ERROR, "ChannelValueReferenceSetFromPointer: Setting scalar value from an array");
                     return RETURN_ERROR;
                 }
 
@@ -99,18 +99,18 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
                     ref->ref.value->type,
                     mcx_array_get_elem_reference(src, ChannelDimensionGetIndex(srcDimension, 0, src->dims)));
             } else {
-                return ChannelValueDataSetFromReference(&ref->ref.value->value, ref->ref.value->type, reference);
+                return ChannelValueDataSetFromReference(&ref->ref.value->value, ref->ref.value->type, ptr);
             }
         }
     } else {
         if (ChannelTypeIsArray(ref->ref.slice.ref->type)) {
             mcx_array * destArray = &ref->ref.slice.ref->value.a;
-            mcx_array * srcArray = (mcx_array *) reference;
+            mcx_array * srcArray = (mcx_array *) ptr;
 
             ChannelDimension * destDimension = ref->ref.slice.dimension;
 
             if (srcArray->data == NULL || destArray->data == NULL) {
-                mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Empty array data given");
+                mcx_log(LOG_ERROR, "ChannelValueReferenceSetFromPointer: Empty array data given");
                 return RETURN_ERROR;
             }
 
@@ -143,10 +143,10 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
             return RETURN_OK;
         } else {
             if (srcDimension) {
-                mcx_array * src = (mcx_array *) (reference);
+                mcx_array * src = (mcx_array *) (ptr);
 
                 if (ChannelDimensionNumElements(srcDimension) != 1) {
-                    mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Setting scalar value from an array");
+                    mcx_log(LOG_ERROR, "ChannelValueReferenceSetFromPointer: Setting scalar value from an array");
                     return RETURN_ERROR;
                 }
 
@@ -155,7 +155,7 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
                     ref->ref.slice.ref->type,
                     mcx_array_get_elem_reference(src, ChannelDimensionGetIndex(srcDimension, 0, src->dims)));
             } else {
-                return ChannelValueDataSetFromReference(&ref->ref.slice.ref->value, ref->ref.slice.ref->type, reference);
+                return ChannelValueDataSetFromReference(&ref->ref.slice.ref->value, ref->ref.slice.ref->type, ptr);
             }
         }
     }
@@ -163,7 +163,7 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
     return RETURN_OK;
 }
 
-McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapFunc fn, void * ctx) {
+McxStatus ChannelValueReferenceElemMap(ChannelValueReference * ref, fChannelValueReferenceElemMapFunc fn, void * ctx) {
     switch (ref->type) {
         case CHANNEL_VALUE_REF_VALUE:
             if (ChannelTypeIsArray(ref->ref.value->type)) {
@@ -206,12 +206,12 @@ McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapF
                 return fn(ChannelValueDataPointer(ref->ref.slice.ref), 0, ChannelValueType(ref->ref.slice.ref), ctx);
             }
         default:
-            mcx_log(LOG_ERROR, "ChannelValueRefElemMap: Invalid internal channel value reference type (%d)", ref->type);
+            mcx_log(LOG_ERROR, "ChannelValueReferenceElemMap: Invalid internal channel value reference type (%d)", ref->type);
             return RETURN_ERROR;
     }
 }
 
-ChannelType * ChannelValueRefGetType(ChannelValueRef * ref) {
+ChannelType * ChannelValueReferenceGetType(ChannelValueReference * ref) {
     switch (ref->type) {
         case CHANNEL_VALUE_REF_VALUE:
             return ChannelValueType(ref->ref.value);
