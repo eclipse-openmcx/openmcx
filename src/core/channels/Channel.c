@@ -424,6 +424,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     ConnectionInfo * connInfo = &connection->info;
     Channel * channel = (Channel *) in;
     ChannelInfo * inInfo = &channel->info;
+    ChannelValueRef * valRef = NULL;
 
     McxStatus retVal = RETURN_OK;
 
@@ -432,29 +433,22 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not register connection");
     }
 
-    // TODO setup valueReference
-    ChannelValueRef * valRef = (ChannelValueRef *) object_create(ChannelValueRef);
-    if (!valRef) {
-        return RETURN_ERROR;
-    }
-
     ChannelDimension * dimension = connInfo->targetDimension;
     // TODO check ret values
     // TODO do we need some plausibility checks?
     // TODO is it fine to use connInfo here?
     if (dimension && !ChannelDimensionEq(dimension, inInfo->dimension)) {
-        valRef->type = CHANNEL_VALUE_REF_SLICE;
-        valRef->ref.slice = (ArraySlice *) mcx_calloc(1, sizeof(ArraySlice));
-        valRef->ref.slice->ref = &channel->value;
-        valRef->ref.slice->dimension = CloneChannelDimension(dimension);
-        retVal = ChannelDimensionAlignIndicesWithZero(valRef->ref.slice->dimension, inInfo->dimension);
+        ChannelDimension * slice = CloneChannelDimension(dimension);
+
+        retVal = ChannelDimensionAlignIndicesWithZero(slice, inInfo->dimension);
         if (retVal == RETURN_ERROR) {
             ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Normalizing array slice dimension failed");
             return RETURN_ERROR;
         }
+
+        valRef = MakeChannelValueReference(&channel->value, slice);
     } else {
-        valRef->type = CHANNEL_VALUE_REF_VALUE;
-        valRef->ref.value = &channel->value;
+        valRef = MakeChannelValueReference(&channel->value, NULL);
     }
 
     retVal = in->data->valueReferences->PushBack(in->data->valueReferences, (Object *) valRef);

@@ -16,22 +16,35 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-void ChannelValueRefDestructor(ChannelValueRef * ref) {
+void DestroyChannelValueReference(ChannelValueRef * ref) {
     if (ref->type == CHANNEL_VALUE_REF_SLICE) {
-        if (ref->ref.slice->dimension) {
-            DestroyChannelDimension(&ref->ref.slice->dimension);
+        if (ref->ref.slice.dimension) {
+            DestroyChannelDimension(&ref->ref.slice.dimension);
         }
     }
+
+    mcx_free(ref);
 }
 
-ChannelValueRef * ChannelValueRefCreate(ChannelValueRef * ref) {
-    ref->type = CHANNEL_VALUE_REF_VALUE;
-    ref->ref.value = NULL;
+
+ChannelValueRef * MakeChannelValueReference(ChannelValue * value, ChannelDimension * slice) {
+    ChannelValueRef * ref = (ChannelValueRef *) mcx_calloc(1, sizeof(ChannelValueRef));
+
+    if (!ref) {
+        return NULL;
+    }
+
+    if (slice) {
+        ref->type = CHANNEL_VALUE_REF_SLICE;
+        ref->ref.slice.dimension = slice;
+        ref->ref.slice.ref = value;
+    } else {
+        ref->type = CHANNEL_VALUE_REF_VALUE;
+        ref->ref.value = value;
+    }
 
     return ref;
 }
-
-OBJECT_CLASS(ChannelValueRef, Object);
 
 
 McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * conv) {
@@ -90,11 +103,11 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
             }
         }
     } else {
-        if (ChannelTypeIsArray(ref->ref.slice->ref->type)) {
-            mcx_array * destArray = &ref->ref.slice->ref->value.a;
+        if (ChannelTypeIsArray(ref->ref.slice.ref->type)) {
+            mcx_array * destArray = &ref->ref.slice.ref->value.a;
             mcx_array * srcArray = (mcx_array *) reference;
 
-            ChannelDimension * destDimension = ref->ref.slice->dimension;
+            ChannelDimension * destDimension = ref->ref.slice.dimension;
 
             if (srcArray->data == NULL || destArray->data == NULL) {
                 mcx_log(LOG_ERROR, "ChannelValueRefSetFromReference: Empty array data given");
@@ -138,11 +151,11 @@ McxStatus ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * re
                 }
 
                 return ChannelValueDataSetFromReference(
-                    &ref->ref.slice->ref->value,
-                    ref->ref.slice->ref->type,
+                    &ref->ref.slice.ref->value,
+                    ref->ref.slice.ref->type,
                     mcx_array_get_elem_reference(src, ChannelDimensionGetIndex(srcDimension, 0, src->dims)));
             } else {
-                return ChannelValueDataSetFromReference(&ref->ref.slice->ref->value, ref->ref.slice->ref->type, reference);
+                return ChannelValueDataSetFromReference(&ref->ref.slice.ref->value, ref->ref.slice.ref->type, reference);
             }
         }
     }
@@ -172,25 +185,25 @@ McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapF
                 return fn(ChannelValueDataPointer(ref->ref.value), 0, ChannelValueType(ref->ref.value), ctx);
             }
         case CHANNEL_VALUE_REF_SLICE:
-            if (ChannelTypeIsArray(ref->ref.slice->ref->type)) {
+            if (ChannelTypeIsArray(ref->ref.slice.ref->type)) {
                 size_t i = 0;
 
-                for (i = 0; i < ChannelDimensionNumElements(ref->ref.slice->dimension); i++) {
-                    size_t idx = ChannelDimensionGetIndex(ref->ref.slice->dimension, i, ref->ref.slice->ref->value.a.dims);
+                for (i = 0; i < ChannelDimensionNumElements(ref->ref.slice.dimension); i++) {
+                    size_t idx = ChannelDimensionGetIndex(ref->ref.slice.dimension, i, ref->ref.slice.ref->value.a.dims);
 
-                    void * elem = mcx_array_get_elem_reference(&ref->ref.slice->ref->value.a, idx);
+                    void * elem = mcx_array_get_elem_reference(&ref->ref.slice.ref->value.a, idx);
                     if (!elem) {
                         return RETURN_ERROR;
                     }
 
-                    if (RETURN_ERROR == fn(elem, idx, ChannelValueType(ref->ref.slice->ref), ctx)) {
+                    if (RETURN_ERROR == fn(elem, idx, ChannelValueType(ref->ref.slice.ref), ctx)) {
                         return RETURN_ERROR;
                     }
                 }
 
                 return RETURN_OK;
             } else {
-                return fn(ChannelValueDataPointer(ref->ref.slice->ref), 0, ChannelValueType(ref->ref.slice->ref), ctx);
+                return fn(ChannelValueDataPointer(ref->ref.slice.ref), 0, ChannelValueType(ref->ref.slice.ref), ctx);
             }
         default:
             mcx_log(LOG_ERROR, "ChannelValueRefElemMap: Invalid internal channel value reference type (%d)", ref->type);
@@ -204,32 +217,13 @@ ChannelType * ChannelValueRefGetType(ChannelValueRef * ref) {
             return ChannelValueType(ref->ref.value);
         case CHANNEL_VALUE_REF_SLICE:
             // TODO (do we need to adapt the indices wrt. dimension) ?
-            return ChannelValueType(ref->ref.slice->ref);
+            return ChannelValueType(ref->ref.slice.ref);
         default:
             mcx_log(LOG_ERROR, "Invalid internal channel value reference type (%d)", ref->type);
             return NULL;
     }
 }
 
-
-ChannelValueRef * MakeChannelValueRef(ChannelValue * val, ChannelDimension * slice) {
-    ChannelValueRef * ref = (ChannelValueRef *)object_create(ChannelValueRef);
-    if (!ref) {
-        return NULL;
-    }
-
-    if (slice) {
-        ref->type = CHANNEL_VALUE_REF_SLICE;
-        ref->ref.slice = (ArraySlice *) mcx_calloc(1, sizeof(ArraySlice));
-        ref->ref.slice->dimension = slice;
-        ref->ref.slice->ref = val;
-    } else {
-        ref->type = CHANNEL_VALUE_REF_VALUE;
-        ref->ref.value = val;
-    }
-
-    return ref;
-}
 
 
 #ifdef __cplusplus

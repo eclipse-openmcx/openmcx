@@ -226,9 +226,9 @@ McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * va
 
     if (rangeConv) {
         if (slice) {
-            ChannelValueRef * ref = MakeChannelValueRef(value, slice);
+            ChannelValueRef * ref = MakeChannelValueReference(value, slice);
             retVal = RangeConversionConvertValueRef(rangeConv, ref);
-            object_destroy(ref);
+            DestroyChannelValueReference(ref);
         } else {
             retVal = RangeConversionConvert(rangeConv, value);
         }
@@ -482,9 +482,9 @@ McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue *
 
     if (unitConv) {
         if (slice) {
-            ChannelValueRef * ref = MakeChannelValueRef(value, slice);
+            ChannelValueRef * ref = MakeChannelValueReference(value, slice);
             retVal = UnitConversionConvertValueRef(unitConv, ref);
-            object_destroy(ref);
+            DestroyChannelValueReference(ref);
         } else {
             retVal = UnitConversionConvert(unitConv, value);
         }
@@ -751,9 +751,9 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 
     if (linearConv) {
         if (slice) {
-            ChannelValueRef * ref = MakeChannelValueRef(value, slice);
+            ChannelValueRef * ref = MakeChannelValueReference(value, slice);
             retVal = LinearConversionConvertValueRef(linearConv, ref);
-            object_destroy(ref);
+            DestroyChannelValueReference(ref);
         } else {
             retVal = LinearConversionConvert(linearConv, value);
         }
@@ -829,7 +829,7 @@ McxStatus ConvertType(ChannelValue * dest, ChannelDimension * destSlice, Channel
         goto cleanup;
     }
 
-    ref = MakeChannelValueRef(dest, destSlice);
+    ref = MakeChannelValueReference(dest, destSlice);
     if (!ref) {
         mcx_log(LOG_ERROR, "ConvertType: Value reference allocation failed");
         goto cleanup;
@@ -839,7 +839,7 @@ McxStatus ConvertType(ChannelValue * dest, ChannelDimension * destSlice, Channel
 
 cleanup:
     object_destroy(typeConv);
-    object_destroy(ref);
+    DestroyChannelValueReference(ref);
 
     return retVal;
 }
@@ -875,7 +875,7 @@ static McxStatus CheckArrayReferencingOnlyOneElement(ChannelValueRef * dest, Cha
             return RETURN_ERROR;
         }
     } else {
-        if (ChannelDimensionNumElements(dest->ref.slice->dimension) != 1) {
+        if (ChannelDimensionNumElements(dest->ref.slice.dimension) != 1) {
             mcx_log(LOG_ERROR, "Type conversion: Destination value is not an array of size 1");
             return RETURN_ERROR;
         }
@@ -902,13 +902,13 @@ static McxStatus ArraysValidForConversion(ChannelValueRef * dest,
         if (dest->type == CHANNEL_VALUE_REF_VALUE) {
             return ChannelDimensionConformsTo(srcDimension, dest->ref.value->type->ty.a.dims, dest->ref.value->type->ty.a.numDims) ? RETURN_OK : RETURN_ERROR;
         } else {
-            return ChannelDimensionConformsToDimension(dest->ref.slice->dimension, srcDimension) ? RETURN_OK : RETURN_ERROR;
+            return ChannelDimensionConformsToDimension(dest->ref.slice.dimension, srcDimension) ? RETURN_OK : RETURN_ERROR;
         }
     } else {
         if (dest->type == CHANNEL_VALUE_REF_VALUE) {
             return mcx_array_dims_match(&dest->ref.value->value.a, src) ? RETURN_OK : RETURN_ERROR;
         } else {
-            return ChannelDimensionConformsTo(dest->ref.slice->dimension, src->dims, src->numDims) ? RETURN_OK : RETURN_ERROR;
+            return ChannelDimensionConformsTo(dest->ref.slice.dimension, src->dims, src->numDims) ? RETURN_OK : RETURN_ERROR;
         }
     }
 
@@ -1109,8 +1109,8 @@ static McxStatus TypeConversionConvertDoubleToArrayDouble(Conversion * conversio
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(double *) dest->ref.value->value.a.data = *(double *) src;
     } else {
-        double * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *(double *) src;
+        double * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(double *) src;
     }
 
     return RETURN_OK;
@@ -1124,8 +1124,8 @@ static McxStatus TypeConversionConvertIntegerToArrayDouble(Conversion * conversi
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(double *) dest->ref.value->value.a.data = (double) *((int *) src);
     } else {
-        double * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = (double) *((int *) src);
+        double * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = (double) *((int *) src);
     }
 
     return RETURN_OK;
@@ -1139,8 +1139,8 @@ static McxStatus TypeConversionConvertBoolToArrayDouble(Conversion * conversion,
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(double *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1. : 0.;
     } else {
-        double * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *((int *) src) != 0 ? 1. : 0.;
+        double * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1. : 0.;
     }
 
     return RETURN_OK;
@@ -1154,8 +1154,8 @@ static McxStatus TypeConversionConvertDoubleToArrayInteger(Conversion * conversi
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(int *) dest->ref.value->value.a.data = (int) floor(*((double *) src) + 0.5);
     } else {
-        int * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = (int) floor(*((double *) src) + 0.5);
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = (int) floor(*((double *) src) + 0.5);
     }
 
     return RETURN_OK;
@@ -1169,8 +1169,8 @@ static McxStatus TypeConversionConvertIntegerToArrayInteger(Conversion * convers
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(int *) dest->ref.value->value.a.data = *(int *) src;
     } else {
-        int * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *(int *) src;
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int *) src;
     }
 
     return RETURN_OK;
@@ -1184,8 +1184,8 @@ static McxStatus TypeConversionConvertBoolToArrayInteger(Conversion * conversion
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(int *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1 : 0;
     } else {
-        int * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1199,8 +1199,8 @@ static McxStatus TypeConversionConvertDoubleToArrayBool(Conversion * conversion,
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(int *) dest->ref.value->value.a.data = *((double *) src) > 0 ? 1 : 0;
     } else {
-        int * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *((double *) src) > 0 ? 1 : 0;
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((double *) src) > 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1214,8 +1214,8 @@ static McxStatus TypeConversionConvertIntegerToArrayBool(Conversion * conversion
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(int *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1 : 0;
     } else {
-        int * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1229,8 +1229,8 @@ static McxStatus TypeConversionConvertBoolToArrayBool(Conversion * conversion, C
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
         *(int *) dest->ref.value->value.a.data = *(int *) src;
     } else {
-        int * data = dest->ref.slice->ref->value.a.data;
-        *(data + dest->ref.slice->dimension->startIdxs[0]) = *(int *) src;
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int *) src;
     }
 
     return RETURN_OK;
@@ -1241,14 +1241,14 @@ static size_t IndexOfElemInSrcArray(size_t dest_idx, mcx_array * src_array, Chan
         if (dest->type == CHANNEL_VALUE_REF_VALUE) {
             return ChannelDimensionGetIndex(src_dim, dest_idx, src_array->dims);
         } else {
-            size_t idx = ChannelDimensionGetSliceIndex(dest->ref.slice->dimension, dest_idx, dest->ref.slice->ref->type->ty.a.dims);
+            size_t idx = ChannelDimensionGetSliceIndex(dest->ref.slice.dimension, dest_idx, dest->ref.slice.ref->type->ty.a.dims);
             return ChannelDimensionGetIndex(src_dim, idx, src_array->dims);
         }
     } else {
         if (dest->type == CHANNEL_VALUE_REF_VALUE) {
             return dest_idx;
         } else {
-            return ChannelDimensionGetSliceIndex(dest->ref.slice->dimension, dest_idx, dest->ref.slice->ref->type->ty.a.dims);
+            return ChannelDimensionGetSliceIndex(dest->ref.slice.dimension, dest_idx, dest->ref.slice.ref->type->ty.a.dims);
         }
     }
 }
