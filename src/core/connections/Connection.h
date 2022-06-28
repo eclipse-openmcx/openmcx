@@ -45,6 +45,10 @@ typedef McxStatus (* fConnectionSetup)(Connection * channel,
                                        struct ChannelOut        * out,
                                        struct ChannelIn         * in,
                                        struct ConnectionInfo    * info);
+typedef McxStatus (* fConnectionSetupStore)(Connection * conn,
+                                            struct ChannelOut * out,
+                                            struct ChannelIn * in,
+                                            struct ConnectionInfo * info);
 
 typedef struct ChannelOut * (* fConnectionGetSource)(Connection * connection);
 typedef struct ChannelIn  * (* fConnectionGetTarget)(Connection * connection);
@@ -118,6 +122,8 @@ struct Connection {
      * channel.
      */
     fConnectionSetup Setup;
+
+    fConnectionSetupStore SetupStore;
 
     /**
      * Returns the source out channel.

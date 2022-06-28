@@ -1401,7 +1401,6 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     Channel * chOut = (Channel *) out;
     ChannelInfo * outInfo = &chOut->info;
-    ChannelType * storeType = NULL;
 
     connection->out_  = out;
     connection->in_   = in;
@@ -1412,12 +1411,13 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
 
     connection->info = *info;
 
-    storeType = ChannelTypeFromDimension(outInfo->type, info->sourceDimension);
-    if (!storeType) {
+    retVal = connection->SetupStore(connection, out, in, info);
+    if (RETURN_ERROR == retVal) {
+        char * buffer = ConnectionInfoConnectionString(info);
+        mcx_log(LOG_ERROR, "Connection %s: Store setup failed", buffer);
+        mcx_free(buffer);
         return RETURN_ERROR;
     }
-
-    ChannelValueInit(&connection->store_, storeType);
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);
@@ -1439,10 +1439,25 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
     return RETURN_OK;
 }
 
+McxStatus ConnectionSetupStore(Connection * connection, ChannelOut * out, ChannelIn * in, ConnectionInfo * info) {
+    Channel * chOut = (Channel *) out;
+    ChannelInfo * outInfo = &chOut->info;
+    ChannelType * storeType = ChannelTypeFromDimension(outInfo->type, info->sourceDimension);
+
+    if (!storeType) {
+        return RETURN_ERROR;
+    }
+
+    ChannelValueInit(&connection->store_, storeType);
+
+    return RETURN_OK;
+}
+
 static Connection * ConnectionCreate(Connection * connection) {
     McxStatus retVal = RETURN_OK;
 
     connection->Setup = NULL;
+    connection->SetupStore = ConnectionSetupStore;
 
     connection->GetSource = ConnectionGetSource;
     connection->GetTarget = ConnectionGetTarget;
