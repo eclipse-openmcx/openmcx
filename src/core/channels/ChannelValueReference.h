@@ -33,17 +33,18 @@ typedef enum ChannelValueRefType {
 } ChannelValueRefType;
 
 
-extern const struct ObjectClass _ChannelValueRef;
-
 typedef struct ChannelValueRef {
-    Object _;
-
     ChannelValueRefType type;
     union {
         ChannelValue * value;
-        ArraySlice * slice;
+        ArraySlice slice;
     } ref;
 } ChannelValueRef;
+
+
+ChannelValueRef * MakeChannelValueReference(ChannelValue * value, ChannelDimension * slice);
+void DestroyChannelValueReference(ChannelValueRef * ref);
+
 
 McxStatus
 ChannelValueRefSetFromReference(ChannelValueRef * ref, const void * reference, ChannelDimension * srcDimension, TypeConversion * typeConv);
@@ -51,8 +52,6 @@ ChannelType * ChannelValueRefGetType(ChannelValueRef * ref);
 
 typedef McxStatus (*fChannelValueRefElemMapFunc)(void * element, size_t idx, ChannelType * type, void * ctx);
 McxStatus ChannelValueRefElemMap(ChannelValueRef * ref, fChannelValueRefElemMapFunc fn, void * ctx);
-
-ChannelValueRef * MakeChannelValueRef(ChannelValue * val, ChannelDimension * slice);
 
 
 #ifdef __cplusplus
