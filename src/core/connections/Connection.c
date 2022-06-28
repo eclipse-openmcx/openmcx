@@ -1097,6 +1097,7 @@ static ChannelType * ConnectionGetValueType(Connection * connection) {
 
 static void ConnectionDestructor(Connection * connection) {
     ChannelValueDestructor(&connection->store_);
+    DestroyConnectionInfo(&connection->info);
 }
 
 static ChannelOut * ConnectionGetSource(Connection * connection) {
@@ -1409,7 +1410,10 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
         info->hasDiscreteTarget = TRUE;
     }
 
-    connection->info = *info;
+    retVal = ConnectionInfoSetFrom(&connection->info, info);
+    if (RETURN_ERROR == retVal) {
+        return RETURN_ERROR;
+    }
 
     retVal = connection->SetupStore(connection, out, in, info);
     if (RETURN_ERROR == retVal) {

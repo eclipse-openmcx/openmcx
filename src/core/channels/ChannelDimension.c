@@ -319,11 +319,9 @@ ChannelDimension * MakeChannelDimension() {
     return dimension;
 }
 
-void DestroyChannelDimension(ChannelDimension ** dimension) {
-    if ((*dimension)->startIdxs) { mcx_free((*dimension)->startIdxs); }
-    if ((*dimension)->endIdxs) { mcx_free((*dimension)->endIdxs); }
-
-    *dimension = NULL;
+void DestroyChannelDimension(ChannelDimension * dimension) {
+    if (dimension->startIdxs) { mcx_free(dimension->startIdxs); }
+    if (dimension->endIdxs) { mcx_free(dimension->endIdxs); }
 }
 
 

@@ -30,7 +30,7 @@ typedef struct ChannelDimension {
 
 ChannelDimension * MakeChannelDimension();
 ChannelDimension * CloneChannelDimension(const ChannelDimension * dimension);
-void DestroyChannelDimension(ChannelDimension ** dimension);
+void DestroyChannelDimension(ChannelDimension * dimension);
 
 McxStatus ChannelDimensionSetup(ChannelDimension * dimension, size_t num);
 McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t num, size_t start, size_t end);

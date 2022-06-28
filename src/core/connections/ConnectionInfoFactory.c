@@ -126,14 +126,14 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
                 mcx_log(LOG_ERROR, "Source port %s: Could not set number of dimensions", strFromChannel);
                 retVal = RETURN_ERROR;
-                DestroyChannelDimension(&sourceDimension);
+                DestroyChannelDimension(sourceDimension);
                 goto cleanup;
             }
 
             if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, connInput->from.vectorEndpoint->startIndex, connInput->from.vectorEndpoint->endIndex)) {
                 mcx_log(LOG_ERROR, "Source port %s: Could not set dimension boundaries", strFromChannel);
                 retVal = RETURN_ERROR;
-                DestroyChannelDimension(&sourceDimension);
+                DestroyChannelDimension(sourceDimension);
                 goto cleanup;
             }
 
@@ -212,7 +212,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             if (RETURN_OK != ChannelDimensionSetup(targetDimension, 1)) {
                 mcx_log(LOG_ERROR, "Target port %s: Could not set number of dimensions", strToChannel);
                 retVal = RETURN_ERROR;
-                DestroyChannelDimension(&targetDimension);
+                DestroyChannelDimension(targetDimension);
                 goto cleanup;
             }
 
@@ -223,7 +223,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             {
                 mcx_log(LOG_ERROR, "Target port %s: Could not set dimension boundaries", strToChannel);
                 retVal = RETURN_ERROR;
-                DestroyChannelDimension(&targetDimension);
+                DestroyChannelDimension(targetDimension);
                 goto cleanup;
             }
 
@@ -358,7 +358,7 @@ Vector * ConnectionInfoFactoryCreateConnectionInfos(
         goto cleanup;
     }
 
-    list->Setup(list, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+    list->Setup(list, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
 
     retVal = ConnectionInfoFactoryInitConnectionInfo(&info, components, connInput, sourceCompOverride, targetCompOverride);
     if (RETURN_ERROR == retVal) {

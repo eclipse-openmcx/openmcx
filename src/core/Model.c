@@ -168,7 +168,7 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         mcx_log(LOG_ERROR, "Not enough memory to filter out constant connections");
         return RETURN_ERROR;
     }
-    filteredConns->Setup(filteredConns, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+    filteredConns->Setup(filteredConns, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
 
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
@@ -1716,7 +1716,7 @@ static Model * ModelCreate(Model * model) {
     // set to default values
     model->components = (ObjectContainer *) object_create(ObjectContainer);
     model->connections = (Vector *) object_create(Vector);
-    model->connections->Setup(model->connections, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+    model->connections->Setup(model->connections, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
     model->factory = NULL;
 
     model->config = NULL;

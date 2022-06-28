@@ -137,6 +137,22 @@ char * ConnectionInfoConnectionString(ConnectionInfo * info) {
     return buffer;
 }
 
+void DestroyConnectionInfo(ConnectionInfo * info) {
+    if (info->sourceDimension) { DestroyChannelDimension(info->sourceDimension); }
+    if (info->targetDimension) { DestroyChannelDimension(info->targetDimension); }
+}
+
+McxStatus ConnectionInfoSetFrom(ConnectionInfo * info, const ConnectionInfo * other) {
+    McxStatus retVal = RETURN_OK;
+
+    memcpy(info, other, sizeof(ConnectionInfo));
+
+    info->sourceDimension = CloneChannelDimension(other->sourceDimension);
+    info->targetDimension = CloneChannelDimension(other->targetDimension);
+
+    return RETURN_OK;
+}
+
 McxStatus ConnectionInfoInit(ConnectionInfo * info) {
     info->sourceComponent = NULL;
     info->targetComponent = NULL;
