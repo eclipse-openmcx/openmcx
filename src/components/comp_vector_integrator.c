@@ -77,8 +77,8 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
             return RETURN_ERROR;
         }
 
-        ChannelValueInit(&integrator->deriv[i], type);
-        ChannelValueInit(&integrator->state[i], type);
+        ChannelValueInit(&integrator->deriv[i], ChannelTypeClone(type));
+        ChannelValueInit(&integrator->state[i], ChannelTypeClone(type));
     }
 
     return RETURN_OK;
