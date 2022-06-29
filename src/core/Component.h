@@ -16,6 +16,7 @@
 #include "core/Component_interface.h"
 #include "core/Dependency.h"
 #include "objects/StringContainer.h"
+#include "objects/Vector.h"
 #include "reader/model/components/ComponentInput.h"
 #include "core/connections/ConnectionInfo.h"
 
@@ -250,7 +251,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, struct St
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time);
 McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
-struct ObjectContainer * GetInConnectionInfos(const Component * comp, size_t channelID);
+Vector * GetInConnectionInfos(const Component * comp, size_t channelID);
 struct ObjectContainer * GetInConnections(const Component * comp, size_t channelID);
 
 size_t ComponentGetNumOutGroups(const Component * comp);

@@ -840,7 +840,7 @@ static void ComponentSetModel(Component * comp, Model * model) {
     comp->data->model = model;
 }
 
-ObjectContainer * GetInConnectionInfos(const Component * comp, size_t channelID) {
+Vector * GetInConnectionInfos(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
 
     if (channelID < channelNum) {

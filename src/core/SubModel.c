@@ -689,7 +689,7 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                 // initial inputs are always exact
                 if (info->initialValue) {
                     //check if connection exists (cosim init values are not deoupling connections, they only have lower priority than connection values)
-                    ObjectContainer * infos = GetInConnectionInfos(targetComp, targetInChannelID);
+                    Vector * infos = GetInConnectionInfos(targetComp, targetInChannelID);
                     size_t numInfos = infos->Size(infos);
                     size_t i = 0;
 
@@ -698,8 +698,9 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                     } else {
                         int allDecoupled = TRUE;
                         for (i = 0; i < numInfos; i++) {
-                            ConnectionInfo * info = (ConnectionInfo *) infos->At(infos, i);
+                            ConnectionInfo * info = *(ConnectionInfo**) infos->At(infos, i);
                             if (!ConnectionInfoIsDecoupled(info)) {
+                                object_destroy(infos);
                                 allDecoupled = FALSE;
                                 break;
                             }
@@ -709,16 +710,17 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                             dependency = DEP_INDEPENDENT;
                         }
                     }
+                    object_destroy(infos);
                 }
             }
 
             if (DEP_INDEPENDENT != dependency) {
-                ObjectContainer * infos = GetInConnectionInfos(targetComp, targetInChannelID);
+                Vector * infos = GetInConnectionInfos(targetComp, targetInChannelID);
                 ObjectContainer * conns = GetInConnections(targetComp, targetInChannelID);
                 size_t i = 0;
 
                 for (i = 0; i < infos->Size(infos); i++) {
-                    ConnectionInfo * info = infos->At(infos, i);
+                    ConnectionInfo * info = *(ConnectionInfo**) infos->At(infos, i);
                     Connection * conn = conns->At(conns, i);
 
                     if (info && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED)) && (!ConnectionInfoIsDecoupled(info)) &&
@@ -760,6 +762,7 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                         if (RETURN_ERROR == retVal) {
                             mcx_log(LOG_ERROR, "SetDependency failed in SubModelGeneratorCreateDependencyMatrix");
                             mcx_free(A);
+                            object_destroy(infos);
                             return NULL;
                         }
 
@@ -779,6 +782,8 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                         }
                     }
                 }
+
+                object_destroy(infos);
             }
         }
         if (targetCompDependency) {
