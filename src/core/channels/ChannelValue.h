@@ -125,7 +125,6 @@ typedef int (*mcx_array_predicate_f_ptr)(void * element, ChannelType * type);
 int mcx_array_all(mcx_array * a, mcx_array_predicate_f_ptr predicate);
 int mcx_array_leq(const mcx_array * left, const mcx_array * right);
 
-// TODO: change concrete types to McxDouble, McxInteger, etc
 union ChannelValueData {
     /* the order is significant. double needs to be the first entry for union initialization to work */
     double d;

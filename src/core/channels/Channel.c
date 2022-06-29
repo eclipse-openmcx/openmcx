@@ -190,8 +190,6 @@ static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
     return data;
 }
 
-// TODO fix Create and Destructor to properly free memory in case of failure
-
 static void ChannelInDataDestructor(ChannelInData * data) {
     // clean up conversion objects
     data->typeConversions->DestroyObjects(data->typeConversions);
@@ -210,7 +208,13 @@ static void ChannelInDataDestructor(ChannelInData * data) {
         ChannelTypeDestructor(data->type);
     }
 
-    // TODO destroy connections/valueReference ????
+    if (data->connections) {
+        object_destroy(data->connections);
+    }
+
+    if (data->valueReferences) {
+        object_destroy(data->valueReferences);
+    }
 }
 
 OBJECT_CLASS(ChannelInData, Object);
@@ -441,9 +445,6 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     }
 
     ChannelDimension * dimension = connInfo->targetDimension;
-    // TODO check ret values
-    // TODO do we need some plausibility checks?
-    // TODO is it fine to use connInfo here?
     if (dimension && !ChannelDimensionEq(dimension, inInfo->dimension)) {
         ChannelDimension * slice = CloneChannelDimension(dimension);
 
@@ -459,7 +460,10 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     }
 
     retVal = in->data->valueReferences->PushBack(in->data->valueReferences, &valRef);
-    // TODO check retVal
+    if (RETURN_ERROR == retVal) {
+        ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Storing value reference failed");
+        return RETURN_ERROR;
+    }
 
     if (ChannelTypeEq(ChannelTypeBaseType(inInfo->type), &ChannelTypeDouble)) {
         UnitConversion * conversion = (UnitConversion *) object_create(UnitConversion);
@@ -728,6 +732,8 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 
 static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * connection) {
     ObjectList * conns = out->data->connections;
+    ChannelDimension * outDim = ((Channel*)out)->info.dimension;
+    ChannelDimension * connDim = connection->info.sourceDimension;
 
     // TODO: do we have to check that channelout and connection match
     // in type/dimension?
