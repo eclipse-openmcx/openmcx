@@ -154,6 +154,9 @@ static Channel * ChannelCreate(Channel * channel) {
 // object that is stored in target component that stores
 // the channel connection
 
+static void DestroyChannelValueReferencePtr(ChannelValueReference ** ptr) {
+    DestroyChannelValueReference(*ptr);
+}
 
 static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
     data->connections = (ObjectContainer *) object_create(ObjectContainer);
@@ -161,10 +164,12 @@ static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
         return NULL;
     }
 
-    data->valueReferences = (ObjectContainer *) object_create(ObjectContainer);
+    data->valueReferences = (Vector *) object_create(Vector);
     if (!data->valueReferences) {
         return NULL;
     }
+
+    data->valueReferences->Setup(data->valueReferences, sizeof(ChannelValueReference *), NULL, NULL, DestroyChannelValueReferencePtr);
 
     data->reference  = NULL;
     data->type = ChannelTypeClone(&ChannelTypeUnknown);
@@ -279,7 +284,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         ConnectionInfo * connInfo = &conn->info;
         TypeConversion * typeConv = (TypeConversion *) in->data->typeConversions->At(in->data->typeConversions, i);
         UnitConversion * unitConv = (UnitConversion *) in->data->unitConversions->At(in->data->unitConversions, i);
-        ChannelValueReference * valueRef = (ChannelValueReference *) in->data->valueReferences->At(in->data->valueReferences, i);
+        ChannelValueReference * valueRef = *(ChannelValueReference **) in->data->valueReferences->At(in->data->valueReferences, i);
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
@@ -453,7 +458,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         valRef = MakeChannelValueReference(&channel->value, NULL);
     }
 
-    retVal = in->data->valueReferences->PushBack(in->data->valueReferences, (Object *) valRef);
+    retVal = in->data->valueReferences->PushBack(in->data->valueReferences, &valRef);
     // TODO check retVal
 
     if (ChannelTypeEq(ChannelTypeBaseType(inInfo->type), &ChannelTypeDouble)) {
