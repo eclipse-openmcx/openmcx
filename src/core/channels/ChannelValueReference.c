@@ -216,7 +216,6 @@ ChannelType * ChannelValueReferenceGetType(ChannelValueReference * ref) {
         case CHANNEL_VALUE_REF_VALUE:
             return ChannelValueType(ref->ref.value);
         case CHANNEL_VALUE_REF_SLICE:
-            // TODO (do we need to adapt the indices wrt. dimension) ?
             return ChannelValueType(ref->ref.slice.ref);
         default:
             mcx_log(LOG_ERROR, "Invalid internal channel value reference type (%d)", ref->type);
