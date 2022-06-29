@@ -395,8 +395,8 @@ static int ChannelInIsConnected(Channel * channel) {
     return FALSE;
 }
 
-static ObjectContainer * ChannelInGetConnectionInfos(ChannelIn * in) {
-    ObjectContainer * infos = (ObjectContainer *) object_create(ObjectContainer);
+static Vector * ChannelInGetConnectionInfos(ChannelIn * in) {
+    Vector * infos = (Vector*) object_create(Vector);
     size_t numConns = in->data->connections->Size(in->data->connections);
     size_t i = 0;
 
@@ -404,10 +404,12 @@ static ObjectContainer * ChannelInGetConnectionInfos(ChannelIn * in) {
         return NULL;
     }
 
+    infos->Setup(infos, sizeof(ConnectionInfo*), NULL, NULL, NULL);
+
     for (i = 0; i < numConns; i++) {
         Connection * conn = in->data->connections->At(in->data->connections, i);
         ConnectionInfo * connInfo = &conn->info;
-        if (RETURN_ERROR == infos->PushBack(infos, (Object *) connInfo)) {
+        if (RETURN_ERROR == infos->PushBack(infos, &connInfo)) {
             object_destroy(infos);
             return NULL;
         }

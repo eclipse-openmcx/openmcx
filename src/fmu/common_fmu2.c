@@ -796,9 +796,9 @@ McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencie
                 }
 
                 // if an element index appears in elems, it means that element is connected
-                ObjectContainer * connInfos = in->GetConnectionInfos(in);
+                Vector * connInfos = in->GetConnectionInfos(in);
                 for (j = 0; j < connInfos->Size(connInfos); j++) {
-                    ConnectionInfo * connInfo = (ConnectionInfo *) connInfos->At(connInfos, j);
+                    ConnectionInfo * connInfo = *(ConnectionInfo**) connInfos->At(connInfos, j);
                     size_t k = 0;
 
                     for (k = 0; k < ChannelDimensionNumElements(connInfo->targetDimension); k++) {
@@ -806,6 +806,7 @@ McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencie
                         in_channel_connectivity[i].elems[in_channel_connectivity[i].num_elems++] = idx;
                     }
                 }
+                object_destroy(connInfos);
             } else {
                 in_channel_connectivity[i].is_connected = TRUE;
                 // scalar channels are treated like they have 1 element (equal to zero)
