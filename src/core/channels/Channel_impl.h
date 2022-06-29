@@ -29,7 +29,7 @@ typedef struct ChannelInData {
     Object _; // base class
 
     ObjectContainer * connections;      // connections (non-overlapping) going into the channel
-    ObjectContainer * valueReferences;  // references to non-overlapping parts of ChannelData::value, where
+    Vector * valueReferences;           // references to non-overlapping parts of ChannelData::value, where
                                         // values gotten from connections are going to be stored
 
     // ----------------------------------------------------------------------
