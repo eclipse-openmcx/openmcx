@@ -185,19 +185,21 @@ static char * QuoteString(const char * _str) {
 static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
     StorageBackendText * textBackend = (StorageBackendText *) backend;
     ResultsStorage * storage = backend->storage;
-    char * buffer = NULL;
     size_t compIdx = 0;
+    size_t numCompsOld = textBackend->numComponents;
 
-    if (textBackend->numComponents > 0) {
-        mcx_log(LOG_ERROR, "Results: Re-setting up backend");
+    MCX_DEBUG_LOG("Setting up component CSV files (%zu -> %zu)", numCompsOld, storage->numComponents);
+    textBackend->numComponents = storage->numComponents;
+    textBackend->comps = (TextComponent *) mcx_realloc(textBackend->comps, textBackend->numComponents * sizeof(TextComponent));
+    if (textBackend->numComponents && !textBackend->comps) {
+        mcx_log(LOG_ERROR, "SetupComponentFilesCsv: TextComponents: Not enough memory");
         return RETURN_ERROR;
     }
 
-    /* calloc is used for implicit initialization of textBackend->comps */
-    textBackend->numComponents = storage->numComponents;
-    textBackend->comps = (TextComponent *) mcx_calloc(textBackend->numComponents, sizeof(TextComponent));
+    // initialize new TextComponents to 0
+    memset(textBackend->comps + numCompsOld, 0, (textBackend->numComponents - numCompsOld) * sizeof(TextComponent));
 
-    for (compIdx = 0; compIdx < textBackend->numComponents; compIdx++) {
+    for (compIdx = numCompsOld; compIdx < textBackend->numComponents; compIdx++) {
         ComponentStorage * compStore = storage->componentStorage[compIdx];
         Component * comp = (Component *) compStore->comp;
         TextComponent * textComponent = &(textBackend->comps[compIdx]);
@@ -216,6 +218,7 @@ static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
             ChannelStorage * chStore = compStore->channels[j];
             size_t chNum = chStore->GetChannelNum(chStore);
             size_t chIdx = 0;
+            char * buffer = NULL;
             const size_t nameLen = strlen(localName) + strlen(ChannelStoreSuffix[j]) + 6;
 
             /* do not create a file if channel store is not enabled */
@@ -281,6 +284,7 @@ static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
         }
         mcx_free(localName);
     }
+
     return RETURN_OK;
 }
 
