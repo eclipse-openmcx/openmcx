@@ -381,11 +381,6 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
         Fmu2Value * val = (Fmu2Value *) vals->At(vals, i);
 
         if (ch->IsConnected(ch) || ch->info.defaultValue) {
-            const char * channelName = info->nameInTool;
-            if (NULL == channelName) {
-                channelName = ChannelInfoGetName(info);
-            }
-
             val->SetChannel(val, info->channel);
 
             if (!ChannelTypeIsValid(val->val.type)) {
