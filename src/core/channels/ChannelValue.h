@@ -57,6 +57,7 @@ extern ChannelType ChannelTypeString;
 extern ChannelType ChannelTypeBinary;
 extern ChannelType ChannelTypeBinaryReference;
 ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
+ChannelType * ChannelTypeArrayLongDims(ChannelType * inner, size_t numDims, unsigned long * dims);
 
 ChannelType * ChannelTypeClone(ChannelType * type);
 void ChannelTypeDestructor(ChannelType * type);

@@ -117,6 +117,34 @@ ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dim
     return array;
 }
 
+ChannelType * ChannelTypeArrayLongDims(ChannelType * inner, size_t numDims, unsigned long * dims) {
+    ChannelType * array = NULL;
+    size_t i = 0;
+
+    if (!inner) {
+        return &ChannelTypeUnknown;
+    }
+
+    array = (ChannelType *) mcx_malloc(sizeof(ChannelType));
+    if (!array) {
+        return &ChannelTypeUnknown;
+    }
+
+    array->con = CHANNEL_ARRAY;
+    array->ty.a.inner = inner;
+    array->ty.a.numDims = numDims;
+    array->ty.a.dims = (size_t *) mcx_calloc(sizeof(size_t), numDims);
+    if (!array->ty.a.dims) {
+        return &ChannelTypeUnknown;
+    }
+
+    for (i = 0; i < numDims; i++) {
+        array->ty.a.dims[i] = dims[i];
+    }
+
+    return array;
+}
+
 ChannelType * ChannelTypeArrayInner(ChannelType * array) {
     if (!ChannelTypeIsArray(array)) {
         return &ChannelTypeUnknown;
