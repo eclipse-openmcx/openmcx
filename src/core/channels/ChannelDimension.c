@@ -40,13 +40,13 @@ error_cleanup:
     return RETURN_ERROR;
 }
 
-McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t num, size_t start, size_t end) {
-    if (num > dimension->num) {
+McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t dim, size_t start, size_t end) {
+    if (dim > dimension->num) {
         return RETURN_ERROR;
     }
 
-    dimension->startIdxs[num] = start;
-    dimension->endIdxs[num] = end;
+    dimension->startIdxs[dim] = start;
+    dimension->endIdxs[dim] = end;
 
     return RETURN_OK;
 }
