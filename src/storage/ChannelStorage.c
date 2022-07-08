@@ -348,6 +348,29 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
     return channelStore;
 }
 
+char ** ExpandedChannelNames(const char * name, size_t start, size_t end) {
+    char ** names = (char **) mcx_malloc(sizeof(char *) * (end - start + 1 + 1));
+    if (!names) { return NULL; }
+
+    size_t i = 0;
+
+    for (i = start; i <= end; i++) {
+        names[i-start] = CreateIndexedName(name, i);
+    }
+    names[i-start] = NULL;
+
+    return names;
+}
+
+void FreeExpandedChannelNames(char ** names) {
+    size_t i = 0;
+    while (names[i]) {
+        mcx_free(names[i]);
+        ++i;
+    }
+    mcx_free(names);
+}
+
 OBJECT_CLASS(ChannelStorage, Object);
 
 #ifdef __cplusplus
