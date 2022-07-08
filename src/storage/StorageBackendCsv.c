@@ -16,6 +16,7 @@
 #include "storage/StorageBackendCsv.h"
 #include "storage/StorageBackendText_impl.h"
 #include "storage/PPD.h"
+#include "storage/ChannelStorage.h"
 #include "core/connections/ConnectionInfoFactory.h"
 
 #include "util/string.h"
@@ -181,29 +182,6 @@ static char * QuoteString(const char * _str) {
     newStr[i] = '\0';  // to be safe if mcx_calloc did not set memory to zero
 
     return newStr;
-}
-
-static char * ExpandedChannelNames(const char * name, size_t start, size_t end) {
-    char ** names = (char **) mcx_malloc(sizeof(char *) * (end - start + 1 + 1));
-    if (!names) { return NULL; }
-
-    size_t i = 0;
-
-    for (i = start; i <= end; i++) {
-        names[i-start] = CreateIndexedName(name, i);
-    }
-    names[i-start] = NULL;
-
-    return names;
-}
-
-static void FreeExpandedChannelNames(char ** names) {
-    size_t i = 0;
-    while (names[i]) {
-        mcx_free(names[i]);
-        ++i;
-    }
-    mcx_free(names);
 }
 
 static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
