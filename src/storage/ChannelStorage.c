@@ -349,10 +349,13 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
 }
 
 char ** ExpandedChannelNames(const char * name, size_t start, size_t end) {
-    char ** names = (char **) mcx_malloc(sizeof(char *) * (end - start + 1 + 1));
-    if (!names) { return NULL; }
-
+    char ** names = NULL;
     size_t i = 0;
+
+    names = (char **) mcx_malloc(sizeof(char *) * (end - start + 1 + 1));
+    if (!names) {
+        return NULL;
+    }
 
     for (i = start; i <= end; i++) {
         names[i-start] = CreateIndexedName(name, i);
