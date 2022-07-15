@@ -503,16 +503,6 @@ McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams
             ArrayParameterProxy * proxy = NULL;
             size_t j = 0;
 
-            // read parameter dimensions (if any) - should only be defined for array parameters
-            if (parameterInput->parameter.arrayParameter->numDims >=2 &&
-                parameterInput->parameter.arrayParameter->dims[1] &&
-                !parameterInput->parameter.arrayParameter->dims[0]) {
-                mcx_log(LOG_ERROR, "FMU: Array parameter %s: Missing definition for the first dimension "
-                        "while the second dimension is defined.", parameterInput->parameter.arrayParameter->name);
-                retVal = RETURN_ERROR;
-                goto cleanup_1;
-            }
-
             // array - split it into scalars
             vals = Fmu2ReadArrayParamValues(name, parameterInput->parameter.arrayParameter, import, params);
             if (vals == NULL) {
