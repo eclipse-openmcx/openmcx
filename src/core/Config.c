@@ -417,6 +417,18 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * wrongInitBehaviorDisabled = NULL;
+
+        wrongInitBehaviorDisabled = mcx_os_get_env_var("MCX_WRONG_INIT_BEHAVIOR");
+        if (wrongInitBehaviorDisabled) {
+            if (is_on(wrongInitBehaviorDisabled)) {
+                config->patchWrongInitBehavior = FALSE;
+            }
+            mcx_free(wrongInitBehaviorDisabled);
+        }
+    }
+
+    {
         char * numWarnings = mcx_os_get_env_var("NUM_TIME_SNAP_WARNINGS");
         if (numWarnings) {
             int num = atoi(numWarnings);
@@ -571,6 +583,7 @@ static Config * ConfigCreate(Config * config) {
     config->writeAllLogFile = FALSE;
 
     config->cosimInitEnabled = FALSE;
+    config->patchWrongInitBehavior = TRUE;
 
     config->maxNumTimeSnapWarnings = MAX_NUM_MSGS;
 
