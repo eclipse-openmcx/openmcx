@@ -1446,13 +1446,15 @@ static McxStatus ModelInitialize(Model * model) {
         return retVal;
     }
 
-    // Additional step for faulty elements which return zeroes as out channel values during initialization.
-    // This makes sure that after the element exits initialization (CompExitInit),
-    // the output channels contain good values before they get forwarded to the filters (ModelConnectionsExitInitMode)
-    retVal = subModel->LoopEvaluationList(subModel, CompUpdateInAndOutputs, (void*)model->task);
-    if (RETURN_ERROR == retVal) {
-        mcx_log(LOG_ERROR, "Model: Updating element channels failed");
-        return RETURN_ERROR;
+    if (model->config->patchWrongInitBehavior) {
+        // Additional step for faulty elements which return zeroes as out channel values during initialization.
+        // This makes sure that after the element exits initialization (CompExitInit),
+        // the output channels contain good values before they get forwarded to the filters (ModelConnectionsExitInitMode)
+        retVal = subModel->LoopEvaluationList(subModel, CompUpdateInAndOutputs, (void*)model->task);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Updating element channels failed");
+            return RETURN_ERROR;
+        }
     }
 
     retVal = ModelConnectionsExitInitMode(model->components, model->task->params->time);
