@@ -1363,6 +1363,35 @@ static McxStatus CompUpdateInitOutputs(CompAndGroup * compGroup, void * param) {
     return retVal;
 }
 
+static McxStatus CompUpdateInAndOutputs(CompAndGroup * compGroup, void * param) {
+    Component * comp = compGroup->comp;
+    double startTime = comp->GetTime(comp);
+    TimeInterval time = { startTime, startTime };
+    McxStatus retVal = RETURN_OK;
+
+    retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &time);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating inports after initialization loop failed");
+        return RETURN_ERROR;
+    }
+
+    if (comp->UpdateInChannels) {
+        retVal = comp->UpdateInChannels(comp);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Updating inports failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    retVal = ComponentUpdateOutChannels(comp, &time);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating outports after initialization loop failed");
+        return RETURN_ERROR;
+    }
+
+    return retVal;
+}
+
 static McxStatus CompUpdateOutputs(CompAndGroup * compGroup, void * param) {
     Component  * comp  = compGroup->comp;
     const Task * task  = (const Task *) param;
@@ -1415,6 +1444,15 @@ static McxStatus ModelInitialize(Model * model) {
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Model: Initialization of elements failed");
         return retVal;
+    }
+
+    // Additional step for faulty elements which return zeroes as out channel values during initialization.
+    // This makes sure that after the element exits initialization (CompExitInit),
+    // the output channels contain good values before they get forwarded to the filters (ModelConnectionsExitInitMode)
+    retVal = subModel->LoopEvaluationList(subModel, CompUpdateInAndOutputs, (void*)model->task);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating element channels failed");
+        return RETURN_ERROR;
     }
 
     retVal = ModelConnectionsExitInitMode(model->components, model->task->params->time);
