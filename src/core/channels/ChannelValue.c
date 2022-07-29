@@ -612,9 +612,6 @@ char * ChannelValueToString(ChannelValue * value) {
         }
         break;
     case CHANNEL_ARRAY:{
-        size_t i = 0;
-        size_t n = 0;
-
         size_t (*fmt)(char * buffer, void * value, size_t i);
 
         if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeDouble)) {
@@ -635,6 +632,9 @@ char * ChannelValueToString(ChannelValue * value) {
         }
 
         if (mcx_array_num_elements(&value->value.a) > 0) {
+            size_t i = 0;
+            size_t n = 0;
+
             n += fmt(buffer + n, value->value.a.data, 0);
             for (i = 1; i < mcx_array_num_elements(&value->value.a); i++) {
                 n += sprintf(buffer + n, ",");
