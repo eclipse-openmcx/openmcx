@@ -955,6 +955,8 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
                 *(char **) reference = (char *) mcx_calloc(strlen(value->s) + 1, sizeof(char));
                 if (*(char **) reference) {
                     strncpy(*(char **) reference, value->s, strlen(value->s) + 1);
+                } else {
+                    return RETURN_ERROR;
                 }
             }
             break;
