@@ -169,7 +169,7 @@ int ChannelTypeIsBinary(const ChannelType * a) {
     return a->con == CHANNEL_BINARY || a->con == CHANNEL_BINARY_REFERENCE;
 }
 
-ChannelType * ChannelTypeBaseType(ChannelType * a) {
+ChannelType * ChannelTypeBaseType(const ChannelType * a) {
     if (ChannelTypeIsArray(a)) {
         return ChannelTypeBaseType(a->ty.a.inner);
     } else {
@@ -212,7 +212,7 @@ int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelTy
     }
 }
 
-int ChannelTypeEq(ChannelType * a, ChannelType * b) {
+int ChannelTypeEq(const ChannelType * a, const ChannelType * b) {
     if (a->con == CHANNEL_ARRAY && b->con == CHANNEL_ARRAY) {
         size_t i = 0;
         if (a->ty.a.numDims != b->ty.a.numDims) {
@@ -320,7 +320,7 @@ int mcx_array_dims_match(mcx_array * a, mcx_array * b) {
     return 1;
 }
 
-size_t mcx_array_num_elements(mcx_array * a) {
+size_t mcx_array_num_elements(const mcx_array * a) {
     size_t i = 0;
     size_t n = 1;
 
@@ -348,7 +348,7 @@ McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx) {
     return RETURN_OK;
 }
 
-McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element) {
+McxStatus mcx_array_get_elem(const mcx_array * a, size_t idx, ChannelValueData * element) {
     size_t num_elems = mcx_array_num_elements(a);
 
     if (idx >= num_elems) {
