@@ -73,9 +73,9 @@ size_t ChannelTypeNumElements(const ChannelType * type);
 
 ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension * dimension);
 
-ChannelType * ChannelTypeBaseType(ChannelType * a);
+ChannelType * ChannelTypeBaseType(const ChannelType * a);
 
-int ChannelTypeEq(ChannelType * a, ChannelType * b);
+int ChannelTypeEq(const ChannelType * a, const ChannelType * b);
 int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB);
 
 typedef struct MapStringChannelType {
@@ -112,12 +112,12 @@ typedef struct {
 McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * type);
 void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
-size_t mcx_array_num_elements(mcx_array * a);
+size_t mcx_array_num_elements(const mcx_array * a);
 
 typedef int (*mcx_array_map_f_ptr)(void * element, size_t idx, ChannelType * type, void * ctx);
 
 McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx);
-McxStatus mcx_array_get_elem(mcx_array * a, size_t idx, ChannelValueData * element);
+McxStatus mcx_array_get_elem(const mcx_array * a, size_t idx, ChannelValueData * element);
 McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * element);
 
 void * mcx_array_get_elem_reference(mcx_array * a, size_t idx);
