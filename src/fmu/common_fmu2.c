@@ -1355,8 +1355,17 @@ ObjectContainer * Fmu2ValueScalarListFromVarList(fmi2_import_variable_list_t * v
         fmi2_import_variable_t * var = fmi2_import_get_variable(vars, i);
         char * name = (char *)fmi2_import_get_variable_name(var);
         ChannelType * type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
+        fmi2_import_unit_t * unit = NULL;
+        const char * unitName = NULL;
 
-        Fmu2Value * value = Fmu2ValueScalarMake(name, var, NULL, NULL);
+        if (ChannelTypeEq(&ChannelTypeDouble, type)) {
+            unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(var));
+            if (unit) {
+                unitName = fmi2_import_get_unit_name(unit);
+            }
+        }
+
+        Fmu2Value * value = Fmu2ValueScalarMake(name, var, unitName, NULL);
         if (value) {
             list->PushBackNamed(list, (Object *) value, name);
         } else {
