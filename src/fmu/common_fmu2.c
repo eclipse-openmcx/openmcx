@@ -361,8 +361,8 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
         end2 = input->dims[1]->end;
     }
 
-    for (k = start2; k <= end2; k++) {
-        for (j = start1; j <= end1; j++, index++) {
+    for (k = start1; k <= end1; k++) {
+        for (j = start2; j <= end2; j++, index++) {
             Fmu2Value * val = NULL;
             char * varName = (char *) mcx_calloc(stringBufferLength, sizeof(char));
             fmi2_import_variable_t * var = NULL;
@@ -376,7 +376,7 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
             if (input->numDims == 2) {
                 snprintf(varName, stringBufferLength, "%s[%zu,%zu]", name, k, j);
             } else {
-                snprintf(varName, stringBufferLength, "%s[%zu]", name, j);
+                snprintf(varName, stringBufferLength, "%s[%zu]", name, k);
             }
 
             var = fmi2_import_get_variable_by_name(import, varName);
