@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "common/memory.h"
-
+#include "common/logging.h"
 #include "util/string.h"
 
 
@@ -75,7 +75,21 @@ char * mcx_string_encode(const char * str, char _escape_char, const char _chars_
 }
 
 char * mcx_string_encode_filename(const char * str) {
+    //Should not be used anymore -> INSTEAD mcx_string_encode_filename_result_files
     return mcx_string_encode(str, '%', "\\\"<>|!#$&'()*+,/:;=?@[]%");
+}
+
+char* mcx_string_encode_filename_except_hashes(const char* str) {
+    return mcx_string_encode(str, '%', "\\\"<>|!$&'()*+,/:;=?@[]%._`*{}");
+}
+
+char* mcx_string_encode_filename_result_files(const char* str) {
+    char* strA = mcx_string_encode_filename_except_hashes(str);
+    char* strB = mcx_string_replace_charA_with_charB(strA, ' ', '_');
+    mcx_free(strA);
+    char* strC = mcx_string_replace_charA_with_charB(strB, '#', '.');
+    mcx_free(strB);
+    return  strC;
 }
 
 int mcx_string_ends_with(const char * str, const char * suffix) {
@@ -241,6 +255,27 @@ char* mcx_string_sep(char** stringp, const char* delim)
         }
     }
     return start;
+}
+
+char* mcx_string_replace_charA_with_charB(const char* str, char charA, char charB ) {
+    size_t len = strlen(str);
+    size_t i = 0, j = 0;
+
+    char* buffer = (char*)mcx_calloc(len + 1, sizeof(char));
+    if (!buffer) {
+        return NULL;
+    }
+
+    for (i = 0; i < len; i++) {
+        if (charA == str[i]) {
+            buffer[j++] = charB;
+        }
+        else {
+            buffer[j++] = str[i];
+        }
+    }
+    buffer[j] = '\0';
+    return buffer;
 }
 
 #ifdef __cplusplus
