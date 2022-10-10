@@ -60,7 +60,7 @@ McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
         wchar_t * wFullDllPath = NULL;
         DWORD length = GetFullPathNameW(wDllPath, 0, NULL, NULL);
         if (length == 0) {
-            mcx_log(LOG_ERROR, "Util: Error retrieving length of absolute path of Dll (%s)", wDllPath);
+            mcx_log(LOG_ERROR, "Util: Error retrieving length of absolute path of Dll (%s)", dllPath);
             print_last_error();
             retVal = RETURN_ERROR;
             goto relpath_cleanup;
@@ -68,7 +68,7 @@ McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
         wFullDllPath = (wchar_t *) mcx_malloc(sizeof(wchar_t) * length);
         length = GetFullPathNameW(wDllPath, length, wFullDllPath, NULL);
         if (length == 0) {
-            mcx_log(LOG_ERROR, "Util: Error creating full path for Dll (%s)", wDllPath);
+            mcx_log(LOG_ERROR, "Util: Error creating absolute path for Dll (%s)", dllPath);
             print_last_error();
             retVal = RETURN_ERROR;
             goto relpath_cleanup;
@@ -82,6 +82,8 @@ relpath_cleanup:
         }
         wDllPath = wFullDllPath;
     }
+
+    mcx_log(LOG_DEBUG, "Util: Loading Dll %S", wDllPath);
 
     * handle = LoadLibraryExW(wDllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
 
