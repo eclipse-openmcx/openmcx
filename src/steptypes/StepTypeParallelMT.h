@@ -71,6 +71,9 @@ typedef struct DoStepThreadArg {
     // last status value
     McxStatus status;
 
+    // last reached synchronization point
+    double reachedSyncTime;
+
     // flag if thread should stop
     int finished;
 
