@@ -103,6 +103,7 @@ static DoStepThreadArg * DoStepThreadArgCreate(DoStepThreadArg * arg) {
     arg->SetCounter = DoStepThreadArgSetCounter;
     arg->StartThread = DoStepThreadArgStartThread;
 
+    arg->reachedSyncTime = 0.0;
     arg->comp = NULL;
     arg->group = 0;
     arg->params = NULL;
