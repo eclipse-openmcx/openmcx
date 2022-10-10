@@ -21,6 +21,7 @@ char * mcx_string_dup(const char * s);
 
 char * mcx_string_encode(const char * str, char _escape_char, const char _chars_to_escape[]);
 char * mcx_string_encode_filename(const char * str);
+char * mcx_string_encode_filename_result_files(const char* str);
 
 wchar_t * mcx_string_to_widechar(const char * str);
 char * mcx_string_to_utf8(const wchar_t * wstr);
@@ -38,6 +39,7 @@ char * mcx_string_merge_array_with_spaces(char * args[]);
 char * mcx_string_merge_quoted_array_with_spaces(char * strs[]);
 
 char* mcx_string_sep(char** stringp, const char* delim);
+char* mcx_string_replace_charA_with_charB(const char* str, char charA, char charB);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
