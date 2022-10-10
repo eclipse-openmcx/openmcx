@@ -171,7 +171,7 @@ static McxStatus PpdFolderAddElement(PpdFolder * folder, PpdElement * element) {
     return elements->SetElementName(elements, elements->Size(elements) - 1, element->GetName(element));
 }
 
-static char PPD_SEP = '.';
+static char PPD_SEP = '#';
 
 static PpdFolder * PpdFolderInsertComponent(PpdFolder * folder, const char * linkType, const char * compName, const char * fileNameOut, const char * fileNameIn, const char * fileNameLocal, const char * fileNameRTFactor) {
     const char * sep = strchr(compName, PPD_SEP);
