@@ -1419,7 +1419,7 @@ OBJECT_CLASS(Databus, Object);
 
 
 char * CreateChannelID(const char * compName, const char * channelName) {
-    const char separator = '.';
+    const char separator = '#';
     size_t len = strlen(compName) + strlen(channelName) + 2;
     char * id = (char *) mcx_calloc(len, sizeof(char));
     if (id) {

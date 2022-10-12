@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "common/memory.h"
-#include "common/logging.h"
+
 #include "util/string.h"
 
 
@@ -75,21 +75,18 @@ char * mcx_string_encode(const char * str, char _escape_char, const char _chars_
 }
 
 char * mcx_string_encode_filename(const char * str) {
-    //Should not be used anymore -> INSTEAD mcx_string_encode_filename_result_files
     return mcx_string_encode(str, '%', "\\\"<>|!#$&'()*+,/:;=?@[]%");
 }
 
-char* mcx_string_encode_filename_except_hashes(const char* str) {
+char* mcx_string_encode_special_characters_except_hash(const char* str) {
     return mcx_string_encode(str, '%', "\\\"<>|!$&'()*+,/:;=?@[]%._`*{}");
 }
 
 char* mcx_string_encode_filename_result_files(const char* str) {
-    char* strA = mcx_string_encode_filename_except_hashes(str);
-    char* strB = mcx_string_replace_charA_with_charB(strA, ' ', '_');
-    mcx_free(strA);
-    char* strC = mcx_string_replace_charA_with_charB(strB, '#', '.');
-    mcx_free(strB);
-    return  strC;
+    char* str_encoded = mcx_string_encode_special_characters_except_hash(str);
+    mcx_string_replace_char(str_encoded, ' ', '_');
+    mcx_string_replace_char(str_encoded, '#', '.');
+    return  str_encoded;
 }
 
 int mcx_string_ends_with(const char * str, const char * suffix) {
@@ -257,25 +254,42 @@ char* mcx_string_sep(char** stringp, const char* delim)
     return start;
 }
 
-char* mcx_string_replace_charA_with_charB(const char* str, char charA, char charB ) {
+void mcx_string_replace_char(char* str, char searched_char, char replacement_char) {
     size_t len = strlen(str);
-    size_t i = 0, j = 0;
-
-    char* buffer = (char*)mcx_calloc(len + 1, sizeof(char));
-    if (!buffer) {
-        return NULL;
-    }
+    size_t i = 0;
 
     for (i = 0; i < len; i++) {
-        if (charA == str[i]) {
-            buffer[j++] = charB;
-        }
-        else {
-            buffer[j++] = str[i];
+        if (searched_char == str[i]) {
+            str[i] = replacement_char;
         }
     }
-    buffer[j] = '\0';
-    return buffer;
+}
+
+size_t*  mcx_positions_of_char_in_string(const char* str, char searched_char, size_t* nr_searched_char) {
+    int i, j = 0;
+    size_t* positions = NULL;
+    size_t k = 0;
+
+    for (i = 0; i < strlen(str); i++) {
+        if (str[i] == searched_char) {
+            j++;
+        }
+    }
+    *nr_searched_char = j;
+    if (j > 0) {
+        positions = (size_t*)mcx_calloc(j, sizeof(size_t));
+
+        if (!positions) {
+            return NULL;
+        }
+
+        for (int i = 0; i < strlen(str); i++) {
+            if (str[i] == searched_char) {
+                positions[k++] = i;
+            }
+        }
+    }
+    return positions;
 }
 
 #ifdef __cplusplus
