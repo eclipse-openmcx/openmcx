@@ -121,9 +121,9 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
 typedef struct TypeConversion TypeConversion;
 
 typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion,
-                                          const ChannelType * fromType,
+                                          ChannelType * fromType,
                                           ChannelDimension * fromDimension,
-                                          const ChannelType * toType,
+                                          ChannelType * toType,
                                           ChannelDimension * toDimension);
 
 // TODO: Ideally the `src` argument would also be ChannelValueReference, but that requires quite of lot of changes
