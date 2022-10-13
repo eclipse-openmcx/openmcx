@@ -54,36 +54,51 @@ McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
 
     wchar_t * wDllPath = mcx_string_to_widechar(dllPath);
 
+    McxStatus retVal = RETURN_OK;
+
     if (PathIsRelativeW(wDllPath)) {
         wchar_t * wFullDllPath = NULL;
         DWORD length = GetFullPathNameW(wDllPath, 0, NULL, NULL);
         if (length == 0) {
             mcx_log(LOG_ERROR, "Util: Error retrieving length of absolute path of Dll (%s)", wDllPath);
             print_last_error();
-            return RETURN_ERROR;
+            retVal = RETURN_ERROR;
+            goto relpath_cleanup;
         }
         wFullDllPath = (wchar_t *) mcx_malloc(sizeof(wchar_t) * length);
         length = GetFullPathNameW(wDllPath, length, wFullDllPath, NULL);
         if (length == 0) {
             mcx_log(LOG_ERROR, "Util: Error creating full path for Dll (%s)", wDllPath);
             print_last_error();
-            return RETURN_ERROR;
+            retVal = RETURN_ERROR;
+            goto relpath_cleanup;
         }
-        mcx_free(wDllPath);
+relpath_cleanup:
+        if (wDllPath) {
+            mcx_free(wDllPath);
+        }
+        if (retVal != RETURN_OK) {
+            goto cleanup;
+        }
         wDllPath = wFullDllPath;
     }
 
     * handle = LoadLibraryExW(wDllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-    mcx_free(wDllPath);
 
     compValue = (DllHandleCheck) * handle;
     if (compValue <= HINSTANCE_ERROR) {
         mcx_log(LOG_ERROR, "Util: Dll (%s) could not be loaded", dllPath);
         print_last_error();
-        return RETURN_ERROR;
+        retVal = RETURN_ERROR;
+        goto cleanup;
     }
 
-    return RETURN_OK;
+cleanup:
+    if (wDllPath) {
+        mcx_free(wDllPath);
+    }
+
+    return retVal;
 }
 
 
