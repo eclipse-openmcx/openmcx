@@ -60,8 +60,27 @@ int double_almost_equal(double a, double b, double eps) {
     }
 }
 
+static int double_almost_equal_abs(double a, double b, double eps) {
+    double diff = (a - b);
+    diff = (diff < 0) ? -diff : diff;
+    return diff < eps;
+}
+
 cmp double_cmp_eps(double a, double b, double eps) {
     if (double_almost_equal(a, b, eps)) {
+        return CMP_EQ;
+    } else if (a < b) {
+        return CMP_LT;
+    } else if (a > b) {
+        return CMP_GT;
+    } else {
+        // error
+        return CMP_IN;
+    }
+}
+
+cmp double_cmp_eps_abs(double a, double b, double eps) {
+    if (double_almost_equal_abs(a, b, eps)) {
         return CMP_EQ;
     } else if (a < b) {
         return CMP_LT;
