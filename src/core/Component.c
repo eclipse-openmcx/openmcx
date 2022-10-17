@@ -1292,6 +1292,8 @@ static Component * ComponentCreate(Component * comp) {
 
     comp->data->typeString = NULL;
 
+    comp->syncHintsConfigured = FALSE;
+    StepTypeSynchronizationInit(&comp->syncHints);
 
     comp->GetNumObservableChannels = ComponentGetNumObservableChannels;
     comp->AddObservableChannels = AddObservableChannels;

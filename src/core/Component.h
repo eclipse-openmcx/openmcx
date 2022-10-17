@@ -19,6 +19,7 @@
 #include "objects/Vector.h"
 #include "reader/model/components/ComponentInput.h"
 #include "core/connections/ConnectionInfo.h"
+#include "steptypes/StepType.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -228,6 +229,9 @@ struct Component {
     fOnConnectionsDone OnConnectionsDone;
 
     struct ComponentData * data;
+
+    int syncHintsConfigured;
+    StepTypeSynchronization syncHints;
 };
 
 /* these functions have to be called by subclasses */

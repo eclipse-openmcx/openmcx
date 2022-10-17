@@ -80,9 +80,16 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
     level = STORE_SYNCHRONIZATION;
 
+    if (!comp->syncHintsConfigured) {
+        StepTypeSynchronizationSetup(&comp->syncHints, comp, params->timeStepSize);
+        comp->syncHintsConfigured = TRUE;
+    }
+
     while (
         comp->GetFinishState(comp) != COMP_IS_FINISHED &&
-        double_lt(comp->GetTime(comp), stepEndTime)
+        comp->syncHints.stepSizesAreMultiples ?
+            double_cmp_eps_abs(comp->GetTime(comp), stepEndTime, comp->syncHints.eps) == CMP_LT :
+            double_lt(comp->GetTime(comp), stepEndTime)
     ) {
         if (comp->HasOwnTime(comp)) {
             interval.startTime = comp->GetTime(comp);
