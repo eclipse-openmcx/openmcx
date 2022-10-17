@@ -80,7 +80,10 @@ static void DoStepThreadArgSetup(DoStepThreadArg * arg, Component * comp, size_t
     arg->group = group;
     arg->params = params;
 
-    StepTypeSynchronizationSetup(&arg->stepSizes, comp, params->timeStepSize);
+    if (!comp->syncHintsConfigured) {
+        StepTypeSynchronizationSetup(&comp->syncHints, comp, params->timeStepSize);
+        comp->syncHintsConfigured = TRUE;
+    }
 }
 
 static void DoStepThreadArgSetCounter(DoStepThreadArg * arg, DoStepThreadCounter * counter) {
@@ -111,8 +114,6 @@ static DoStepThreadArg * DoStepThreadArgCreate(DoStepThreadArg * arg) {
     arg->params = NULL;
     arg->status = RETURN_OK;
     arg->finished = FALSE;
-
-    StepTypeSynchronizationInit(&arg->stepSizes);
 
     status = mcx_event_create(&arg->startDoStepEvent);
     if (status) {
