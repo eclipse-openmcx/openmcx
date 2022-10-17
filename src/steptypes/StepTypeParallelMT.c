@@ -79,6 +79,8 @@ static void DoStepThreadArgSetup(DoStepThreadArg * arg, Component * comp, size_t
     arg->comp = comp;
     arg->group = group;
     arg->params = params;
+
+    StepTypeSynchronizationSetup(&arg->stepSizes, comp, params->timeStepSize);
 }
 
 static void DoStepThreadArgSetCounter(DoStepThreadArg * arg, DoStepThreadCounter * counter) {
@@ -109,6 +111,9 @@ static DoStepThreadArg * DoStepThreadArgCreate(DoStepThreadArg * arg) {
     arg->params = NULL;
     arg->status = RETURN_OK;
     arg->finished = FALSE;
+
+    StepTypeSynchronizationInit(&arg->stepSizes);
+
     status = mcx_event_create(&arg->startDoStepEvent);
     if (status) {
         mcx_log(LOG_ERROR, "Simulation: Failed to create DoStep start event");

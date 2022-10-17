@@ -74,6 +74,8 @@ typedef struct DoStepThreadArg {
     // last reached synchronization point
     double reachedSyncTime;
 
+    StepTypeSynchronization stepSizes;
+
     // flag if thread should stop
     int finished;
 

@@ -24,6 +24,18 @@ typedef struct SubModel SubModel;
 typedef struct CompAndGroup CompAndGroup;
 
 
+typedef struct StepTypeSynchronization {
+    // flag whether the coupling and synchronization step size are multiples of one another
+    int stepSizesAreMultiples;
+
+    // epsilon used for time comparisons
+    double eps;
+} StepTypeSynchronization;
+
+void StepTypeSynchronizationSetup(StepTypeSynchronization * stepTypes, Component * comp, double syncStepSize);
+void StepTypeSynchronizationInit(StepTypeSynchronization * stepTypes);
+
+
 typedef enum StepTypeType {
     STEP_TYPE_UNDEFINED = -1,       /* "parallel_singlethreaded" */
     STEP_TYPE_SEQUENTIAL = 1,       /* "sequential" */
