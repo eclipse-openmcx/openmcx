@@ -80,10 +80,7 @@ static void DoStepThreadArgSetup(DoStepThreadArg * arg, Component * comp, size_t
     arg->group = group;
     arg->params = params;
 
-    if (!comp->syncHintsConfigured) {
-        StepTypeSynchronizationSetup(&comp->syncHints, comp, params->timeStepSize);
-        comp->syncHintsConfigured = TRUE;
-    }
+    StepTypeSynchronizationSetup(&comp->syncHints, comp, params->timeStepSize);
 }
 
 static void DoStepThreadArgSetCounter(DoStepThreadArg * arg, DoStepThreadCounter * counter) {
