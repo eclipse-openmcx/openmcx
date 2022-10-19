@@ -80,11 +80,6 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
     level = STORE_SYNCHRONIZATION;
 
-    if (!comp->syncHintsConfigured) {
-        StepTypeSynchronizationSetup(&comp->syncHints, comp, params->timeStepSize);
-        comp->syncHintsConfigured = TRUE;
-    }
-
     while (
         comp->GetFinishState(comp) != COMP_IS_FINISHED &&
         comp->syncHints.stepSizesAreMultiples ?

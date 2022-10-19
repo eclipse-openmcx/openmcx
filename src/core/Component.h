@@ -230,7 +230,6 @@ struct Component {
 
     struct ComponentData * data;
 
-    int syncHintsConfigured;
     StepTypeSynchronization syncHints;
 };
 
