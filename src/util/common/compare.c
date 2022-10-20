@@ -114,6 +114,10 @@ int double_geq(double a, double b) {
             || double_cmp(a,b) == CMP_GT);
 }
 
+int double_leq_eps_abs(double a, double b, double eps) {
+    return (double_cmp_eps_abs(a, b, eps) == CMP_EQ || double_cmp_eps_abs(a, b, eps) == CMP_LT);
+}
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
