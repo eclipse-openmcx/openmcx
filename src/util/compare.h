@@ -79,6 +79,11 @@ int double_leq(double a, double b);
  */
 int double_geq(double a, double b);
 
+/**
+ * Returns if a <= b modulo eps
+ */
+int double_leq_eps_abs(double a, double b, double eps);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
