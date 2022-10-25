@@ -246,7 +246,8 @@ typedef struct ChannelOutData {
     // Connections to Consumers
 
     // A list of all input channels that are connected to this output channel
-    ObjectList * connections;
+    ConnectionList connList;
+    size_t increment;
 
 } ChannelOutData;
 
@@ -266,7 +267,7 @@ typedef McxStatus (* fChannelOutRegisterConnection)(struct ChannelOut * out,
 
 typedef const proc * (* fChannelOutGetFunction)(ChannelOut * out);
 
-typedef ObjectList * (* fChannelOutGetConnections)(ChannelOut * out);
+typedef ConnectionList * (* fChannelOutGetConnections)(ChannelOut * out);
 
 extern const struct ObjectClass _ChannelOut;
 

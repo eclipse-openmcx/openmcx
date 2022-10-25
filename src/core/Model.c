@@ -447,10 +447,10 @@ static McxStatus ModelInsertAllFilters(Model * model) {
 
         for (j = 0; j < numOutChannels; j++) {
             ChannelOut * out = DatabusGetOutChannel(db, j);
-            ObjectList * conns = out->GetConnections(out);
+            ConnectionList * conns = out->GetConnections(out);
 
-            for (k = 0; k < conns->Size(conns); k++) {
-                Connection * connection = (Connection *) conns->At(conns, k);
+            for (k = 0; k < conns->numConnections; k++) {
+                Connection * connection = conns->connections[k];
                 ConnectionInfo * info = connection->GetInfo(connection);
                     if (connection->AddFilter) {
                         char * connStr = ConnectionInfoConnectionString(info);
@@ -700,10 +700,10 @@ static Connection * ModelGetConnectionFromInfo(Model * model, ConnectionInfo * i
 
         for (j = 0; j < numOutChannels; j++) {
             ChannelOut * out = DatabusGetOutChannel(db, j);
-            ObjectList * conns = out->GetConnections(out);
+            ConnectionList * conns = out->GetConnections(out);
 
-            for (k = 0; k < conns->Size(conns); k++) {
-                Connection * connection = (Connection *) conns->At(conns, k);
+            for (k = 0; k < conns->numConnections; k++) {
+                Connection * connection = conns->connections[k];
                 if (connection->GetInfo(connection) == info) {
                     return connection;
                 }

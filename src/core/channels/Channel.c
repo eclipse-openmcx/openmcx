@@ -638,7 +638,15 @@ static McxStatus ChannelOutDataInit(ChannelOutData * data) {
 
     data->rangeConversionIsActive = TRUE;
 
-    data->connections = (ObjectList *) object_create(ObjectList);
+    data->increment = 2;
+
+    data->connList.numConnections = 0;
+    data->connList.capacity = 1;
+    data->connList.connections = (Connection * *) mcx_malloc(sizeof(Connection *));
+    if (!data->connList.connections) {
+        mcx_log(LOG_ERROR, "ChannelOutDataInit: Allocation of connections failed");
+        return RETURN_ERROR;
+    }
 
     data->nanCheck = NAN_CHECK_ALWAYS;
 
@@ -650,7 +658,6 @@ static McxStatus ChannelOutDataInit(ChannelOutData * data) {
 }
 
 static void ChannelOutDataDestructor(ChannelOutData * data) {
-    ObjectList * conns = data->connections;
     size_t i = 0;
 
     if (data->rangeConversion) {
@@ -660,10 +667,14 @@ static void ChannelOutDataDestructor(ChannelOutData * data) {
         object_destroy(data->linearConversion);
     }
 
-    for (i = 0; i < conns->Size(conns); i++) {
-        object_destroy(conns->elements[i]);
+    if (data->connList.connections) {
+        for (i = 0; i < data->connList.numConnections; i++) {
+            if (data->connList.connections[i]) {
+                object_destroy(data->connList.connections[i]);
+            }
+        }
+        mcx_free(data->connList.connections);
     }
-    object_destroy(data->connections);
 
     ChannelValueDestructor(&data->valueFunctionRes);
 }
@@ -735,12 +746,24 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 }
 
 static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * connection) {
-    ObjectList * conns = out->data->connections;
+    ChannelInfo * outInfo = &((Channel *) out)->info;
+    ConnectionInfo * connInfo = &connection->info;
+    ConnectionList * connList = &out->data.connList;
 
     // TODO: do we have to check that channelout and connection match
     // in type/dimension?
 
-    return conns->PushBack(conns, (Object *) connection);
+    while (connList->capacity <= connList->numConnections) {
+        connList->capacity *= out->data.increment;
+        connList->connections = mcx_realloc(connList->connections, connList->capacity * sizeof(Connection *));
+        if (!connList->connections) {
+            return ReportConnStringError(outInfo, "Register outport connection %s: ", connInfo, "Could not set up connections (realloc failed)");
+        }
+    }
+    connList->connections[connList->numConnections] = connection;
+    connList->numConnections++;
+
+    return RETURN_OK;
 }
 
 static const void * ChannelOutGetValueReference(Channel * channel) {
@@ -760,8 +783,8 @@ static const proc * ChannelOutGetFunction(ChannelOut * out) {
     return out->data.valueFunction;
 }
 
-static ObjectList * ChannelOutGetConnections(ChannelOut * out) {
-    return out->data.connections;
+static ConnectionList * ChannelOutGetConnections(ChannelOut * out) {
+    return &out->data.connList;
 }
 
 static int ChannelOutProvidesValue(Channel * channel) {
@@ -773,10 +796,8 @@ static int ChannelOutIsConnected(Channel * channel) {
         return TRUE;
     } else {
         ChannelOut * out = (ChannelOut *) channel;
-        if (NULL != out->data.connections) {
-            if (out->data.connections->Size(out->data.connections)) {
-                return TRUE;
-            }
+        if (out->data.connList.numConnections) {
+            return TRUE;
         }
     }
 
@@ -787,7 +808,7 @@ static int ChannelOutIsFullyConnected(Channel * channel) {
     ChannelOut * out = (ChannelOut *) channel;
 
     if (ChannelTypeIsArray(&channel->info.type)) {
-        ObjectList* conns = out->data.connections;
+        ConnectionList * conns = &out->data.connList;
         size_t i = 0;
         size_t num_elems = ChannelDimensionNumElements(channel->info.dimension);
 
@@ -797,8 +818,8 @@ static int ChannelOutIsFullyConnected(Channel * channel) {
             return -1;
         }
 
-        for (i = 0; i < conns->Size(conns); i++) {
-            Connection * conn = (Connection *) out->data.connections->At(out->data.connections, i);
+        for (i = 0; i < conns->numConnections; i++) {
+            Connection * conn = out->data.connList.connections[i];
             ConnectionInfo * info = &conn->info;
             size_t j = 0;
 
@@ -907,7 +928,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     ChannelOut * out = (ChannelOut *)channel;
     ChannelInfo * info = &channel->info;
 
-    ObjectList * conns = out->data.connections;
+    ConnectionList * conns = &out->data.connList;
 
     McxStatus retVal = RETURN_OK;
 
@@ -984,9 +1005,8 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         }
 
         // Notify connections of new values
-        size_t connSize = conns->Size(conns);
-        for (j = 0; j < connSize; j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
             channel->SetDefinedDuringInit(channel);
             connection->UpdateFromInput(connection, time);
         }
@@ -1010,7 +1030,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                 return RETURN_ERROR;
 
             case NAN_CHECK_CONNECTED:
-                if (conns->Size(conns) > 0) {
+                if (conns->numConnections > 0) {
                     mcx_log(LOG_ERROR, "Outport %s at time %f is not a number (NaN)",
                            ChannelInfoGetName(info), time->startTime);
                     return RETURN_ERROR;
@@ -1020,7 +1040,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                 }
 
             case NAN_CHECK_NEVER:
-                WarnAboutNaN((conns->Size(conns) > 0) ? LOG_ERROR : LOG_WARNING,
+                WarnAboutNaN((conns->numConnections > 0) ? LOG_ERROR : LOG_WARNING,
                              info, time, &out->data.countNaNCheckWarning, &out->data.maxNumNaNCheckWarning);
                 break;
             }
