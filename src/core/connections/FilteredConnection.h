@@ -13,10 +13,25 @@
 
 #include "core/connections/Connection.h"
 #include "core/Conversion.h"
+#include "core/channels/ChannelValue.h"
+#include "core/connections/filters/Filter.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+typedef struct FilteredConnectionData {
+
+    // storage of the filtered value provided by the output channel
+    ChannelValue store;
+
+    // storage for temporary results during out channel updates
+    ChannelValue updateBuffer;
+
+    ChannelFilter ** filters;
+    size_t numFilters;
+
+} FilteredConnectionData;
 
 typedef struct FilteredConnection FilteredConnection;
 
@@ -34,7 +49,7 @@ struct FilteredConnection {
 
     fFilteredConnectionSetResult SetResult;
 
-    struct FilteredConnectionData * data;
+    FilteredConnectionData data;
 } ;
 
 #ifdef __cplusplus
