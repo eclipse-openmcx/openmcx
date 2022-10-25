@@ -851,7 +851,7 @@ Vector * GetInConnectionInfos(const Component * comp, size_t channelID) {
     return NULL;
 }
 
-ObjectContainer * GetInConnections(const Component * comp, size_t channelID) {
+ConnectionList * GetInConnections(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
