@@ -182,12 +182,12 @@ static McxStatus ChannelInDataInit(ChannelInData * data) {
         return RETURN_ERROR;
     }
 
-    data->typeConversions = (ObjectContainer *) object_create(ObjectContainer);
+    data->typeConversions = (TypeConversion * *) mcx_malloc(sizeof(TypeConversion *));
     if (!data->typeConversions) {
         mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for type conversion objects failed");
         return RETURN_ERROR;
     }
-    data->unitConversions = (ObjectContainer *) object_create(ObjectContainer);
+    data->unitConversions = (UnitConversion * *) mcx_malloc(sizeof(UnitConversion *));
     if (!data->unitConversions) {
         mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for unit conversion objects failed");
         return RETURN_ERROR;
@@ -201,12 +201,6 @@ static McxStatus ChannelInDataInit(ChannelInData * data) {
 }
 
 static void ChannelInDataDestructor(ChannelInData * data) {
-    // clean up conversion objects
-    data->typeConversions->DestroyObjects(data->typeConversions);
-    object_destroy(data->typeConversions);
-
-    data->unitConversions->DestroyObjects(data->unitConversions);
-    object_destroy(data->unitConversions);
 
     if (data->linearConversion) {
         object_destroy(data->linearConversion);
@@ -224,6 +218,18 @@ static void ChannelInDataDestructor(ChannelInData * data) {
 
     if (data->connList.connections) {
         mcx_free((void *) data->connList.connections);
+    }
+    if (data->typeConversions) {
+        for (int j = 0; j < data->connList.numConnections; j++) {
+            object_destroy(data->typeConversions[j]);
+        }
+        mcx_free((void *) data->typeConversions);
+    }
+    if (data->unitConversions) {
+        for (int j = 0; j < data->connList.numConnections; j++) {
+            object_destroy(data->unitConversions[j]);
+        }
+        mcx_free((void *) data->unitConversions);
     }
 }
 
@@ -292,8 +298,8 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     for (i = 0; i < numConns; i++) {
         Connection * conn = (Connection *) in->data.connList.connections[i];
         ConnectionInfo * connInfo = &conn->info;
-        TypeConversion * typeConv = (TypeConversion *) in->data.typeConversions->At(in->data.typeConversions, i);
-        UnitConversion * unitConv = (UnitConversion *) in->data.unitConversions->At(in->data.unitConversions, i);
+        TypeConversion * typeConv = in->data.typeConversions[i];
+        UnitConversion * unitConv = in->data.unitConversions[i];
         ChannelValueReference * valueRef = in->data.valueReferences[i];
 
         /* Update the connection for the current time */
@@ -449,9 +455,11 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     while (connList->capacity <= connList->numConnections) {
         connList->capacity *= in->data.increment;
         connList->connections = mcx_realloc(connList->connections, sizeof(Connection *) * connList->capacity);
+        in->data.typeConversions = mcx_realloc(in->data.typeConversions, sizeof(TypeConversion *) * connList->capacity);
+        in->data.unitConversions = mcx_realloc(in->data.unitConversions, sizeof(UnitConversion *) * connList->capacity);
         in->data.valueReferences = mcx_realloc(in->data.valueReferences, sizeof(ChannelValueReference *) * connList->capacity);
-        if (!connList->connections || !in->data.valueReferences) {
-            mcx_log(LOG_ERROR, "ChannelInRegisterConnection: (Re-)Allocation of connections failed");
+        if (!connList->connections || !in->data.typeConversions || !in->data.unitConversions || !in->data.valueReferences) {
+            mcx_log(LOG_ERROR, "ChannelInRegisterConnection: (Re-)Allocation of connection related data failed");
             return RETURN_ERROR;
         }
     }
@@ -487,15 +495,9 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
             object_destroy(conversion);
         }
 
-        retVal = in->data.unitConversions->PushBack(in->data.unitConversions, (Object *) conversion);
-        if (RETURN_ERROR == retVal) {
-            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add unit conversion");
-        }
+        in->data.unitConversions[connList->numConnections - 1] = conversion;
     } else {
-        retVal = in->data.unitConversions->PushBack(in->data.unitConversions, NULL);
-        if (RETURN_ERROR == retVal) {
-            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add empty unit conversion");
-        }
+        in->data.unitConversions[connList->numConnections - 1] = NULL;
     }
 
     // setup type conversion
@@ -510,15 +512,9 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
             return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up type conversion");
         }
 
-        retVal = in->data.typeConversions->PushBack(in->data.typeConversions, (Object *) typeConv);
-        if (RETURN_ERROR == retVal) {
-            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add type conversion");
-        }
+        in->data.typeConversions[connList->numConnections - 1] = typeConv;
     } else {
-        retVal = in->data.typeConversions->PushBack(in->data.typeConversions, NULL);
-        if (RETURN_ERROR == retVal) {
-            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not add empty type conversion");
-        }
+        in->data.typeConversions[connList->numConnections - 1] = NULL;
     }
 
     return retVal;
