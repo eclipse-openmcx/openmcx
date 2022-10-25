@@ -628,7 +628,7 @@ static ChannelIn * ChannelInCreate(ChannelIn * in) {
 // ----------------------------------------------------------------------
 // ChannelOut
 
-static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
+static McxStatus ChannelOutDataInit(ChannelOutData * data) {
     data->valueFunction = NULL;
     ChannelValueInit(&data->valueFunctionRes, ChannelTypeClone(&ChannelTypeUnknown));
     data->rangeConversion = NULL;
@@ -644,7 +644,7 @@ static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
     data->maxNumNaNCheckWarning = 0;
 
 
-    return data;
+    return RETURN_OK;
 }
 
 static void ChannelOutDataDestructor(ChannelOutData * data) {
@@ -665,10 +665,6 @@ static void ChannelOutDataDestructor(ChannelOutData * data) {
 
     ChannelValueDestructor(&data->valueFunctionRes);
 }
-
-OBJECT_CLASS(ChannelOutData, Object);
-
-
 
 static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * config) {
     Channel * channel = (Channel *) out;
@@ -700,27 +696,27 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
     if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble)
         || ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger))
     {
-        out->data->rangeConversion = (RangeConversion *) object_create(RangeConversion);
-        retVal = out->data->rangeConversion->Setup(out->data->rangeConversion, min, max);
+        out->data.rangeConversion = (RangeConversion *) object_create(RangeConversion);
+        retVal = out->data.rangeConversion->Setup(out->data.rangeConversion, min, max);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Port %s: Setup outport: Could not setup range conversion", ChannelInfoGetLogName(info));
-            object_destroy(out->data->rangeConversion);
+            object_destroy(out->data.rangeConversion);
             return RETURN_ERROR;
         } else {
-            if (out->data->rangeConversion->IsEmpty(out->data->rangeConversion)) {
-                object_destroy(out->data->rangeConversion);
+            if (out->data.rangeConversion->IsEmpty(out->data.rangeConversion)) {
+                object_destroy(out->data.rangeConversion);
             }
         }
 
-        out->data->linearConversion = (LinearConversion *) object_create(LinearConversion);
-        retVal = out->data->linearConversion->Setup(out->data->linearConversion, scale, offset);
+        out->data.linearConversion = (LinearConversion *) object_create(LinearConversion);
+        retVal = out->data.linearConversion->Setup(out->data.linearConversion, scale, offset);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Port %s: Setup outport: Could not setup linear conversion", ChannelInfoGetLogName(info));
-            object_destroy(out->data->linearConversion);
+            object_destroy(out->data.linearConversion);
             return RETURN_ERROR;
         } else {
-            if (out->data->linearConversion->IsEmpty(out->data->linearConversion)) {
-                object_destroy(out->data->linearConversion);
+            if (out->data.linearConversion->IsEmpty(out->data.linearConversion)) {
+                object_destroy(out->data.linearConversion);
             }
         }
     }
@@ -730,8 +726,8 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
         return RETURN_ERROR;
     }
 
-    out->data->nanCheck = config->nanCheck;
-    out->data->maxNumNaNCheckWarning = config->nanCheckNumMessages;
+    out->data.nanCheck = config->nanCheck;
+    out->data.maxNumNaNCheckWarning = config->nanCheckNumMessages;
 
     return RETURN_OK;
 }
@@ -759,11 +755,11 @@ static const void * ChannelOutGetValueReference(Channel * channel) {
 }
 
 static const proc * ChannelOutGetFunction(ChannelOut * out) {
-    return out->data->valueFunction;
+    return out->data.valueFunction;
 }
 
 static ObjectList * ChannelOutGetConnections(ChannelOut * out) {
-    return out->data->connections;
+    return out->data.connections;
 }
 
 static int ChannelOutProvidesValue(Channel * channel) {
@@ -775,8 +771,8 @@ static int ChannelOutIsConnected(Channel * channel) {
         return TRUE;
     } else {
         ChannelOut * out = (ChannelOut *) channel;
-        if (NULL != out->data->connections) {
-            if (out->data->connections->Size(out->data->connections)) {
+        if (NULL != out->data.connections) {
+            if (out->data.connections->Size(out->data.connections)) {
                 return TRUE;
             }
         }
@@ -789,7 +785,7 @@ static int ChannelOutIsFullyConnected(Channel * channel) {
     ChannelOut * out = (ChannelOut *) channel;
 
     if (ChannelTypeIsArray(&channel->info.type)) {
-        ObjectList* conns = out->data->connections;
+        ObjectList* conns = out->data.connections;
         size_t i = 0;
         size_t num_elems = ChannelDimensionNumElements(channel->info.dimension);
 
@@ -800,7 +796,7 @@ static int ChannelOutIsFullyConnected(Channel * channel) {
         }
 
         for (i = 0; i < conns->Size(conns); i++) {
-            Connection * conn = (Connection *) out->data->connections->At(out->data->connections, i);
+            Connection * conn = (Connection *) out->data.connections->At(out->data.connections, i);
             ConnectionInfo * info = &conn->info;
             size_t j = 0;
 
@@ -872,16 +868,16 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
         }
     }
 
-    if (out->data->valueFunction) {
+    if (out->data.valueFunction) {
         mcx_log(LOG_ERROR, "Port %s: Set outport function: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
     // Save channel procedure
-    out->data->valueFunction = (const proc *) reference;
+    out->data.valueFunction = (const proc *) reference;
 
     // Initialize (and allocate necessary memory)
-    ChannelValueInit(&out->data->valueFunctionRes, ChannelTypeClone(type));
+    ChannelValueInit(&out->data.valueFunctionRes, ChannelTypeClone(type));
 
     // Setup value reference to point to internal value
     channel->internalValue = ChannelValueDataPointer(&channel->value);
@@ -909,7 +905,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     ChannelOut * out = (ChannelOut *)channel;
     ChannelInfo * info = &channel->info;
 
-    ObjectList * conns = out->data->connections;
+    ObjectList * conns = out->data.connections;
 
     McxStatus retVal = RETURN_OK;
 
@@ -921,7 +917,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         if (out->GetFunction(out)) {
             // function value
             proc * p = (proc *) out->GetFunction(out);
-            if (RETURN_ERROR == p->fn(time, p->env, &out->data->valueFunctionRes)) {
+            if (RETURN_ERROR == p->fn(time, p->env, &out->data.valueFunctionRes)) {
                 mcx_log(LOG_ERROR, "Port %s: Update outport: Function failed", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
@@ -931,10 +927,10 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                               time->startTime,
                               ChannelInfoGetLogName(info),
                               time->startTime,
-                              out->data->valueFunctionRes.value.d);
+                              out->data.valueFunctionRes.value.d);
             }
 #endif // MCX_DEBUG
-            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, ChannelValueDataPointer(&out->data->valueFunctionRes))) {
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, ChannelValueDataPointer(&out->data.valueFunctionRes))) {
                 return RETURN_ERROR;
             }
         } else {
@@ -963,9 +959,9 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
             ChannelValue * val = &channel->value;
 
             // range
-            if (out->data->rangeConversion) {
-                if (out->data->rangeConversionIsActive) {
-                    Conversion * conversion = (Conversion *) out->data->rangeConversion;
+            if (out->data.rangeConversion) {
+                if (out->data.rangeConversionIsActive) {
+                    Conversion * conversion = (Conversion *) out->data.rangeConversion;
                     retVal = conversion->convert(conversion, val);
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute range conversion", ChannelInfoGetLogName(info));
@@ -975,8 +971,8 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
             }
 
             // linear
-            if (out->data->linearConversion) {
-                Conversion * conversion = (Conversion *) out->data->linearConversion;
+            if (out->data.linearConversion) {
+                Conversion * conversion = (Conversion *) out->data.linearConversion;
                 retVal = conversion->convert(conversion, val);
                 if (RETURN_OK != retVal) {
                     mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute linear conversion", ChannelInfoGetLogName(info));
@@ -1004,7 +1000,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
 
         if (isnan(*val))
         {
-            switch (out->data->nanCheck) {
+            switch (out->data.nanCheck) {
 
             case NAN_CHECK_ALWAYS:
                 mcx_log(LOG_ERROR, "Outport %s at time %f is not a number (NaN)",
@@ -1017,13 +1013,13 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
                            ChannelInfoGetName(info), time->startTime);
                     return RETURN_ERROR;
                 } else {
-                    WarnAboutNaN(LOG_WARNING, info, time, &out->data->countNaNCheckWarning, &out->data->maxNumNaNCheckWarning);
+                    WarnAboutNaN(LOG_WARNING, info, time, &out->data.countNaNCheckWarning, &out->data.maxNumNaNCheckWarning);
                     break;
                 }
 
             case NAN_CHECK_NEVER:
                 WarnAboutNaN((conns->Size(conns) > 0) ? LOG_ERROR : LOG_WARNING,
-                             info, time, &out->data->countNaNCheckWarning, &out->data->maxNumNaNCheckWarning);
+                             info, time, &out->data.countNaNCheckWarning, &out->data.maxNumNaNCheckWarning);
                 break;
             }
         }
@@ -1034,14 +1030,16 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
 }
 
 static void ChannelOutDestructor(ChannelOut * out) {
-    object_destroy(out->data);
+    ChannelOutDataDestructor(&out->data);
 }
 
 static ChannelOut * ChannelOutCreate(ChannelOut * out) {
     Channel * channel = (Channel *) out;
+    McxStatus retVal = RETURN_OK;
 
-    out->data = (ChannelOutData *) object_create(ChannelOutData);
-    if (!out->data) {
+    retVal = ChannelOutDataInit(&out->data);
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "ChannelOutCreate: ChannelOutDataInit failed");
         return NULL;
     }
 

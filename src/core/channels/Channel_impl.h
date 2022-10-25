@@ -19,44 +19,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-
-// ----------------------------------------------------------------------
-// ChannelOut
-
-// object that is provided to consumer of output channel
-typedef struct ChannelOutData {
-    Object _; // base class
-
-    // Function pointer that provides the value of the channel when called
-    const proc * valueFunction;
-
-    // Used to store results of channel-internal valueFunction calls
-    ChannelValue valueFunctionRes;
-
-    // ----------------------------------------------------------------------
-    // Conversion
-
-    struct RangeConversion * rangeConversion;
-    struct LinearConversion * linearConversion;
-
-    int rangeConversionIsActive;
-
-    // ----------------------------------------------------------------------
-    // NaN Handling
-
-    NaNCheckLevel nanCheck;
-
-    size_t countNaNCheckWarning;
-    size_t maxNumNaNCheckWarning;
-
-    // ----------------------------------------------------------------------
-    // Connections to Consumers
-
-    // A list of all input channels that are connected to this output channel
-    ObjectList * connections;
-
-} ChannelOutData;
-
 // ----------------------------------------------------------------------
 // ChannelLocal
 
