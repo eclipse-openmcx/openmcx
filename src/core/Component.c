@@ -972,11 +972,10 @@ static ObjectList * ComponentGetConnections(Component * fromComp, Component * to
 
     for (i = 0; i < DatabusGetOutChannelsNum(db); i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectList * conns = out->GetConnections(out);
-        size_t connSize = conns->Size(conns);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < connSize; j++) {
-            Connection * conn = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * conn = conns->connections[j];
             ConnectionInfo * info = conn->GetInfo(conn);
 
             if (info->targetComponent == toComp) {
@@ -1014,11 +1013,10 @@ McxStatus ComponentOutConnectionsEnterInitMode(Component * comp) {
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectList * conns = out->GetConnections(out);
-        size_t connSize = conns->Size(conns);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < connSize; j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
             retVal = connection->EnterInitializationMode(connection);
             if (RETURN_OK != retVal) { // error message in calling function
                 return RETURN_ERROR;
@@ -1035,11 +1033,10 @@ McxStatus ComponentDoOutConnectionsInitialization(Component * comp, int onlyIfDe
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectList * conns = out->GetConnections(out);
-        size_t connSize = conns->Size(conns);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < connSize; j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
 
             if (!onlyIfDecoupled || connection->IsDecoupled(connection)) {
                 McxStatus retVal = connection->UpdateInitialValue(connection);
@@ -1063,11 +1060,10 @@ McxStatus ComponentOutConnectionsExitInitMode(Component * comp, double time) {
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectList * conns = out->GetConnections(out);
-        size_t connSize = conns->Size(conns);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < connSize; j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
             retVal = connection->ExitInitializationMode(connection, time);
             if (RETURN_OK != retVal) { // error message in calling function
                 return RETURN_ERROR;
