@@ -807,7 +807,7 @@ static int ChannelOutIsConnected(Channel * channel) {
 static int ChannelOutIsFullyConnected(Channel * channel) {
     ChannelOut * out = (ChannelOut *) channel;
 
-    if (ChannelTypeIsArray(&channel->info.type)) {
+    if (ChannelTypeIsArray(channel->info.type)) {
         ConnectionList * conns = &out->data.connList;
         size_t i = 0;
         size_t num_elems = ChannelDimensionNumElements(channel->info.dimension);
