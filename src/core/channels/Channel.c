@@ -159,11 +159,15 @@ static void DestroyChannelValueReferencePtr(ChannelValueReference ** ptr) {
 }
 
 static McxStatus ChannelInDataInit(ChannelInData * data) {
-    data->connections = (ObjectContainer *) object_create(ObjectContainer);
-    if (!data->connections) {
+    data->increment = 2;
+
+    data->connList.connections = (Connection * *) mcx_malloc(sizeof(Connection *));
+    if (!data->connList.connections) {
         mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for connections failed");
         return RETURN_ERROR;
     }
+    data->connList.capacity = 1;
+    data->connList.numConnections = 0;
 
     data->valueReferences = (Vector *) object_create(Vector);
     if (!data->valueReferences) {
@@ -216,8 +220,8 @@ static void ChannelInDataDestructor(ChannelInData * data) {
         ChannelTypeDestructor(data->type);
     }
 
-    if (data->connections) {
-        object_destroy(data->connections);
+    if (data->connList.connections) {
+        mcx_free((void *) data->connList.connections);
     }
 
     if (data->valueReferences) {
@@ -286,9 +290,9 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
 
     /* if no connection is present we have nothing to update*/
     size_t i = 0;
-    size_t numConns = in->data.connections->Size(in->data->connections);
+    size_t numConns = in->data.connList.numConnections;
     for (i = 0; i < numConns; i++) {
-        Connection * conn = (Connection *) in->data.connections->At(in->data->connections, i);
+        Connection * conn = (Connection *) in->data.connList.connections[i];
         ConnectionInfo * connInfo = &conn->info;
         TypeConversion * typeConv = (TypeConversion *) in->data.typeConversions->At(in->data.typeConversions, i);
         UnitConversion * unitConv = (UnitConversion *) in->data.unitConversions->At(in->data.unitConversions, i);
@@ -361,8 +365,8 @@ static int ChannelInIsFullyConnected(Channel * channel) {
     size_t connectedElems = 0;
     size_t channelNumElems = channel->info.dimension ? ChannelDimensionNumElements(channel->info.dimension) : 1;
 
-    for (i = 0; i < in->data.connections->Size(in->data.connections); i++) {
-        Connection * conn = (Connection *) in->data.connections->At(in->data.connections, i);
+    for (i = 0; i < in->data.connList.numConnections; i++) {
+        Connection * conn = (Connection *) in->data.connList.connections[i];
         ConnectionInfo * info = &conn->info;
 
         connectedElems += info->targetDimension ? ChannelDimensionNumElements(info->targetDimension) : 1;
@@ -400,7 +404,7 @@ static int ChannelInIsConnected(Channel * channel) {
         return TRUE;
     } else {
         ChannelIn * in = (ChannelIn *) channel;
-        if (in->data.connections->Size(in->data->connections) > 0) {
+        if (in->data.connList.numConnections > 0) {
             return TRUE;
         }
     }
@@ -410,7 +414,7 @@ static int ChannelInIsConnected(Channel * channel) {
 
 static Vector * ChannelInGetConnectionInfos(ChannelIn * in) {
     Vector * infos = (Vector*) object_create(Vector);
-    size_t numConns = in->data.connections->Size(in->data.connections);
+    size_t numConns = in->data.connList.numConnections;
     size_t i = 0;
 
     if (!infos) {
@@ -420,7 +424,7 @@ static Vector * ChannelInGetConnectionInfos(ChannelIn * in) {
     infos->Setup(infos, sizeof(ConnectionInfo*), NULL, NULL, NULL);
 
     for (i = 0; i < numConns; i++) {
-        Connection * conn = in->data.connections->At(in->data.connections, i);
+        Connection * conn = in->data.connList.connections[i];
         ConnectionInfo * connInfo = &conn->info;
         if (RETURN_ERROR == infos->PushBack(infos, &connInfo)) {
             object_destroy(infos);
@@ -431,8 +435,8 @@ static Vector * ChannelInGetConnectionInfos(ChannelIn * in) {
     return infos;
 }
 
-static ObjectContainer * ChannelInGetConnections(ChannelIn * in) {
-    return in->data.connections;
+static ConnectionList * ChannelInGetConnections(ChannelIn * in) {
+    return &in->data.connList;
 }
 
 static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType * type) {
@@ -440,13 +444,20 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     Channel * channel = (Channel *) in;
     ChannelInfo * inInfo = &channel->info;
     ChannelValueReference * valRef = NULL;
+    ConnectionList * connList = &in->data.connList;
 
     McxStatus retVal = RETURN_OK;
 
-    retVal = in->data.connections->PushBack(in->data.connections, (Object *) connection);
-    if (RETURN_OK != retVal) {
-        return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not register connection");
+    while (connList->capacity <= connList->numConnections) {
+        connList->capacity *= in->data.increment;
+        connList->connections = mcx_realloc(connList->connections, sizeof(Connection *) * connList->capacity);
+        if (!connList->connections) {
+            mcx_log(LOG_ERROR, "ChannelInRegisterConnection: (Re-)Allocation of connections failed");
+            return RETURN_ERROR;
+        }
     }
+    connList->connections[connList->numConnections] = connection;
+    connList->numConnections++;
 
     ChannelDimension * dimension = connInfo->targetDimension;
     if (dimension && !ChannelDimensionEq(dimension, inInfo->dimension)) {

@@ -255,7 +255,7 @@ McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time
 McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
 Vector * GetInConnectionInfos(const Component * comp, size_t channelID);
-struct ObjectContainer * GetInConnections(const Component * comp, size_t channelID);
+struct ConnectionList * GetInConnections(const Component * comp, size_t channelID);
 
 size_t ComponentGetNumOutGroups(const Component * comp);
 size_t ComponentGetNumInitialOutGroups(const Component * comp);

@@ -119,12 +119,19 @@ struct Channel {
 
 typedef struct ChannelIn ChannelIn;
 
+typedef struct ConnectionList {
+    Connection * * connections;      // connections (non-overlapping) going into the channel
+    size_t numConnections;
+    size_t capacity;
+} ConnectionList;
+
 // object that is stored in target component that stores the channel connection
 typedef struct ChannelInData {
 
-    ObjectContainer * connections;      // connections (non-overlapping) going into the channel
     Vector * valueReferences;           // references to non-overlapping parts of ChannelData::value, where
                                         // values gotten from connections are going to be stored
+    ConnectionList connList;
+    size_t increment;
 
     // ----------------------------------------------------------------------
     // Conversions
@@ -151,7 +158,7 @@ typedef McxStatus  (* fChannelInSetReference) (ChannelIn   * in,
 
 typedef struct Vector * (* fChannelInGetConnectionInfos)(ChannelIn * in);
 
-typedef struct ObjectContainer * (* fChannelInGetConnections)(ChannelIn * in);
+typedef ConnectionList * (* fChannelInGetConnections)(ChannelIn * in);
 
 typedef McxStatus (*fChannelInRegisterConnection)(ChannelIn * in, struct Connection * connection, const char * unit, ChannelType * type);
 

@@ -716,12 +716,12 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
 
             if (DEP_INDEPENDENT != dependency) {
                 Vector * infos = GetInConnectionInfos(targetComp, targetInChannelID);
-                ObjectContainer * conns = GetInConnections(targetComp, targetInChannelID);
+                ConnectionList * conns = GetInConnections(targetComp, targetInChannelID);
                 size_t i = 0;
 
                 for (i = 0; i < infos->Size(infos); i++) {
                     ConnectionInfo * info = *(ConnectionInfo**) infos->At(infos, i);
-                    Connection * conn = conns->At(conns, i);
+                    Connection * conn = conns->connections[i];
 
                     if (info && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED)) && (!ConnectionInfoIsDecoupled(info)) &&
                         conn && conn->IsActiveDependency(conn))
