@@ -21,6 +21,7 @@ extern "C" {
 
 static McxStatus FilteredConnectionDataInit(FilteredConnectionData * data) {
     data->filters = NULL;
+    data->_filter = NULL;
     data->numFilters = 0;
 
     ChannelValueInit(&data->updateBuffer, ChannelTypeClone(&ChannelTypeUnknown));
@@ -38,7 +39,9 @@ static void FilteredConnectionDataDestructor(FilteredConnectionData * data) {
         for (i = 0; i < data->numFilters; i++) {
             object_destroy(data->filters[i]);
         }
-        mcx_free(data->filters);
+        if (data->numFilters != 1) {
+            mcx_free(data->filters);
+        }
     }
 }
 
@@ -308,28 +311,22 @@ static McxStatus AddFilter(Connection * connection) {
                 }
             }
         } else {
-            filteredConnection->data.filters = (ChannelFilter **) mcx_calloc(1, sizeof(ChannelFilter *));
-            if (!filteredConnection->data.filters) {
-                mcx_log(LOG_ERROR, "Creating filter failed: no memory");
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
             filteredConnection->data.numFilters = 1;
-            filteredConnection->data.filters[0] = FilterFactory(&connection->state_,
-                                                                 info->interExtrapolationType,
-                                                                 &info->interExtrapolationParams,
-                                                                 ConnectionInfoGetType(info),
-                                                                 info->isInterExtrapolating,
-                                                                 ConnectionInfoIsDecoupled(info),
-                                                                 info->sourceComponent,
-                                                                 info->targetComponent,
-                                                                 connString);
-            if (NULL == filteredConnection->data.filters[0]) {
+            filteredConnection->data._filter = FilterFactory(&connection->state_,
+                                                             info->interExtrapolationType,
+                                                             &info->interExtrapolationParams,
+                                                             ConnectionInfoGetType(info),
+                                                             info->isInterExtrapolating,
+                                                             ConnectionInfoIsDecoupled(info),
+                                                             info->sourceComponent,
+                                                             info->targetComponent,
+                                                             connString);
+            if (NULL == filteredConnection->data._filter) {
                 mcx_log(LOG_DEBUG, "Connection: No Filter created");
                 retVal = RETURN_ERROR;
                 goto cleanup;
             }
+            filteredConnection->data.filters = &filteredConnection->data._filter;
         }
 
 cleanup:

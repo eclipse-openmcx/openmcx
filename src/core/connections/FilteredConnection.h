@@ -29,6 +29,7 @@ typedef struct FilteredConnectionData {
     ChannelValue updateBuffer;
 
     ChannelFilter ** filters;
+    ChannelFilter * _filter;
     size_t numFilters;
 
 } FilteredConnectionData;
