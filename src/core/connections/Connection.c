@@ -1177,7 +1177,7 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         ChannelDimension * srcDim = NULL;
 
         srcDim = CloneChannelDimension(info->targetDimension);
-        if (srcDim) {
+        if (info->targetDimension && !srcDim) {
             mcx_log(LOG_ERROR, "Could not clone source dimension");
             retVal = RETURN_ERROR;
             goto cleanup_1;
@@ -1219,7 +1219,7 @@ cleanup_1:
         }
     } else if (outInfo->initialValue) {
         ChannelDimension * targetDim = CloneChannelDimension(info->sourceDimension);
-        if (targetDim) {
+        if (info->sourceDimension && !targetDim) {
             mcx_log(LOG_ERROR, "Could not clone target dimension");
             retVal = RETURN_ERROR;
             goto cleanup;
