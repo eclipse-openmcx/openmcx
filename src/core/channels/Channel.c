@@ -352,9 +352,11 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         return RETURN_OK;
     }
 
+#ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME && ChannelTypeEq(info->type, &ChannelTypeDouble)) {
         MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
     }
+#endif // MCX_DEBUG
 
     if (RETURN_OK != ChannelValueDataSetFromReference(in->data.reference, in->data.type, channel->GetValueReference(channel))) {
         return RETURN_ERROR;
