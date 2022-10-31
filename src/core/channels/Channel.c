@@ -142,7 +142,7 @@ static Channel * ChannelCreate(Channel * channel) {
     channel->ProvidesValue = NULL;
 
     channel->IsConnected = NULL;
-    channel->IsFullyConnected = NULL;
+    channel->isFullyConnected_ = TRUE;
 
     return channel;
 }
@@ -365,7 +365,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     return RETURN_OK;
 }
 
-static int ChannelInIsFullyConnected(Channel * channel) {
+static McxStatus ChannelInSetIsFullyConnected(Channel * channel) {
     ChannelIn * in = (ChannelIn *) channel;
     size_t i = 0;
     size_t connectedElems = 0;
@@ -378,15 +378,13 @@ static int ChannelInIsFullyConnected(Channel * channel) {
         connectedElems += info->targetDimension ? ChannelDimensionNumElements(info->targetDimension) : 1;
     }
 
-    if (connectedElems == channelNumElems) {
-        return TRUE;
-    }
+    channel->isFullyConnected_ = connectedElems == channelNumElems;
 
-    return FALSE;
+    return RETURN_OK;
 }
 
 static int ChannelInProvidesValue(Channel * channel) {
-    if (ChannelInIsFullyConnected(channel)) {
+    if (channel->isFullyConnected_) {
         return TRUE;
     } else {
         ChannelInfo * info = &channel->info;
@@ -612,7 +610,7 @@ static ChannelIn * ChannelInCreate(ChannelIn * in) {
     channel->ProvidesValue     = ChannelInProvidesValue;
     channel->Update            = ChannelInUpdate;
     channel->IsConnected       = ChannelInIsConnected;
-    channel->IsFullyConnected  = ChannelInIsFullyConnected;
+    channel->SetIsFullyConnected  = ChannelInSetIsFullyConnected;
 
     in->Setup        = ChannelInSetup;
     in->SetReference = ChannelInSetReference;
@@ -806,7 +804,7 @@ static int ChannelOutIsConnected(Channel * channel) {
     return FALSE;
 }
 
-static int ChannelOutIsFullyConnected(Channel * channel) {
+static McxStatus ChannelOutSetIsFullyConnected(Channel * channel) {
     ChannelOut * out = (ChannelOut *) channel;
 
     if (ChannelTypeIsArray(channel->info.type)) {
@@ -817,7 +815,7 @@ static int ChannelOutIsFullyConnected(Channel * channel) {
         int * connected = (int *) mcx_calloc(num_elems, sizeof(int));
         if (!connected) {
             mcx_log(LOG_ERROR, "ChannelOutIsFullyConnected: Not enough memory");
-            return -1;
+            return RETURN_ERROR;
         }
 
         for (i = 0; i < conns->numConnections; i++) {
@@ -831,16 +829,17 @@ static int ChannelOutIsFullyConnected(Channel * channel) {
             }
         }
 
+        channel->isFullyConnected_ = TRUE;
         for (i = 0; i < num_elems; i++) {
             if (!connected[i]) {
-                return FALSE;
+                channel->isFullyConnected_ = FALSE;
             }
         }
-
-        return TRUE;
     } else {
-        return ChannelOutIsConnected(channel);
+        channel->isFullyConnected_ = ChannelOutIsConnected(channel);
     }
+
+    return RETURN_OK;
 }
 
 static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference, ChannelType * type) {
@@ -1070,7 +1069,7 @@ static ChannelOut * ChannelOutCreate(ChannelOut * out) {
     channel->ProvidesValue     = ChannelOutProvidesValue;
     channel->Update            = ChannelOutUpdate;
     channel->IsConnected       = ChannelOutIsConnected;
-    channel->IsFullyConnected  = ChannelOutIsFullyConnected;
+    channel->SetIsFullyConnected  = ChannelOutSetIsFullyConnected;
 
     out->Setup                = ChannelOutSetup;
     out->RegisterConnection   = ChannelOutRegisterConnection;
