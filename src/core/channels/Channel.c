@@ -932,6 +932,8 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
 
     ConnectionList * conns = &out->data.connList;
 
+    ChannelValue * val = NULL;
+
     McxStatus retVal = RETURN_OK;
 
     time->endTime = time->startTime;
@@ -978,31 +980,27 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
             }
         }
 
-        // Apply conversion
-        if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble) ||
-            ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger)) {
-            ChannelValue * val = &channel->value;
+        val = &channel->value;
 
-            // range
-            if (out->data.rangeConversion) {
-                if (out->data.rangeConversionIsActive) {
-                    Conversion * conversion = (Conversion *) out->data.rangeConversion;
-                    retVal = conversion->convert(conversion, val);
-                    if (RETURN_OK != retVal) {
-                        mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute range conversion", ChannelInfoGetLogName(info));
-                        return RETURN_ERROR;
-                    }
-                }
-            }
-
-            // linear
-            if (out->data.linearConversion) {
-                Conversion * conversion = (Conversion *) out->data.linearConversion;
+        // range conversion
+        if (out->data.rangeConversion) {
+            if (out->data.rangeConversionIsActive) {
+                Conversion * conversion = (Conversion *) out->data.rangeConversion;
                 retVal = conversion->convert(conversion, val);
                 if (RETURN_OK != retVal) {
-                    mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute linear conversion", ChannelInfoGetLogName(info));
+                    mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute range conversion", ChannelInfoGetLogName(info));
                     return RETURN_ERROR;
                 }
+            }
+        }
+
+        // linear conversion
+        if (out->data.linearConversion) {
+            Conversion * conversion = (Conversion *) out->data.linearConversion;
+            retVal = conversion->convert(conversion, val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute linear conversion", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
             }
         }
 
