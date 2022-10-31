@@ -1026,8 +1026,6 @@ McxStatus Fmu2SetVariableInitialize(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) 
 McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     fmi2_status_t status = fmi2_status_ok;
 
-    char * const name = fmuVal->name;
-
     ChannelValue * const chVal = &fmuVal->val;
     ChannelType * type = ChannelValueType(chVal);
 
@@ -1114,13 +1112,13 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     if (fmi2_status_ok != status) {
         if (fmi2_status_error == status || fmi2_status_fatal == status) {
             fmu->runOk = fmi2_false;
-            mcx_log(LOG_ERROR, "FMU: Setting of variable %s failed", name);
+            mcx_log(LOG_ERROR, "FMU: Setting of variable %s failed", fmuVal->name);
             return RETURN_ERROR;
         } else {
             if (fmi2_status_warning == status) {
-                mcx_log(LOG_WARNING, "FMU: Setting of variable %s return with a warning", name);
+                mcx_log(LOG_WARNING, "FMU: Setting of variable %s return with a warning", fmuVal->name);
             } else if (fmi2_status_discard == status) {
-                mcx_log(LOG_WARNING, "FMU: Setting of variable %s discarded", name);
+                mcx_log(LOG_WARNING, "FMU: Setting of variable %s discarded", fmuVal->name);
             }
         }
     }
