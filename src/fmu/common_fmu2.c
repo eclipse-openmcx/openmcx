@@ -1010,17 +1010,23 @@ cleanup:    // free dynamically allocated objects
 }
 
 
-// TODO: move into fmu2value?
-McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
-    fmi2_status_t status = fmi2_status_ok;
-
-    char * const name = fmuVal->name;
+McxStatus Fmu2SetVariableInitialize(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
+    McxStatus status = RETURN_OK;
 
     Channel * channel = fmuVal->channel;
     if (channel && FALSE == channel->IsDefinedDuringInit(channel)) {
         MCX_DEBUG_LOG("Fmu2SetVariable: %s not set: no new value", fmuVal->name);
         return RETURN_OK;
     }
+
+    return Fmu2SetVariable(fmu, fmuVal);
+}
+
+// TODO: move into fmu2value?
+McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
+    fmi2_status_t status = fmi2_status_ok;
+
+    char * const name = fmuVal->name;
 
     ChannelValue * const chVal = &fmuVal->val;
     ChannelType * type = ChannelValueType(chVal);
@@ -1134,6 +1140,29 @@ McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2SetVariable(fmu, fmuVal);
+        if (RETURN_ERROR == retVal) {
+            mcx_signal_handler_unset_function();
+            return RETURN_ERROR;
+        }
+    }
+
+    mcx_signal_handler_unset_function();
+
+    return RETURN_OK;
+}
+
+McxStatus Fmu2SetVariableArrayInitialize(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
+    size_t i = 0;
+    size_t numVars = vals->Size(vals);
+
+    McxStatus retVal = RETURN_OK;
+
+    mcx_signal_handler_set_this_function();
+
+    for (i = 0; i < numVars; i++) {
+        Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
+
+        retVal = Fmu2SetVariableInitialize(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
             mcx_signal_handler_unset_function();
             return RETURN_ERROR;

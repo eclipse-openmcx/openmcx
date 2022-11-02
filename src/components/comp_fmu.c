@@ -871,19 +871,19 @@ static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime
     McxStatus retVal = RETURN_OK;
 
     // Set variables
-    retVal = Fmu2SetVariableArray(fmu2, fmu2->params);
+    retVal = Fmu2SetVariableArrayInitialize(fmu2, fmu2->params);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting params failed");
         return RETURN_ERROR;
     }
 
-    retVal = Fmu2SetVariableArray(fmu2, fmu2->initialValues);
+    retVal = Fmu2SetVariableArrayInitialize(fmu2, fmu2->initialValues);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting initialValues failed");
         return RETURN_ERROR;
     }
 
-    retVal = Fmu2SetVariableArray(fmu2, fmu2->in);
+    retVal = Fmu2SetVariableArrayInitialize(fmu2, fmu2->in);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting inChannels failed");
         return RETURN_ERROR;
@@ -916,13 +916,13 @@ static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime
     }
 
     // Set variables
-    retVal = Fmu2SetVariableArray(fmu2, fmu2->initialValues);
+    retVal = Fmu2SetVariableArrayInitialize(fmu2, fmu2->initialValues);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting initialValues failed");
         return RETURN_ERROR;
     }
 
-    retVal = Fmu2SetVariableArray(fmu2, fmu2->in);
+    retVal = Fmu2SetVariableArrayInitialize(fmu2, fmu2->in);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Setting inChannels failed");
         return RETURN_ERROR;
