@@ -1007,9 +1007,9 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         }
 
         // Notify connections of new values
+        channel->SetDefinedDuringInit(channel);
         for (j = 0; j < conns->numConnections; j++) {
             Connection * connection = conns->connections[j];
-            channel->SetDefinedDuringInit(channel);
             connection->UpdateFromInput(connection, time);
         }
     }
