@@ -40,6 +40,8 @@ typedef int (* fChannelIsValid)(Channel * channel);
 
 typedef int (* fChannelIsConnected)(Channel * channel);
 
+typedef int (* fChannelIsFullyConnected)(Channel * channel);
+
 typedef McxStatus (* fChannelSetIsFullyConnected)(Channel * channel);
 
 typedef int (* fChannelIsDefinedDuringInit)(Channel * channel);
@@ -95,6 +97,11 @@ struct Channel {
     fChannelIsConnected IsConnected;
 
     /**
+     * Returns true if all elements of the channel are connected
+     */
+    fChannelIsFullyConnected IsFullyConnected;
+
+    /**
      * Set the isFullyConnected member to reflect whether all elements of the channel are connected
      */
     fChannelSetIsFullyConnected SetIsFullyConnected;
@@ -113,7 +120,15 @@ struct Channel {
      */
     fChannelSetup Setup;
 
-    int isFullyConnected_;
+    /**
+     * Flag storing whether channel is fully connected
+     * Do not use this directly, but via the member function `IsFullyConnected`
+    */
+    enum {
+        INVALID_CONNECTION_STATUS = -1,
+        CHANNEL_ONLY_PARTIALLY_CONNETED = 0,
+        CHANNEL_FULLY_CONNECTED = 1
+    } isFullyConnected_;
 };
 
 // ----------------------------------------------------------------------

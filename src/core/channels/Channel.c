@@ -96,6 +96,12 @@ cleanup:
 // ----------------------------------------------------------------------
 // Channel
 
+static int ChannelIsFullyConnected(Channel * channel) {
+    if (channel->isFullyConnected_ == INVALID_CONNECTION_STATUS) {
+        channel->SetIsFullyConnected(channel);
+    }
+    return channel->isFullyConnected_ == CHANNEL_FULLY_CONNECTED;
+}
 
 static int ChannelIsDefinedDuringInit(Channel * channel) {
     return channel->isDefinedDuringInit;
@@ -142,7 +148,8 @@ static Channel * ChannelCreate(Channel * channel) {
     channel->ProvidesValue = NULL;
 
     channel->IsConnected = NULL;
-    channel->isFullyConnected_ = TRUE;
+    channel->isFullyConnected_ = INVALID_CONNECTION_STATUS;
+    channel->IsFullyConnected = ChannelIsFullyConnected;
 
     return channel;
 }
@@ -384,7 +391,7 @@ static McxStatus ChannelInSetIsFullyConnected(Channel * channel) {
 }
 
 static int ChannelInProvidesValue(Channel * channel) {
-    if (channel->isFullyConnected_) {
+    if (channel->IsFullyConnected(channel)) {
         return TRUE;
     } else {
         ChannelInfo * info = &channel->info;
@@ -829,10 +836,10 @@ static McxStatus ChannelOutSetIsFullyConnected(Channel * channel) {
             }
         }
 
-        channel->isFullyConnected_ = TRUE;
+        channel->isFullyConnected_ = CHANNEL_FULLY_CONNECTED;
         for (i = 0; i < num_elems; i++) {
             if (!connected[i]) {
-                channel->isFullyConnected_ = FALSE;
+                channel->isFullyConnected_ = CHANNEL_ONLY_PARTIALLY_CONNETED;
             }
         }
     } else {
