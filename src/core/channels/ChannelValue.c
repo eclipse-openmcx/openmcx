@@ -936,6 +936,11 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
 }
 
 McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference) {
+    if (!reference) {
+        mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Reference not defined");
+        return RETURN_ERROR;
+    }
+
     switch (type->con) {
         case CHANNEL_DOUBLE:
             *(double *) reference = value->d;
@@ -961,10 +966,11 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
             }
             break;
         case CHANNEL_BINARY:
-            if (NULL != reference && NULL != ((binary_string *) reference)->data) {
+            if (NULL != ((binary_string *) reference)->data) {
                 mcx_free(((binary_string *) reference)->data);
                 ((binary_string *) reference)->data = NULL;
             }
+
             if (value->b.data) {
                 ((binary_string *) reference)->len = value->b.len;
                 ((binary_string *) reference)->data = (char *) mcx_calloc(value->b.len, 1);
@@ -974,13 +980,11 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
             }
             break;
         case CHANNEL_BINARY_REFERENCE:
-            if (NULL != reference) {
-                ((binary_string *) reference)->len = value->b.len;
-                ((binary_string *) reference)->data = value->b.data;
-            }
+            ((binary_string *) reference)->len = value->b.len;
+            ((binary_string *) reference)->data = value->b.data;
             break;
         case CHANNEL_ARRAY:
-            if (NULL != reference) {
+            {
                 mcx_array * a = (mcx_array *) reference;
 
                 // First Set fixes the dimensions
@@ -1003,8 +1007,8 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
                 }
 
                 memcpy(a->data, value->a.data, ChannelValueTypeSize(a->type) * mcx_array_num_elements(a));
+                break;
             }
-            break;
         case CHANNEL_UNKNOWN:
         default:
             break;
