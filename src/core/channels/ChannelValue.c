@@ -986,16 +986,19 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
                 // First Set fixes the dimensions
                 if (value->a.numDims && !a->numDims) {
                     if (RETURN_OK != mcx_array_init(a, value->a.numDims, value->a.dims, value->a.type)) {
+                        mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Array initialization failed");
                         return RETURN_ERROR;
                     }
                 }
 
                 // Arrays do not support multiplexing (yet)
                 if (!mcx_array_dims_match(a, &value->a)) {
+                    mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Array dimensions do not match");
                     return RETURN_ERROR;
                 }
 
                 if (value->a.data == NULL || a->data == NULL) {
+                    mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: No array data available");
                     return RETURN_ERROR;
                 }
 
