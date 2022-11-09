@@ -917,7 +917,7 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         if (out->GetFunction(out)) {
             // function value
             proc * p = (proc *) out->GetFunction(out);
-            if (p->fn(time, p->env, &out->data->valueFunctionRes) != 0) {
+            if (RETURN_ERROR == p->fn(time, p->env, &out->data->valueFunctionRes)) {
                 mcx_log(LOG_ERROR, "Port %s: Update outport: Function failed", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }

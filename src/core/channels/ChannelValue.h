@@ -94,7 +94,7 @@ typedef union ChannelValueData ChannelValueData;
 typedef struct ChannelValue ChannelValue;
 
 typedef struct {
-    int (* fn)(TimeInterval * arg, void * env, ChannelValue * res);
+    McxStatus (* fn)(TimeInterval * arg, void * env, ChannelValue * res);
     void * env;
 } proc;
 
