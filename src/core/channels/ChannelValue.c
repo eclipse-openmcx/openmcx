@@ -117,7 +117,7 @@ ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dim
     return array;
 }
 
-ChannelType * ChannelTypeArrayLongDims(ChannelType * inner, size_t numDims, unsigned long * dims) {
+ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, uint64_t * dims) {
     ChannelType * array = NULL;
     size_t i = 0;
 
