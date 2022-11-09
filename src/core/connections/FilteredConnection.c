@@ -217,7 +217,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
         proc * p = (proc *) out->GetFunction(out);
 
         // TODO: Update functions to only update the slices ?
-        if (p->fn(time, p->env, &filteredConnection->data->updateBuffer) != 0) {
+        if (RETURN_ERROR == p->fn(time, p->env, &filteredConnection->data->updateBuffer)) {
             mcx_log(LOG_ERROR, "FilteredConnection: Function failed");
             return RETURN_ERROR;
         }
