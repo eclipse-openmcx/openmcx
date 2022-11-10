@@ -13,6 +13,11 @@
 
 #include "CentralParts.h"
 #include "core/channels/ChannelInfo.h"
+#include "core/channels/ChannelValueReference.h"
+#include "objects/ObjectContainer.h"
+#include "objects/Vector.h"
+#include "core/connections/Connection.h"
+#include "core/Conversion.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,7 +26,6 @@ extern "C" {
 struct Config;
 struct Component;
 
-struct ChannelInData;
 struct ChannelOutData;
 struct Connection;
 
@@ -116,6 +120,30 @@ struct Channel {
 
 typedef struct ChannelIn ChannelIn;
 
+// object that is stored in target component that stores the channel connection
+typedef struct ChannelInData {
+
+    ObjectContainer * connections;      // connections (non-overlapping) going into the channel
+    Vector * valueReferences;           // references to non-overlapping parts of ChannelData::value, where
+                                        // values gotten from connections are going to be stored
+
+    // ----------------------------------------------------------------------
+    // Conversions
+
+    ObjectContainer * typeConversions;  // conversion objects (or NULL) for each connection in `connections`
+    ObjectContainer * unitConversions;  // conversion objects (or NULL) for each connection in `connections`
+    struct LinearConversion * linearConversion;
+    struct RangeConversion * rangeConversion;
+
+    // ----------------------------------------------------------------------
+    // Storage in Component
+
+    int isDiscrete;
+
+    void * reference;
+    ChannelType * type;
+} ChannelInData;
+
 typedef McxStatus (* fChannelInSetup)(ChannelIn * in, struct ChannelInfo * info);
 
 typedef McxStatus  (* fChannelInSetReference) (ChannelIn   * in,
@@ -174,7 +202,7 @@ struct ChannelIn {
     */
     fChannelInSetDiscrete SetDiscrete;
 
-    struct ChannelInData * data;
+    ChannelInData data;
 };
 
 

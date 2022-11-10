@@ -20,35 +20,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-
-// ----------------------------------------------------------------------
-// ChannelIn
-
-// object that is stored in target component that stores the channel connection
-typedef struct ChannelInData {
-    Object _; // base class
-
-    ObjectContainer * connections;      // connections (non-overlapping) going into the channel
-    Vector * valueReferences;           // references to non-overlapping parts of ChannelData::value, where
-                                        // values gotten from connections are going to be stored
-
-    // ----------------------------------------------------------------------
-    // Conversions
-
-    ObjectContainer * typeConversions;  // conversion objects (or NULL) for each connection in `connections`
-    ObjectContainer * unitConversions;  // conversion objects (or NULL) for each connection in `connections`
-    struct LinearConversion * linearConversion;
-    struct RangeConversion * rangeConversion;
-
-    // ----------------------------------------------------------------------
-    // Storage in Component
-
-    int isDiscrete;
-
-    void * reference;
-    ChannelType * type;
-} ChannelInData;
-
 // ----------------------------------------------------------------------
 // ChannelOut
 
