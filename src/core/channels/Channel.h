@@ -128,10 +128,12 @@ typedef struct ConnectionList {
 // object that is stored in target component that stores the channel connection
 typedef struct ChannelInData {
 
-    Vector * valueReferences;           // references to non-overlapping parts of ChannelData::value, where
-                                        // values gotten from connections are going to be stored
     ConnectionList connList;
     size_t increment;
+
+    // references to non-overlapping parts of ChannelData::value, where
+    // values gotten from connections are going to be stored
+    ChannelValueReference * * valueReferences;
 
     // ----------------------------------------------------------------------
     // Conversions
