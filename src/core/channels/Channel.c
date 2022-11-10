@@ -169,13 +169,11 @@ static McxStatus ChannelInDataInit(ChannelInData * data) {
     data->connList.capacity = 1;
     data->connList.numConnections = 0;
 
-    data->valueReferences = (Vector *) object_create(Vector);
+    data->valueReferences = (ChannelValueReference * *) mcx_malloc(sizeof(ChannelValueReference *));
     if (!data->valueReferences) {
         mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for value references failed");
         return RETURN_ERROR;
     }
-
-    data->valueReferences->Setup(data->valueReferences, sizeof(ChannelValueReference *), NULL, NULL, DestroyChannelValueReferencePtr);
 
     data->reference  = NULL;
     data->type = ChannelTypeClone(&ChannelTypeUnknown);
@@ -220,12 +218,12 @@ static void ChannelInDataDestructor(ChannelInData * data) {
         ChannelTypeDestructor(data->type);
     }
 
-    if (data->connList.connections) {
-        mcx_free((void *) data->connList.connections);
+    if (data->valueReferences) {
+        mcx_free((void *) data->valueReferences);
     }
 
-    if (data->valueReferences) {
-        object_destroy(data->valueReferences);
+    if (data->connList.connections) {
+        mcx_free((void *) data->connList.connections);
     }
 }
 
@@ -296,7 +294,7 @@ static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
         ConnectionInfo * connInfo = &conn->info;
         TypeConversion * typeConv = (TypeConversion *) in->data.typeConversions->At(in->data.typeConversions, i);
         UnitConversion * unitConv = (UnitConversion *) in->data.unitConversions->At(in->data.unitConversions, i);
-        ChannelValueReference * valueRef = *(ChannelValueReference **) in->data.valueReferences->At(in->data.valueReferences, i);
+        ChannelValueReference * valueRef = in->data.valueReferences[i];
 
         /* Update the connection for the current time */
         if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
@@ -451,7 +449,8 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
     while (connList->capacity <= connList->numConnections) {
         connList->capacity *= in->data.increment;
         connList->connections = mcx_realloc(connList->connections, sizeof(Connection *) * connList->capacity);
-        if (!connList->connections) {
+        in->data.valueReferences = mcx_realloc(in->data.valueReferences, sizeof(ChannelValueReference *) * connList->capacity);
+        if (!connList->connections || !in->data.valueReferences) {
             mcx_log(LOG_ERROR, "ChannelInRegisterConnection: (Re-)Allocation of connections failed");
             return RETURN_ERROR;
         }
@@ -474,11 +473,7 @@ static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connec
         valRef = MakeChannelValueReference(&channel->value, NULL);
     }
 
-    retVal = in->data.valueReferences->PushBack(in->data.valueReferences, &valRef);
-    if (RETURN_ERROR == retVal) {
-        ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Storing value reference failed");
-        return RETURN_ERROR;
-    }
+    in->data.valueReferences[connList->numConnections - 1] = valRef;
 
     if (ChannelTypeEq(ChannelTypeBaseType(inInfo->type), &ChannelTypeDouble)) {
         UnitConversion * conversion = (UnitConversion *) object_create(UnitConversion);
