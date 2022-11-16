@@ -255,8 +255,9 @@ void mcx_array_destroy(mcx_array * a) {
 int mcx_array_all(mcx_array * a, mcx_array_predicate_f_ptr predicate) {
     size_t i = 0;
     ChannelValueData element = {0};
+    size_t numElems = mcx_array_num_elements(a);
 
-    for (i = 0; i < mcx_array_num_elements(a); i++) {
+    for (i = 0; i < numElems; i++) {
         if (RETURN_OK != mcx_array_get_elem(a, i, &element)) {
             mcx_log(LOG_WARNING, "mcx_array_all: Getting element %zu failed", i);
             return 0;
