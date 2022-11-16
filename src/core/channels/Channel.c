@@ -732,8 +732,6 @@ static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * 
 
 static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * connection) {
     ObjectList * conns = out->data->connections;
-    ChannelDimension * outDim = ((Channel*)out)->info.dimension;
-    ChannelDimension * connDim = connection->info.sourceDimension;
 
     // TODO: do we have to check that channelout and connection match
     // in type/dimension?
