@@ -224,7 +224,6 @@ int ChannelTypeEq(const ChannelType * a, const ChannelType * b) {
             }
         }
         return a->ty.a.inner == b->ty.a.inner;
-        return 1;
     } else {
         return a->con == b->con;
     }
