@@ -99,23 +99,22 @@ McxStatus RangeConversionMinValueRefConversion(void * element, size_t idx, Chann
     ChannelValue * min = (ChannelValue *) ctx;
     void * minElem = mcx_array_get_elem_reference(&min->value.a, idx);
     if (RangeConversionElemwiseLeq(element, minElem, type)) {
-        switch (type->con)
-        {
+        switch (type->con) {
             case CHANNEL_DOUBLE:
             {
                 double * elem = (double *) element;
-                *elem = *((double *)minElem);
+                *elem = *((double *) minElem);
                 break;
             }
-        case CHANNEL_INTEGER:
+            case CHANNEL_INTEGER:
             {
                 int * elem = (int *) element;
-                *elem = *((int *)minElem);
+                *elem = *((int *) minElem);
                 break;
             }
-        default:
-            mcx_log(LOG_ERROR, "RangeConversion: Unsupported type");
-            return RETURN_ERROR;
+            default:
+                mcx_log(LOG_ERROR, "RangeConversion: Unsupported type");
+                return RETURN_ERROR;
         }
     }
 
