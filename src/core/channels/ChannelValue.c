@@ -205,6 +205,7 @@ int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelTy
         }
     } else {
         if (sliceA || sliceB) {
+            mcx_log(LOG_ERROR, "ChannelTypeConformable: Slice dimensions defined for non-array channels");
             return 0;
         }
 
