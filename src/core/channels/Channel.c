@@ -830,9 +830,9 @@ static McxStatus ChannelOutSetIsFullyConnected(Channel * channel) {
             ConnectionInfo * info = &conn->info;
             size_t j = 0;
 
-            for (j = 0; j < ChannelDimensionNumElements(info->sourceDimension); i++) {
+            for (j = 0; j < ChannelDimensionNumElements(info->sourceDimension); j++) {
                 size_t idx = ChannelDimensionGetIndex(info->sourceDimension, j, channel->info.type->ty.a.dims);
-                connected[idx] = 1;
+                connected[idx - info->sourceDimension->startIdxs[0]] = 1;
             }
         }
 
