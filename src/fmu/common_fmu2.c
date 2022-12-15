@@ -366,6 +366,7 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
             Fmu2Value * val = NULL;
             char * varName = (char *) mcx_calloc(stringBufferLength, sizeof(char));
             fmi2_import_variable_t * var = NULL;
+            const char * unitName = NULL;
             ChannelValue chVal;
 
             if (!varName) {
@@ -386,7 +387,14 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
                 goto fmu2_read_array_param_values_for_cleanup;
             }
 
-            val = Fmu2ValueScalarMake(varName, var, NULL, NULL);
+            if (fmi2_base_type_real == fmi2_import_get_variable_base_type(var)) {
+                fmi2_import_unit_t * unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(var));
+                if (unit) {
+                    unitName = fmi2_import_get_unit_name(unit);
+                }
+            }
+
+            val = Fmu2ValueScalarMake(varName, var, unitName, NULL);
             if (!val) {
                 retVal = RETURN_ERROR;
                 goto fmu2_read_array_param_values_for_cleanup;
