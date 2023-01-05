@@ -41,7 +41,6 @@ char * mcx_string_merge_quoted_array_with_spaces(char * strs[]);
 
 char* mcx_string_sep(char** stringp, const char* delim);
 void mcx_string_replace_char(char * str, char searched_char, char replacement_char);
-size_t* mcx_positions_of_char_in_string(const char * const str, char searched_char, size_t * nr_searched_char);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

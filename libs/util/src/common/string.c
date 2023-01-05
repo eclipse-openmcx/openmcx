@@ -265,32 +265,6 @@ void mcx_string_replace_char(char* str, char searched_char, char replacement_cha
     }
 }
 
-size_t*  mcx_positions_of_char_in_string(const char* str, char searched_char, size_t* nr_searched_char) {
-    int i, j = 0;
-    size_t* positions = NULL;
-    size_t k = 0;
-
-    for (i = 0; i < strlen(str); i++) {
-        if (str[i] == searched_char) {
-            j++;
-        }
-    }
-    *nr_searched_char = j;
-    if (j > 0) {
-        positions = (size_t*)mcx_calloc(j, sizeof(size_t));
-
-        if (!positions) {
-            return NULL;
-        }
-
-        for (int i = 0; i < strlen(str); i++) {
-            if (str[i] == searched_char) {
-                positions[k++] = i;
-            }
-        }
-    }
-    return positions;
-}
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
