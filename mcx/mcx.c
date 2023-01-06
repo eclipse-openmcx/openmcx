@@ -224,6 +224,12 @@ McxStatus mcx_vlog_no_newline(LogSeverity sev, const char *fmt, va_list args) {
 
 
 McxStatus mcx_log(LogSeverity sev, const char *fmt, ...) {
+    {
+        if (sev < LOG_INFO && !mcx_all_log) {
+            return RETURN_OK;
+        }
+    }
+
     McxStatus retVal = RETURN_OK;
 
     va_list args;
