@@ -77,6 +77,8 @@ struct ComponentStorage {
     const Component * comp; ///< pointer to the component that should be actually stored, to retrieve e.g. comp-name, channel-infos, ...
 };
 
+McxStatus ComponentStorageAllocateMemory(ComponentStorage * compStore);
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

@@ -64,6 +64,8 @@ typedef struct ChannelStorage {
 char ** ExpandedChannelNames(const char * name, size_t start, size_t end);
 void FreeExpandedChannelNames(char ** names);
 
+McxStatus ChannelStorageAllocateMemory(ChannelStorage * channelStore);
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

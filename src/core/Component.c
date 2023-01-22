@@ -423,6 +423,12 @@ McxStatus ComponentRegisterStorage(Component * comp, ResultsStorage * storage) {
         }
     }
 
+    retVal = ComponentStorageAllocateMemory(compStore);
+    if (RETURN_ERROR == retVal) {
+        ComponentLog(comp, LOG_ERROR, "Results: Could not allocate storage");
+        return RETURN_ERROR;
+    }
+
     return RETURN_OK;
 }
 

@@ -168,21 +168,12 @@ static McxStatus ChannelStorageStoreFull(ChannelStorage * channelStore, double t
     size_t i = 0;
     McxStatus retVal;
 
-    /* first store: allocate memory */
-    if (channelStore->numValuesAllocated == 0) {
-        size_t newSize = 0;
-        channelStore->numValuesAllocated = 1;
-        newSize = channelStore->numValuesAllocated * channels->Size(channels) * sizeof(ChannelValue);
-
-        channelStore->values = (ChannelValue *) mcx_realloc(channelStore->values, newSize);
-        if (!channelStore->values) {
-            mcx_log(LOG_DEBUG, "Results: Store ports: No memory for port values");
-            return RETURN_ERROR;
-        }
-    }
-
     if (channelStore->numValues + 1 > channelStore->numValuesAllocated) {
         size_t newSize = 0;
+        if (channelStore->numValuesAllocated == 0) {
+            channelStore->numValuesAllocated = 1;
+        }
+
         channelStore->numValuesAllocated *= 2;
         newSize = channelStore->numValuesAllocated * channels->Size(channels) * sizeof(ChannelValue);
 
@@ -217,22 +208,28 @@ static McxStatus ChannelStorageStoreFull(ChannelStorage * channelStore, double t
     return RETURN_OK;
 }
 
-static McxStatus ChannelStorageStoreNonFull(ChannelStorage * channelStore, double time) {
-    ObjectContainer * channels = channelStore->channels;
-    size_t i = 0;
-    McxStatus retVal;
 
-    /* first store: allocate memory */
-    if (channelStore->numValuesAllocated == 0) {
+McxStatus ChannelStorageAllocateMemory(ChannelStorage * channelStore) {
+    ObjectContainer * channels = channelStore->channels;
+
+    if (channelStore->numValuesAllocated == 0 && channels->Size(channels) > 0) {
         size_t newSize = 0;
         channelStore->numValuesAllocated = 1;
         newSize = channelStore->numValuesAllocated * channels->Size(channels) * sizeof(ChannelValue);
-        channelStore->values = (ChannelValue *) mcx_realloc(channelStore->values, newSize);
+        channelStore->values = (ChannelValue *)mcx_realloc(channelStore->values, newSize);
         if (!channelStore->values) {
             mcx_log(LOG_DEBUG, "Results: Store ports: No memory for port values");
             return RETURN_ERROR;
         }
     }
+
+    return RETURN_OK;
+}
+
+static McxStatus ChannelStorageStoreNonFull(ChannelStorage * channelStore, double time) {
+    ObjectContainer * channels = channelStore->channels;
+    size_t i = 0;
+    McxStatus retVal;
 
     /* no incrementing numValues, thus no reallocating */
 

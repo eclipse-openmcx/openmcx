@@ -59,6 +59,18 @@ static McxStatus ComponentStorageRegisterChannel(ComponentStorage * compStore, C
     return RETURN_OK;
 }
 
+McxStatus ComponentStorageAllocateMemory(ComponentStorage * compStore) {
+    size_t i = 0;
+    for (i = 0; i < CHANNEL_STORE_NUM; i++) {
+        McxStatus retVal = ChannelStorageAllocateMemory(compStore->channels[i]);
+        if (RETURN_ERROR == retVal) {
+            ComponentLog(compStore->comp, LOG_ERROR, "Results: Setup element storage: Could not allocate storage");
+            return RETURN_ERROR;
+        }
+    }
+    return RETURN_OK;
+}
+
 static McxStatus ComponentStorageStoreChannels(ComponentStorage * compStore, ChannelStoreType chType, double time, StoreLevel level) {
     ChannelStorage *channels = NULL;
     McxStatus retVal;
