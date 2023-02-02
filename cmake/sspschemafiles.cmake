@@ -41,6 +41,8 @@ set(OUT_DIR "${INCLUDE_DIR}/reader/ssp/schema")
 
 add_library(ssp_headers INTERFACE)
 
+find_package(Python3 REQUIRED)
+
 # process schema files
 file(GLOB_RECURSE SCHEMA_FILES "${SSP_ROOT}/*.xsd")
 foreach(SCHEMA_FILE ${SCHEMA_FILES})
@@ -61,7 +63,7 @@ foreach(SCHEMA_FILE ${SCHEMA_FILES})
 
         add_custom_command(
             OUTPUT "${OUT_DIR}/${SUB_DIR}/${SCHEMA_FILE_NAME}.h"
-            COMMAND python "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}/${SUB_DIR}" -p "${SUB_DIR}"
+            COMMAND "${Python3_EXECUTABLE}" "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}/${SUB_DIR}" -p "${SUB_DIR}"
             DEPENDS "${SCHEMA_FILE}"
             COMMENT "${CMD_COMMENT}")
 
@@ -77,7 +79,7 @@ foreach(SCHEMA_FILE ${SCHEMA_FILES})
 
         add_custom_command(
             OUTPUT "${OUT_DIR}/${SCHEMA_FILE_NAME}.h"
-            COMMAND python "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}"
+            COMMAND "${Python3_EXECUTABLE}" "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}"
             DEPENDS "${SCHEMA_FILE}"
             COMMENT "${CMD_COMMENT}")
 
