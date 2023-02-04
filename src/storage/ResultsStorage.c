@@ -55,22 +55,18 @@ OBJECT_CLASS(StorageBackend, Object);
 // ----------------------------------------------------------------------
 // Storage Backend
 
-static McxStatus StorageStoreBackends(ResultsStorage * storage, ChannelStoreType chType, size_t i, size_t start, size_t end) {
+static McxStatus StorageStoreBackends(ResultsStorage * storage, ChannelStoreType chType, size_t i, size_t index) {
     McxStatus retVal = RETURN_OK;
     McxStatus tmp;
     size_t j = 0;
-    size_t k = 0;
     for (j = 0; j < BACKEND_NUM; j++) {
-        for (k = start; k <= end; k++) {
-            StorageBackend * backend = storage->backends[j];
-            if (backend) {
-                if (storage->channelStoreEnabled[chType]
-                    && backend->active) {
-                    tmp = backend->Store(backend, chType, i, k);
-                    if (RETURN_ERROR == tmp) {
-                        mcx_log(LOG_ERROR, "Results: Store backends: Could not store sucessfully");
-                        retVal = RETURN_ERROR;
-                    }
+        StorageBackend * backend = storage->backends[j];
+        if (backend) {
+            if (storage->channelStoreEnabled[chType] && backend->active) {
+                tmp = backend->Store(backend, chType, i, index);
+                if (RETURN_ERROR == tmp) {
+                    mcx_log(LOG_ERROR, "Results: Store backends: Could not store sucessfully");
+                    retVal = RETURN_ERROR;
                 }
             }
         }
@@ -308,22 +304,21 @@ static McxStatus StorageSetStored(ResultsStorage * storage, ComponentStorage * c
     /* we store the rows for the times: [storedTime + 1, endTime] */
     {
         ChannelStorage * chStore = compStore->channels[chType];
-        size_t start = 0;
         size_t end = chStore->numValues-1;
 
         if (0 == chStore->numValues) {
-            MCX_DEBUG_LOG("STORE BACKENDS FAILED (%zu) %zu - %zu [%f -> %f)", i, start, end, chStore->lastStored, endTime);
+            MCX_DEBUG_LOG("STORE BACKENDS FAILED (%zu) 0 - %zu [%f -> %f)", i, end, chStore->lastStored, endTime);
             ComponentLog(compStore->comp, LOG_ERROR, "Invalid storage range");
             return RETURN_ERROR;
         }
 
 #ifdef MCX_DEBUG
         if (chStore->lastStored < MCX_DEBUG_LOG_TIME) {
-            MCX_DEBUG_LOG("STORE BACKENDS (%zu) %zu - %zu [%f -> %f)", i, start, end, chStore->lastStored, endTime);
+            MCX_DEBUG_LOG("STORE BACKENDS (%zu) 0 - %zu [%f -> %f)", i, end, chStore->lastStored, endTime);
         }
 #endif // MCX_DEBUG
 
-        retVal = storage->StoreBackends(storage, chType, i, start, end);
+        retVal = storage->StoreBackends(storage, chType, i, end);
         if (RETURN_ERROR == retVal) {
             ComponentLog(compStore->comp, LOG_ERROR, "Storing backends failed");
             return RETURN_ERROR;

@@ -72,7 +72,7 @@ typedef McxStatus (* fResultsStorageStoreModel)(ResultsStorage * storage, SubMod
 typedef McxStatus (* fResultsStorageFinishModel)(ResultsStorage * storage, SubModel * subModel);
 typedef McxStatus (* fResultsStorageSetStored)(ResultsStorage * storage, ComponentStorage * compStore, ChannelStoreType chType, double time);
 typedef McxStatus (* fResultsStorageSetFinished)(ResultsStorage * storage, ComponentStorage * compStore);
-typedef McxStatus (* fResultsStorageStoreBackends)(ResultsStorage * storage, ChannelStoreType chType, size_t i, size_t start, size_t end);
+typedef McxStatus (* fResultsStorageStoreBackends)(ResultsStorage * storage, ChannelStoreType chType, size_t i, size_t index);
 typedef McxStatus (* fResultsStorageFinishBackends)(ResultsStorage * storage);
 typedef StoreLevel (* fResultsStorageGetStoreLevel)(ResultsStorage * storage);
 typedef void (* fResultsStorageSetStoreLevel)(ResultsStorage * storage, StoreLevel level);
