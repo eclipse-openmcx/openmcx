@@ -417,7 +417,7 @@ McxStatus ComponentRegisterStorage(Component * comp, ResultsStorage * storage) {
         Channel * channel = (Channel *) DatabusGetRTFactorChannel(db, i);
 
         retVal = compStore->RegisterChannel(compStore, CHANNEL_STORE_RTFACTOR, channel);
-        if (RETURN_OK != retVal) {
+        if (RETURN_ERROR == retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register rtfactor variable %d at storage", i);
             return RETURN_ERROR;
         }

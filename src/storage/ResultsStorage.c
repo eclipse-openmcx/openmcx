@@ -324,7 +324,7 @@ static McxStatus StorageSetStored(ResultsStorage * storage, ComponentStorage * c
 #endif // MCX_DEBUG
 
         retVal = storage->StoreBackends(storage, chType, i, start, end);
-        if (RETURN_OK != retVal) {
+        if (RETURN_ERROR == retVal) {
             ComponentLog(compStore->comp, LOG_ERROR, "Storing backends failed");
             return RETURN_ERROR;
         }

@@ -137,10 +137,11 @@ static McxStatus ComponentStorageStoreChannels(ComponentStorage * compStore, Cha
     }
 
     retVal = compStore->storage->SetStored(compStore->storage, compStore, chType, time);
-    if (RETURN_OK != retVal) {
+    if (RETURN_ERROR == retVal) {
         ComponentLog(compStore->comp, LOG_ERROR, "Results: Could not store data for time %.17g s", time);
         return RETURN_ERROR;
     }
+
     channels->lastStored = time;
 
     return RETURN_OK;
