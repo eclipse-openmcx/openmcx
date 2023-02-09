@@ -154,7 +154,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
         }
 
         interval.startTime = comp->GetTime(comp);
-        interval.endTime = comp->GetTime(comp);
+        interval.endTime = interval.startTime;
         retVal = ComponentUpdateOutChannels(comp, &interval);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "%s: Updating outports failed", comp->GetName(comp));
