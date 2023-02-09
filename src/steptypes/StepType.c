@@ -82,9 +82,10 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
     while (
         comp->GetFinishState(comp) != COMP_IS_FINISHED &&
-        comp->syncHints.stepSizesAreMultiples ?
+        (comp->syncHints.stepSizesAreMultiples ?
             double_cmp_eps_abs(comp->GetTime(comp), stepEndTime, comp->syncHints.eps) == CMP_LT :
             double_lt(comp->GetTime(comp), stepEndTime)
+        )
     ) {
         if (comp->HasOwnTime(comp)) {
             interval.startTime = comp->GetTime(comp);
