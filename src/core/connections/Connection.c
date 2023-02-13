@@ -957,7 +957,9 @@ ChannelFilter * FilterFactory(ConnectionState * state,
                               InterExtrapolatingType inter_extrapolating_type,
                               int is_decoupled,
                               Component * sourceComp,
+                              int source,
                               Component * targetComp,
+                              int target,
                               const char * connString) {
     ChannelFilter * filter = NULL;
     McxStatus retVal;

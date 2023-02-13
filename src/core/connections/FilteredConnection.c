@@ -302,7 +302,9 @@ static McxStatus AddFilter(Connection * connection) {
                                                                      info->isInterExtrapolating,
                                                                      ConnectionInfoIsDecoupled(info),
                                                                      info->sourceComponent,
+                                                                     info->sourceChannel,
                                                                      info->targetComponent,
+                                                                     info->targetChannel,
                                                                      connString);
                 if (NULL == filteredConnection->data.filters[i]) {
                     mcx_log(LOG_DEBUG, "Connection: Array filter creation failed for index %d", i);
@@ -319,7 +321,9 @@ static McxStatus AddFilter(Connection * connection) {
                                                              info->isInterExtrapolating,
                                                              ConnectionInfoIsDecoupled(info),
                                                              info->sourceComponent,
+                                                             info->sourceChannel,
                                                              info->targetComponent,
+                                                             info->targetChannel,
                                                              connString);
             if (NULL == filteredConnection->data._filter) {
                 mcx_log(LOG_DEBUG, "Connection: No Filter created");
