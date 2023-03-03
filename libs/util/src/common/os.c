@@ -229,7 +229,7 @@ static int mcx_parse_escaped_env_delimiter(char * path) {
     return 0;
 }
 
-char * mcx_resolve_env_var(char * path) {
+char * mcx_resolve_env_var(const char * path) {
     int i = 0;
 
     int resolved_len = 1; // for '\0'

@@ -40,7 +40,7 @@ McxStatus mcx_os_set_env_var(const char * name, const char * value);
  * %VAR%, $(VAR) or ${VAR} in path with their respective values and
  * returns the result.
  */
-char * mcx_resolve_env_var(char * path);
+char * mcx_resolve_env_var(const char * path);
 
 int mcx_parse_win_env_var(char * path, char ** res);
 int mcx_parse_linux_par_env_var(char * path, char ** res);
