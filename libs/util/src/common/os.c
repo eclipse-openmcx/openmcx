@@ -240,9 +240,9 @@ char * mcx_resolve_env_var(const char * path) {
     }
 
     while (path[i]) {
-        char * name;
-        char quote;
-        int num;
+        char * name = NULL;
+        char quote = 0;
+        int num = 0;
 
         // skip over chars until we find a variable or a quote
         while (path[i] &&
