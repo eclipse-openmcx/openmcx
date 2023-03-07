@@ -11,7 +11,11 @@
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
 #include <windows.h>
 
+#undef OS_WINDOWS // gets redefined in Shlwapi.h
+#include <Shlwapi.h>
+
 #include "common/memory.h"
+#include "common/logging.h"
 
 #include "util/paths.h"
 #include "util/string.h"
@@ -63,6 +67,35 @@ int mcx_path_is_absolute(const char * path) {
     }
 
     return 0;
+}
+
+char * mcx_path_from_uri(const char * uri) {
+    wchar_t * wchar_uri = NULL;
+    wchar_t wchar_path[4096] = { 0 };
+    DWORD buffer_len = sizeof(wchar_path) / sizeof(wchar_path[0]);
+    char * path = NULL;
+    HRESULT hres = S_OK;
+
+    wchar_uri = mcx_string_to_widechar(uri);
+    if (wchar_uri == NULL) {
+        mcx_log(LOG_ERROR, "Cannot convert UTF-8 string to wide string");
+        return NULL;
+    }
+
+    hres = PathCreateFromUrlW(wchar_uri, wchar_path, &buffer_len, 0);
+    mcx_free(wchar_uri);
+    if (hres != S_OK) {
+        mcx_log(LOG_ERROR, "PathCreateFromUrlW returned with HRESULT error: %d", hres);
+        return NULL;
+    }
+
+    path = mcx_string_to_utf8(wchar_path);
+    if (path == NULL) {
+        mcx_log(LOG_ERROR, "Cannot convert wide string to UTF-8");
+        return NULL;
+    }
+
+    return path;
 }
 
 

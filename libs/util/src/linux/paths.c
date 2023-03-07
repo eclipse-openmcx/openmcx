@@ -12,10 +12,14 @@
 #include <unistd.h>
 
 #include "common/memory.h"
+#include "common/logging.h"
 
 #include "util/os.h"
 #include "util/paths.h"
 #include "util/string.h"
+
+
+#define LOCATION_PREFIX "file://"
 
 
 #ifdef __cplusplus
@@ -49,6 +53,35 @@ int mcx_path_is_absolute(const char * path) {
     return 0;
 }
 
+char * mcx_path_from_uri(const char * uri) {
+    char * buffer = NULL;
+
+    /* check if this is file uri */
+    if (strncmp(uri, LOCATION_PREFIX, strlen(LOCATION_PREFIX))) {
+        /* not a file uri */
+        return NULL;
+    }
+
+    /* check if uri has authority component */
+    if (uri[strlen(LOCATION_PREFIX)] == '/') {
+        /* no authority component */
+        uri += strlen(LOCATION_PREFIX);
+    } else {
+        /* skip over authority component */
+        uri += strlen(LOCATION_PREFIX);
+        while (*uri != '\0' && *uri != '/') {
+            uri++;
+        }
+    }
+
+    buffer = mcx_string_decode(uri, '%');
+    if (buffer == NULL) {
+        mcx_log(LOG_ERROR, "Cannot URL decode string");
+        return NULL;
+    }
+
+    return buffer;
+}
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
