@@ -11,8 +11,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "common/memory.h"
+#include "common/logging.h"
 
 #include "util/string.h"
 
@@ -42,6 +44,37 @@ static int mcx_string_contains_char(const char * str, char c) {
         }
     }
     return 0;
+}
+
+char * mcx_string_decode(const char * str, char _escape_char) {
+    int i = 0;
+    int j = 0;
+    char * buffer = NULL;
+
+    buffer = (char *) mcx_calloc(strlen(str) + 1, sizeof(char));
+    if (!buffer) {
+        return NULL;
+    }
+
+    while (str[i]) {
+        if (str[i] == _escape_char) {
+            if (!str[i+1] || !str[i+2]) {
+                mcx_log(LOG_ERROR, "Invalid escape sequence encountered in string: %s", str);
+                return NULL;
+            }
+            char escape_sequence[3] = {str[i+1], str[i+2], 0};
+            buffer[j] = (char) strtol(escape_sequence, NULL, 16);
+            i += 3;
+            j += 1;
+        } else {
+            buffer[j] = str[i];
+            i += 1;
+            j += 1;
+        }
+    }
+    buffer[j] = '\0';
+
+    return buffer;
 }
 
 char * mcx_string_encode(const char * str, char _escape_char, const char _chars_to_escape[]) {
