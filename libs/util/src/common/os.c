@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "common/memory.h"
+#include "common/logging.h"
 
 #include "util/os.h"
 #include "util/paths.h"
@@ -294,6 +295,10 @@ char * mcx_resolve_env_var(const char * path) {
 
                 strcat(resolved, value);
                 mcx_free(value);
+
+                if (path[i] == '%') {
+                    mcx_log(LOG_WARNING, "Defining environment variables via '%%env_var%%' (%s) is deprecated. Please switch to the '${env_var}' construct instead", path);
+                }
             } else {
                 resolved_len += num;
                 resolved = mcx_realloc(resolved, resolved_len);
