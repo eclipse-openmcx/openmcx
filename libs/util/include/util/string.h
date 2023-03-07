@@ -19,6 +19,7 @@ extern "C" {
 
 char * mcx_string_dup(const char * s);
 
+char * mcx_string_decode(const char * str, char _escape_char);
 char * mcx_string_encode(const char * str, char _escape_char, const char _chars_to_escape[]);
 char* mcx_string_encode_special_characters_except_hash(const char* str);
 char * mcx_string_encode_filename(const char * str);
