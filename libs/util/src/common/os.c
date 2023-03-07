@@ -281,9 +281,7 @@ char * mcx_resolve_env_var(const char * path) {
 
         // copy env-var value
         if (name) {
-            char * value;
-
-            value = mcx_os_get_env_var(name);
+            char * value = mcx_os_get_env_var(name);
             if (value) {
                 resolved_len += (int)strlen(value);
                 resolved = mcx_realloc(resolved, resolved_len);
@@ -296,6 +294,16 @@ char * mcx_resolve_env_var(const char * path) {
 
                 strcat(resolved, value);
                 mcx_free(value);
+            } else {
+                resolved_len += num;
+                resolved = mcx_realloc(resolved, resolved_len);
+                if (!resolved) {
+                    mcx_free(name);
+                    return NULL;
+                }
+
+                strncat(resolved, path + i, num);
+                resolved[resolved_len - 1] = '\0';
             }
 
             mcx_free(name);
