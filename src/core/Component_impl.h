@@ -147,6 +147,9 @@ struct ComponentData {
     struct ComponentStorage * storage;
 
     ComponentInput * input;
+
+    int isShadowComponent;
+
 };
 
 #ifdef __cplusplus
