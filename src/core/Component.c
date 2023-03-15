@@ -890,6 +890,14 @@ static int ComponentHasOwnTime(const Component * comp) {
     return comp->data->hasOwnTime;
 }
 
+static void ComponentSetIsShadowComponent(Component * comp) {
+    comp->data->isShadowComponent = 1;
+}
+
+static int ComponentIsShadowComponent(const Component * comp) {
+    return comp->data->isShadowComponent;
+}
+
 static void ComponentSetHasOwnTime(Component * comp) {
     comp->data->hasOwnTime = 1;
 }
@@ -1247,6 +1255,9 @@ static Component * ComponentCreate(Component * comp) {
     comp->SetTime = ComponentSetTime;
     comp->HasOwnTime = ComponentHasOwnTime;
     comp->SetHasOwnTime = ComponentSetHasOwnTime;
+
+    comp->IsShadowComponent = ComponentIsShadowComponent;
+    comp->SetIsShadowComponent = ComponentSetIsShadowComponent;
 
     comp->GetFinishState = ComponentGetFinishState;
     comp->SetIsFinished = ComponentSetIsFinished;
