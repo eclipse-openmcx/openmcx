@@ -869,7 +869,9 @@ StringContainer * SubModelGetAllObservableChannelsContainer(SubModel * subModel)
     for (i = 0; i < comps->Size(comps); i++) {
         Component * comp = (Component *) comps->At(comps, i);
         // TODO: make composable
-        comp->AddObservableChannels(comp, container, &count);
+        if (!comp->IsShadowComponent(comp)) {
+            comp->AddObservableChannels(comp, container, &count);
+        }
     }
 
     StringContainerResize(container, count);
