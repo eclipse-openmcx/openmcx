@@ -75,6 +75,9 @@ typedef int (* fComponentHasOwnTime)(const Component * comp);
 typedef void(* fComponentSetHasOwnTime)(Component * comp);
 typedef void (* fComponentUpdateTime)(Component * comp);
 
+typedef int (* fComponentIsShadowComponent)(const Component * comp);
+typedef void (*fComponentSetIsShadowComponent)(Component * comp);
+
 typedef int (* fComponentOneOutputOneGroup)(Component * comp);
 
 typedef ComponentFinishState (* fComponentGetFinishState)(const Component * comp);
@@ -192,6 +195,9 @@ struct Component {
     fComponentHasOwnTime HasOwnTime;
 
     fComponentSetHasOwnTime SetHasOwnTime;
+
+    fComponentIsShadowComponent IsShadowComponent;
+    fComponentSetIsShadowComponent SetIsShadowComponent;
 
     fComponentPredicate  IsPartOfInitCalculation;
     fComponentSetIsPartOfInitCalculation SetIsPartOfInitCalculation;
