@@ -1457,6 +1457,8 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
 
     data->input = NULL;
 
+    data->isShadowComponent = 0;
+
     rtData = &data->rtData;
     rtData->defined = FALSE;
     rtData->enabled = FALSE;
