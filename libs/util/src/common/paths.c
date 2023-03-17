@@ -60,6 +60,14 @@ char * mcx_path_file_name(const char * path) {
     return dir;
 }
 
+void mcx_path_strip_ext(char * path) {
+    char * dot = strrchr(path, '.');
+
+    if (dot) {
+        *dot = '\0';
+    }
+}
+
 char ** mcx_path_split(char * path) {
     size_t partsNum = 0;
     size_t pos = 0;
