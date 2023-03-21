@@ -528,7 +528,22 @@ McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams
                     goto cleanup_1;
                 }
 
-                retVal = proxy->Setup(proxy, name, parameterInput->parameter.arrayParameter->numDims, parameterInput->parameter.arrayParameter->dims);
+                size_t numDims = parameterInput->parameter.arrayParameter->numDims;
+                size_t * dims = mcx_malloc(sizeof(size_t) * numDims);
+                if (!dims) {
+                    mcx_log(LOG_ERROR, "FMU: Copying parameter array dimensions failed: No memory");
+                    retVal = RETURN_ERROR;
+                    goto cleanup_1;
+                }
+                size_t start, end;
+                for (size_t idx = 0; idx < numDims; idx++) {
+                    start = parameterInput->parameter.arrayParameter->dims[idx]->start;
+                    end = parameterInput->parameter.arrayParameter->dims[idx]->end;
+                    dims[idx] = end - start + 1;
+                }
+
+                retVal = proxy->Setup(proxy, name, numDims, dims);
+                mcx_free(dims);
                 if (RETURN_ERROR == retVal) {
                     mcx_log(LOG_ERROR, "FMU Array parameter %s: Array proxy setup failed", name);
                     goto cleanup_1;
