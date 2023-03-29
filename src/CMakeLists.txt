@@ -86,6 +86,7 @@ target_compile_definitions(
     PUBLIC
         $<$<BOOL:${ENABLE_MT}>:ENABLE_MT>
         $<$<BOOL:${ENABLE_DEBUG}>:MCX_DEBUG>
+        $<$<BOOL:${ENABLE_BOUND_CHECKS}>:ENABLE_BOUND_CHECKS>
         $<$<BOOL:${WIN32}>:OS_WINDOWS>
         $<$<BOOL:${UNIX}>:OS_LINUX>
     PRIVATE

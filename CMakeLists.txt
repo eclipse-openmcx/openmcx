@@ -20,6 +20,7 @@ option(ENABLE_MT "Turn on multithreading support" ON)
 option(ENABLE_STORAGE "Turn on result writing support" ON)
 option(ENABLE_DEBUG "Enable additional debug output" OFF)
 option(ENABLE_COVERAGE "Turn on code coverage support" OFF)
+option(ENABLE_BOUND_CHECKS "Turn on bound checks on casts with size differences" ON)
 
 
 # dependencies
