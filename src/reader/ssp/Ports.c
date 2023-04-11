@@ -196,12 +196,12 @@ cleanup_1:
                     }
 
                     {
-                        retVal = xml_attr_int(vectorNode, "startIndex", &vectorPortInput->startIndex, SSD_MANDATORY);
+                        retVal = xml_attr_int64(vectorNode, "startIndex", &vectorPortInput->startIndex, SSD_MANDATORY);
                         if (RETURN_ERROR == retVal) {
                             goto cleanup;
                         }
 
-                        retVal = xml_attr_int(vectorNode, "endIndex", &vectorPortInput->endIndex, SSD_MANDATORY);
+                        retVal = xml_attr_int64(vectorNode, "endIndex", &vectorPortInput->endIndex, SSD_MANDATORY);
                         if (RETURN_ERROR == retVal) {
                             goto cleanup;
                         }
@@ -239,7 +239,7 @@ cleanup_1:
                         goto cleanup;
                     }
 
-                    retVal = xml_opt_attr_bool(vectorNode, "writeResults", &vectorPortInput->writeResults);
+                    retVal = xml_opt_attr_bool32(vectorNode, "writeResults", &vectorPortInput->writeResults);
                     if (RETURN_ERROR == retVal) {
                         goto cleanup;
                     }
@@ -435,7 +435,7 @@ cleanup_1:
                         goto cleanup;
                     }
 
-                    retVal = xml_opt_attr_bool(scalarNode, "writeResults", &scalarPortInput->writeResults);
+                    retVal = xml_opt_attr_bool32(scalarNode, "writeResults", &scalarPortInput->writeResults);
                     if (RETURN_ERROR == retVal) {
                         goto cleanup;
                     }

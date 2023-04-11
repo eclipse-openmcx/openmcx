@@ -23,7 +23,7 @@ typedef struct IntegratorInput {
     ComponentInput _;
 
     OPTIONAL_VALUE(double) gain;
-    OPTIONAL_VALUE(int) numSubSteps;
+    OPTIONAL_VALUE(int64_t) numSubSteps;
     OPTIONAL_VALUE(double) initialState;
 } IntegratorInput;
 

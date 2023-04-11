@@ -179,6 +179,14 @@ static void PrintVec(char * prefix, ChannelType * type, size_t len, void * value
     mcx_log(LOG_DEBUG, "%s", buffer);
 }
 
+static void PrintOptionalInt32(char * prefix, OPTIONAL_VALUE(int) value) {
+    if (value.defined) {
+        mcx_log(LOG_DEBUG, "%s%d,", prefix, value.value);
+    } else {
+        mcx_log(LOG_DEBUG, "%s-,", prefix);
+    }
+}
+
 static void PrintOptionalInt64(char * prefix, OPTIONAL_VALUE(int64_t) value) {
     if (value.defined) {
         mcx_log(LOG_DEBUG, "%s%lld,", prefix, value.value);
@@ -205,7 +213,7 @@ void VectorPortInputPrint(VectorPortInput * input) {
     PrintVec("  .default: ", input->type, len, input->default_);
     PrintVec("  .initial: ", input->type, len, input->initial);
 
-    PrintOptionalInt64("  .writeResults: ", input->writeResults);
+    PrintOptionalInt32("  .writeResults: ", input->writeResults);
     mcx_log(LOG_DEBUG, "}");
 }
 

@@ -45,7 +45,7 @@ static BackendInput * SSDReadBackend(xmlNodePtr backendNode) {
         goto cleanup;
     }
 
-    retVal = xml_opt_attr_bool(backendNode, "storeAtRuntime", &backendInput->storeAtRuntime);
+    retVal = xml_opt_attr_bool32(backendNode, "storeAtRuntime", &backendInput->storeAtRuntime);
     if (retVal == RETURN_ERROR) {
         goto cleanup;
     }

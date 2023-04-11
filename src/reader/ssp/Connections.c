@@ -33,7 +33,7 @@ static DecoupleIfNeededInput * SSDReadDecoupleIfNeededInput(xmlNodePtr ifNeededN
     element->type = INPUT_SSD;
     element->context = (void *)ifNeededNode;
 
-    retVal = xml_opt_attr_int(ifNeededNode, "priority", &input->priority);
+    retVal = xml_opt_attr_int32(ifNeededNode, "priority", &input->priority);
     if (retVal == RETURN_ERROR) {
         goto cleanup;
     }
@@ -172,13 +172,13 @@ static McxStatus SSDReadInterExtrapolationInput(ConnectionInput * connectionInpu
 
 
 static McxStatus SSDConnectionConfigurationSupported(xmlNodePtr connectionNode) {
-    int suppressUnitConversion = FALSE;
+    int32_t suppressUnitConversion = FALSE;
     xmlNodePtr linTransformNode = NULL;
     xmlNodePtr intTransformNode = NULL;
     xmlNodePtr boolTransformNode = NULL;
     xmlNodePtr enumTransformNode = NULL;
 
-    if (xml_attr_bool(connectionNode, "suppressUnitConversion", &suppressUnitConversion, SSD_OPTIONAL) == RETURN_ERROR) {
+    if (xml_attr_bool32(connectionNode, "suppressUnitConversion", &suppressUnitConversion, SSD_OPTIONAL) == RETURN_ERROR) {
         return RETURN_ERROR;
     }
 
@@ -326,12 +326,12 @@ static VectorEndpointInput * SSDReadVectorEndpoint(xmlNodePtr connectionNode, En
             goto cleanup;
         }
 
-        retVal = xml_attr_int(endpointNode, "startIndex", &input->startIndex, SSD_MANDATORY);
+        retVal = xml_attr_int64(endpointNode, "startIndex", &input->startIndex, SSD_MANDATORY);
         if (retVal == RETURN_ERROR) {
             goto cleanup;
         }
 
-        retVal = xml_attr_int(endpointNode, "endIndex", &input->endIndex, SSD_MANDATORY);
+        retVal = xml_attr_int64(endpointNode, "endIndex", &input->endIndex, SSD_MANDATORY);
         if (retVal == RETURN_ERROR) {
             goto cleanup;
         }

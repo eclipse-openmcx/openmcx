@@ -94,7 +94,7 @@ TaskInput * SSDReadTask(xmlNodePtr defaultExperimentNode) {
                 goto cleanup;
             }
 
-            retVal = xml_opt_attr_bool(taskNode, "sumTime", &taskInput->sumTime);
+            retVal = xml_opt_attr_bool32(taskNode, "sumTime", &taskInput->sumTime);
             if (retVal == RETURN_ERROR) {
                 goto cleanup;
             }
@@ -104,7 +104,7 @@ TaskInput * SSDReadTask(xmlNodePtr defaultExperimentNode) {
                 goto cleanup;
             }
 
-            retVal = xml_opt_attr_bool(taskNode, "inputAtEndTime", &taskInput->inputAtEndTime);
+            retVal = xml_opt_attr_bool32(taskNode, "inputAtEndTime", &taskInput->inputAtEndTime);
             if (retVal == RETURN_ERROR) {
                 goto cleanup;
             }
@@ -114,7 +114,7 @@ TaskInput * SSDReadTask(xmlNodePtr defaultExperimentNode) {
                 goto cleanup;
             }
 
-            retVal = xml_opt_attr_bool(taskNode, "timingOutput", &taskInput->timingOutput);
+            retVal = xml_opt_attr_bool32(taskNode, "timingOutput", &taskInput->timingOutput);
             if (retVal == RETURN_ERROR) {
                 goto cleanup;
             }

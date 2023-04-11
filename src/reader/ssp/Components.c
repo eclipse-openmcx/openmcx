@@ -75,7 +75,7 @@ static ComponentResultsInput * SSDReadComponentResults(xmlNodePtr annotationNode
             goto cleanup;
         }
 
-        retVal = xml_opt_attr_bool(resultsNode, "rtFactor", &resultsInput->rtFactor);
+        retVal = xml_opt_attr_bool32(resultsNode, "rtFactor", &resultsInput->rtFactor);
         if (retVal == RETURN_ERROR) {
             goto cleanup;
         }
@@ -180,12 +180,12 @@ static ComponentInput * SSDReadComponent(xmlNodePtr componentNode, SSDComponentS
                 goto cleanup;
             }
 
-            retVal = xml_opt_attr_bool(componentAnnotationNode, "inputAtEndTime", &componentInput->inputAtEndTime);
+            retVal = xml_opt_attr_bool32(componentAnnotationNode, "inputAtEndTime", &componentInput->inputAtEndTime);
             if (retVal == RETURN_ERROR) {
                 goto cleanup;
             }
 
-            retVal = xml_opt_attr_int(componentAnnotationNode, "triggerSequence", &componentInput->triggerSequence);
+            retVal = xml_opt_attr_int32(componentAnnotationNode, "triggerSequence", &componentInput->triggerSequence);
             if (retVal == RETURN_ERROR) {
                 goto cleanup;
             }

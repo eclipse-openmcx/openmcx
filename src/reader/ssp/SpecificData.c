@@ -72,7 +72,7 @@ McxStatus SSDReadFmuData(xmlNodePtr componentNode, xmlNodePtr specificDataNode, 
         }
     }
 
-    retVal = xml_opt_attr_bool(specificDataNode, "fmuLogging", &input->isLogging);
+    retVal = xml_opt_attr_bool32(specificDataNode, "fmuLogging", &input->isLogging);
     if (retVal == RETURN_ERROR) {
         return RETURN_ERROR;
     }
@@ -99,7 +99,7 @@ McxStatus SSDReadFmuData(xmlNodePtr componentNode, xmlNodePtr specificDataNode, 
         }
     }
 
-    retVal = xml_opt_attr_bool(specificDataNode, "modelInternalVariables", &input->modelInternalVariables);
+    retVal = xml_opt_attr_bool32(specificDataNode, "modelInternalVariables", &input->modelInternalVariables);
     if (retVal == RETURN_ERROR) {
         return RETURN_ERROR;
     }
@@ -121,7 +121,7 @@ McxStatus SSDReadIntegratorData(xmlNodePtr componentNode, xmlNodePtr specificDat
         return RETURN_ERROR;
     }
 
-    retVal = xml_opt_attr_int(specificDataNode, "numSubSteps", &input->numSubSteps);
+    retVal = xml_opt_attr_int64(specificDataNode, "numSubSteps", &input->numSubSteps);
     if (retVal == RETURN_ERROR) {
         return RETURN_ERROR;
     }
@@ -242,7 +242,7 @@ static ArrayConstantValueInput * SSDReadArrayConstantValue(xmlNodePtr node) {
             retVal = xml_attr_double_vec(node, "value", &input->numValues, (double**)&input->values, SSD_MANDATORY);
             break;
         case CHANNEL_INTEGER:
-            retVal = xml_attr_int_vec(node, "value", &input->numValues, (int**)&input->values, SSD_MANDATORY);
+            retVal = xml_attr_int64_vec(node, "value", &input->numValues, (int64_t**)&input->values, SSD_MANDATORY);
             break;
         default:
             retVal = xml_error_unsupported_node(node);

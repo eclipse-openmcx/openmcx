@@ -46,7 +46,7 @@ struct VectorPortInput {
     void * default_;
     void * initial;
 
-    OPTIONAL_VALUE(int64_t) writeResults;
+    OPTIONAL_VALUE(int) writeResults;
 
     fVectorPortInputCopyFrom CopyFrom;
 };

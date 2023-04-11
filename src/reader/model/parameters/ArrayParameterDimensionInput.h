@@ -22,8 +22,8 @@ extern const ObjectClass _ArrayParameterDimensionInput;
 typedef struct ArrayParameterDimensionInput {
     InputElement _;
 
-    int start;
-    int end;
+    size_t start;
+    size_t end;
 
 } ArrayParameterDimensionInput;
 

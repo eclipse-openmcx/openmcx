@@ -226,8 +226,43 @@ int xml_has_attr(xmlNodePtr node, const char * attribute_name) {
  * @return The number of read characters from buffer or -1 if no bool
  * could be parsed.
  */
-static int xml_parse_bool(const xmlChar * buffer, int * dest) {
-    int value = 0;
+static int xml_parse_bool64(const xmlChar * buffer, int64_t * dest) {
+    int64_t value = 0;
+    int ret_val = 0;
+    int num = 0;
+
+    // skip over leading whitespace
+    while ((isspace(buffer[num]) && buffer[num] != '\0')) {
+        num += 1;
+    }
+
+    ret_val = sscanf(buffer + num, "%lld", &value);
+    if (ret_val == 1) {
+        *dest = value != 0 ? TRUE : FALSE;
+    } else if (xmlStrncmp("true", buffer + num, 4) == 0) {
+        *dest = TRUE;
+    } else if (xmlStrncmp("false", buffer + num, 5) == 0) {
+        *dest = FALSE;
+    } else {
+        return -1;
+    }
+
+    // skip over (non-whitespace) value
+    while (!(isspace(buffer[num]) || buffer[num] == '\0')) {
+        num += 1;
+    }
+
+    return num;
+}
+
+/**
+ * Parses a bool value from buffer into dest.
+ *
+ * @return The number of read characters from buffer or -1 if no bool
+ * could be parsed.
+ */
+static int xml_parse_bool32(const xmlChar * buffer, int32_t * dest) {
+    int32_t value = 0;
     int ret_val = 0;
     int num = 0;
 
@@ -256,13 +291,13 @@ static int xml_parse_bool(const xmlChar * buffer, int * dest) {
 }
 
 /**
- * Parses an int value from buffer into dest.
+ * Parses an int32_t value from buffer into dest.
  *
- * @return The number of read characters from buffer or -1 if no int
+ * @return The number of read characters from buffer or -1 if no int32_t
  * could be parsed.
  */
-static int xml_parse_int(const xmlChar * buffer, int * dest) {
-    int value = 0;
+static int xml_parse_int32(const xmlChar * buffer, int32_t * dest) {
+    int32_t value = 0;
     int ret_val = 0;
     int num = 0;
 
@@ -272,6 +307,37 @@ static int xml_parse_int(const xmlChar * buffer, int * dest) {
     }
 
     ret_val = sscanf(buffer + num, "%d", &value);
+    if (ret_val == 1) {
+        *dest = value;
+    } else {
+        return -1;
+    }
+
+    // skip over (non-whitespace) value
+    while (!(isspace(buffer[num]) || buffer[num] == '\0')) {
+        num += 1;
+    }
+
+    return num;
+}
+
+/**
+ * Parses an int64_t value from buffer into dest.
+ *
+ * @return The number of read characters from buffer or -1 if no int64_t
+ * could be parsed.
+ */
+static int xml_parse_int64(const xmlChar * buffer, int64_t * dest) {
+    int64_t value = 0;
+    int ret_val = 0;
+    int num = 0;
+
+    // skip over leading whitespace
+    while ((isspace(buffer[num]) && buffer[num] != '\0')) {
+        num += 1;
+    }
+
+    ret_val = sscanf(buffer + num, "%lld", &value);
     if (ret_val == 1) {
         *dest = value;
     } else {
@@ -396,25 +462,25 @@ cleanup:
     return ret_status;
 }
 
-McxStatus xml_attr_int(xmlNodePtr node, const char * attribute_name, int * dest, SSDParamMode mode) {
+McxStatus xml_attr_int32(xmlNodePtr node, const char * attribute_name, int32_t * dest, SSDParamMode mode) {
     McxStatus ret_status = RETURN_OK;
     int ret_val = 0;
     xmlChar * buffer = NULL;
 
     if (!node) {
-        mcx_log(LOG_ERROR, "xml_attr_int: Node can not be NULL");
+        mcx_log(LOG_ERROR, "xml_attr_int32: Node can not be NULL");
         ret_status = RETURN_ERROR;
         goto cleanup;
     }
 
     if (!attribute_name) {
-        mcx_log(LOG_ERROR, "xml_attr_int: No attribute name defined");
+        mcx_log(LOG_ERROR, "xml_attr_int32: No attribute name defined");
         ret_status = RETURN_ERROR;
         goto cleanup;
     }
 
     if (!dest) {
-        mcx_log(LOG_ERROR, "xml_attr_int: Destination can not be NULL");
+        mcx_log(LOG_ERROR, "xml_attr_int32: Destination can not be NULL");
         ret_status = RETURN_ERROR;
         goto cleanup;
     }
@@ -430,7 +496,55 @@ McxStatus xml_attr_int(xmlNodePtr node, const char * attribute_name, int * dest,
         goto cleanup;
     }
 
-    ret_val = xml_parse_int(buffer, dest);
+    ret_val = xml_parse_int32(buffer, dest);
+    if (ret_val == -1) {
+        mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to an integer in element %s",
+                node->line, attribute_name, node->name);
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+cleanup:
+    if (buffer) { xmlFree(buffer); }
+
+    return ret_status;
+}
+
+McxStatus xml_attr_int64(xmlNodePtr node, const char * attribute_name, int64_t * dest, SSDParamMode mode) {
+    McxStatus ret_status = RETURN_OK;
+    int ret_val = 0;
+    xmlChar * buffer = NULL;
+
+    if (!node) {
+        mcx_log(LOG_ERROR, "xml_attr_int64: Node can not be NULL");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    if (!attribute_name) {
+        mcx_log(LOG_ERROR, "xml_attr_int64: No attribute name defined");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    if (!dest) {
+        mcx_log(LOG_ERROR, "xml_attr_int64: Destination can not be NULL");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    buffer = xmlGetProp(node, attribute_name);
+    if (buffer == NULL && mode == SSD_OPTIONAL) {
+        ret_status = RETURN_WARNING;
+        goto cleanup;
+    } else if (buffer == NULL) {
+        mcx_log(LOG_ERROR, "In input file, line %d: Attribute %s is not defined in node %s",
+                node->line, attribute_name, node->name);
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    ret_val = xml_parse_int64(buffer, dest);
     if (ret_val == -1) {
         mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to an integer in element %s",
                 node->line, attribute_name, node->name);
@@ -492,7 +606,7 @@ cleanup:
     return ret_status;
 }
 
-McxStatus xml_attr_bool(xmlNodePtr node, const char * attribute_name, int * dest, SSDParamMode mode) {
+McxStatus xml_attr_bool32(xmlNodePtr node, const char * attribute_name, int32_t * dest, SSDParamMode mode) {
     McxStatus ret_status = RETURN_OK;
     int ret_val = 0;
     xmlChar * buffer = NULL;
@@ -527,7 +641,56 @@ McxStatus xml_attr_bool(xmlNodePtr node, const char * attribute_name, int * dest
         goto cleanup;
     }
 
-    ret_val = xml_parse_bool(buffer, dest);
+    ret_val = xml_parse_bool32(buffer, dest);
+    if (-1 == ret_val) {
+        mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to a boolean in element %s",
+                node->line, attribute_name, node->name);
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+cleanup:
+    if (buffer) { xmlFree(buffer); }
+
+    return ret_status;
+}
+
+McxStatus xml_attr_bool64(xmlNodePtr node, const char * attribute_name, int64_t * dest, SSDParamMode mode) {
+    McxStatus ret_status = RETURN_OK;
+    int ret_val = 0;
+    xmlChar * buffer = NULL;
+    int value = 0;
+
+    if (!node) {
+        mcx_log(LOG_ERROR, "xml_attr_bool: Node can not be NULL");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    if (!attribute_name) {
+        mcx_log(LOG_ERROR, "xml_attr_bool: No attribute name defined");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    if (!dest) {
+        mcx_log(LOG_ERROR, "xml_attr_bool: Destination can not be NULL");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    buffer = xmlGetProp(node, attribute_name);
+    if (buffer == NULL && mode == SSD_OPTIONAL) {
+        ret_status = RETURN_WARNING;
+        goto cleanup;
+    } else if (buffer == NULL) {
+        mcx_log(LOG_ERROR, "In input file, line %d: Attribute %s is not defined in node %s",
+                node->line, attribute_name, node->name);
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    ret_val = xml_parse_bool64(buffer, dest);
     if (-1 == ret_val) {
         mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to a boolean in element %s",
                 node->line, attribute_name, node->name);
@@ -751,9 +914,9 @@ McxStatus xml_attr_channel_value_data(xmlNodePtr node, const char * attribute_na
     case CHANNEL_DOUBLE:
         return xml_attr_double(node, attribute_name, &dest->d, mode);
     case CHANNEL_INTEGER:
-        return xml_attr_int(node, attribute_name, &dest->i, mode);
+        return xml_attr_int64(node, attribute_name, &dest->i, mode);
     case CHANNEL_BOOL:
-        return xml_attr_bool(node, attribute_name, &dest->i, mode);
+        return xml_attr_bool64(node, attribute_name, &dest->i, mode);
     case CHANNEL_STRING:
         return xml_attr_string(node, attribute_name, &dest->s, mode);
     default:
@@ -839,9 +1002,9 @@ cleanup:
     return retVal;
 }
 
-static McxStatus xml_bool_vector_get(xmlChar * buffer, size_t * num, int ** dest) {
+static McxStatus xml_bool32_vector_get(xmlChar * buffer, size_t * num, int32_t ** dest) {
     size_t n = 0;
-    int * values = NULL;
+    int32_t * values = NULL;
 
     McxStatus retVal = RETURN_OK;
 
@@ -851,7 +1014,7 @@ static McxStatus xml_bool_vector_get(xmlChar * buffer, size_t * num, int ** dest
         goto cleanup;
     }
 
-    values = mcx_calloc(sizeof(double), n);
+    values = mcx_calloc(sizeof(int32_t), n);
     if (!values) {
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -862,7 +1025,7 @@ static McxStatus xml_bool_vector_get(xmlChar * buffer, size_t * num, int ** dest
         xmlChar * ptr = buffer;
 
         for (i = 0; i < n; i++) {
-            int ret_status = xml_parse_bool(ptr, &values[i]);
+            int ret_status = xml_parse_bool32(ptr, &values[i]);
             if (ret_status == -1) {
                 retVal = RETURN_ERROR;
                 goto cleanup;
@@ -882,9 +1045,9 @@ cleanup:
     return retVal;
 }
 
-static McxStatus xml_int_vector_get(xmlChar * buffer, size_t * num, int ** dest) {
+static McxStatus xml_bool64_vector_get(xmlChar * buffer, size_t * num, int64_t ** dest) {
     size_t n = 0;
-    int * values = NULL;
+    int64_t * values = NULL;
 
     McxStatus retVal = RETURN_OK;
 
@@ -894,7 +1057,7 @@ static McxStatus xml_int_vector_get(xmlChar * buffer, size_t * num, int ** dest)
         goto cleanup;
     }
 
-    values = mcx_calloc(sizeof(double), n);
+    values = mcx_calloc(sizeof(int64_t), n);
     if (!values) {
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -905,7 +1068,50 @@ static McxStatus xml_int_vector_get(xmlChar * buffer, size_t * num, int ** dest)
         xmlChar * ptr = buffer;
 
         for (i = 0; i < n; i++) {
-            int ret_status = xml_parse_int(ptr, &values[i]);
+            int ret_status = xml_parse_bool64(ptr, &values[i]);
+            if (ret_status == -1) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+            ptr += ret_status;
+        }
+    }
+
+    *dest = values;
+    *num = n;
+
+cleanup:
+    if (retVal == RETURN_ERROR) {
+        if (values) { mcx_free(values); }
+    }
+
+    return retVal;
+}
+
+static McxStatus xml_int64_vector_get(xmlChar * buffer, size_t * num, int64_t ** dest) {
+    size_t n = 0;
+    int64_t * values = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
+    n = xml_buffer_count_elements(buffer);
+    if (n == SIZE_T_ERROR) {
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    values = mcx_calloc(sizeof(int64_t), n);
+    if (!values) {
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    {
+        size_t i = 0;
+        xmlChar * ptr = buffer;
+
+        for (i = 0; i < n; i++) {
+            int ret_status = xml_parse_int64(ptr, &values[i]);
             if (ret_status == -1) {
                 retVal = RETURN_ERROR;
                 goto cleanup;
@@ -983,13 +1189,13 @@ cleanup:
     return ret_status;
 }
 
-McxStatus xml_attr_bool_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int ** dest, SSDParamMode mode) {
+McxStatus xml_attr_bool32_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int32_t ** dest, SSDParamMode mode) {
     McxStatus ret_status = RETURN_OK;
     int ret_val = 0;
     xmlChar * buffer = NULL;
 
     size_t num = 0;
-    int * values = NULL;
+    int32_t * values = NULL;
 
     if (!node) {
         mcx_log(LOG_ERROR, "xml_attr_bool_vec: Node can not be NULL");
@@ -1020,7 +1226,7 @@ McxStatus xml_attr_bool_vec(xmlNodePtr node, const char * attribute_name, size_t
         goto cleanup;
     }
 
-    ret_status = xml_bool_vector_get(buffer, &num, &values);
+    ret_status = xml_bool32_vector_get(buffer, &num, &values);
     if (RETURN_ERROR == ret_status) {
         mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to a list of booleans in element %s",
                 node->line, attribute_name, node->name);
@@ -1041,28 +1247,28 @@ cleanup:
     return ret_status;
 }
 
-McxStatus xml_attr_int_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int ** dest, SSDParamMode mode) {
+McxStatus xml_attr_bool64_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int64_t ** dest, SSDParamMode mode) {
     McxStatus ret_status = RETURN_OK;
     int ret_val = 0;
     xmlChar * buffer = NULL;
 
     size_t num = 0;
-    int * values = NULL;
+    int64_t * values = NULL;
 
     if (!node) {
-        mcx_log(LOG_ERROR, "xml_attr_int_vec: Node can not be NULL");
+        mcx_log(LOG_ERROR, "xml_attr_bool_vec: Node can not be NULL");
         ret_status = RETURN_ERROR;
         goto cleanup;
     }
 
     if (!attribute_name) {
-        mcx_log(LOG_ERROR, "xml_attr_int_vec: No attribute name defined");
+        mcx_log(LOG_ERROR, "xml_attr_bool_vec: No attribute name defined");
         ret_status = RETURN_ERROR;
         goto cleanup;
     }
 
     if (!dest) {
-        mcx_log(LOG_ERROR, "xml_attr_int_vec: Destination can not be NULL");
+        mcx_log(LOG_ERROR, "xml_attr_bool_vec: Destination can not be NULL");
         ret_status = RETURN_ERROR;
         goto cleanup;
     }
@@ -1078,7 +1284,65 @@ McxStatus xml_attr_int_vec(xmlNodePtr node, const char * attribute_name, size_t 
         goto cleanup;
     }
 
-    ret_status = xml_int_vector_get(buffer, &num, &values);
+    ret_status = xml_bool64_vector_get(buffer, &num, &values);
+    if (RETURN_ERROR == ret_status) {
+        mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to a list of booleans in element %s",
+                node->line, attribute_name, node->name);
+
+        goto cleanup;
+    }
+
+    *len = num;
+    *dest = values;
+
+cleanup:
+    if (buffer) { xmlFree(buffer); }
+
+    if (ret_status == RETURN_ERROR) {
+        if (values) { mcx_free(values); }
+    }
+
+    return ret_status;
+}
+
+McxStatus xml_attr_int64_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int64_t ** dest, SSDParamMode mode) {
+    McxStatus ret_status = RETURN_OK;
+    int ret_val = 0;
+    xmlChar * buffer = NULL;
+
+    size_t num = 0;
+    int64_t * values = NULL;
+
+    if (!node) {
+        mcx_log(LOG_ERROR, "xml_attr_int64_vec: Node can not be NULL");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    if (!attribute_name) {
+        mcx_log(LOG_ERROR, "xml_attr_int64_vec: No attribute name defined");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    if (!dest) {
+        mcx_log(LOG_ERROR, "xml_attr_int64_vec: Destination can not be NULL");
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    buffer = xmlGetProp(node, attribute_name);
+    if (buffer == NULL && mode == SSD_OPTIONAL) {
+        ret_status = RETURN_WARNING;
+        goto cleanup;
+    } else if (buffer == NULL) {
+        mcx_log(LOG_ERROR, "In input file, line %d: Attribute %s is not defined in node %s",
+                node->line, attribute_name, node->name);
+        ret_status = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    ret_status = xml_int64_vector_get(buffer, &num, &values);
     if (RETURN_ERROR == ret_status) {
         mcx_log(LOG_ERROR, "In input file, line %d: Could not convert value of attribute %s to a list of integers in element %s",
                 node->line, attribute_name, node->name);
@@ -1112,8 +1376,20 @@ McxStatus xml_opt_attr_double(xmlNodePtr node, const char * attribute_name, OPTI
     return RETURN_OK;
 }
 
-McxStatus xml_opt_attr_int(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest) {
-    McxStatus ret_val = xml_attr_int(node, attribute_name, &dest->value, SSD_OPTIONAL);
+McxStatus xml_opt_attr_int32(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest) {
+    McxStatus ret_val = xml_attr_int32(node, attribute_name, &dest->value, SSD_OPTIONAL);
+
+    if (ret_val == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    dest->defined = ret_val == RETURN_WARNING ? FALSE : TRUE;
+
+    return RETURN_OK;
+}
+
+McxStatus xml_opt_attr_int64(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int64_t) * dest) {
+    McxStatus ret_val = xml_attr_int64(node, attribute_name, &dest->value, SSD_OPTIONAL);
 
     if (ret_val == RETURN_ERROR) {
         return RETURN_ERROR;
@@ -1136,8 +1412,20 @@ McxStatus xml_opt_attr_size_t(xmlNodePtr node, const char * attribute_name, OPTI
     return RETURN_OK;
 }
 
-McxStatus xml_opt_attr_bool(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest) {
-    McxStatus ret_val = xml_attr_bool(node, attribute_name, &dest->value, SSD_OPTIONAL);
+McxStatus xml_opt_attr_bool32(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest) {
+    McxStatus ret_val = xml_attr_bool32(node, attribute_name, &dest->value, SSD_OPTIONAL);
+
+    if (ret_val == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    dest->defined = ret_val == RETURN_WARNING ? FALSE : TRUE;
+
+    return RETURN_OK;
+}
+
+McxStatus xml_opt_attr_bool64(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int64_t) * dest) {
+    McxStatus ret_val = xml_attr_bool64(node, attribute_name, &dest->value, SSD_OPTIONAL);
 
     if (ret_val == RETURN_ERROR) {
         return RETURN_ERROR;
@@ -1214,10 +1502,10 @@ McxStatus xml_attr_vec_len(xmlNodePtr node, const char * attribute_name, Channel
         ret_status = xml_attr_double_vec(node, attribute_name, &len, (double **) &values, mode);
         break;
     case CHANNEL_BOOL:
-        ret_status = xml_attr_bool_vec(node, attribute_name, &len, (int **) &values, mode);
+        ret_status = xml_attr_bool64_vec(node, attribute_name, &len, (int64_t **) &values, mode);
         break;
     case CHANNEL_INTEGER:
-        ret_status = xml_attr_int_vec(node, attribute_name, &len, (int **) &values, mode);
+        ret_status = xml_attr_int64_vec(node, attribute_name, &len, (int64_t **) &values, mode);
         break;
     default:
         ret_status = RETURN_ERROR;
@@ -1343,14 +1631,14 @@ int test_xml_vectors() {
 
     {
         xmlChar buffer[] = "true false 1 0 ";
-        int ref[] = { 1, 0, 1, 0};
+        int64_t ref[] = { 1, 0, 1, 0};
 
         size_t num = 0;
-        int * vals = NULL;
+        int64_t * vals = NULL;
 
         size_t i = 0;
 
-        retVal = xml_bool_vector_get(buffer, &num, &vals);
+        retVal = xml_bool64_vector_get(buffer, &num, &vals);
         if (retVal == RETURN_ERROR) {
             return 1;
         }
@@ -1366,11 +1654,11 @@ int test_xml_vectors() {
         int ref[] = { 1337, 4711, 42};
 
         size_t num = 0;
-        int * vals = NULL;
+        int64_t * vals = NULL;
 
         size_t i = 0;
 
-        retVal = xml_int_vector_get(buffer, &num, &vals);
+        retVal = xml_int64_vector_get(buffer, &num, &vals);
         if (retVal == RETURN_ERROR) {
             return 1;
         }

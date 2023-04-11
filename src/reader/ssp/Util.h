@@ -11,6 +11,7 @@
 #ifndef MCX_READER_SSP_UTIL_H
 #define MCX_READER_SSP_UTIL_H
 
+#include <stdint.h>
 #include <libxml/tree.h>
 #include <libxml/xmlerror.h>
 
@@ -62,9 +63,11 @@ typedef enum {
 int xml_has_attr(xmlNodePtr node, const char * attribute_name);
 
 McxStatus xml_attr_double(xmlNodePtr node, const char * attribute_name, double * dest, SSDParamMode mode);
-McxStatus xml_attr_int(xmlNodePtr node, const char * attribute_name, int * dest, SSDParamMode mode);
+McxStatus xml_attr_int32(xmlNodePtr node, const char * attribute_name, int32_t * dest, SSDParamMode mode);
+McxStatus xml_attr_int64(xmlNodePtr node, const char * attribute_name, int64_t * dest, SSDParamMode mode);
 McxStatus xml_attr_size_t(xmlNodePtr node, const char * attribute_name, size_t * dest, SSDParamMode mode);
-McxStatus xml_attr_bool(xmlNodePtr node, const char * attribute_name, int * dest, SSDParamMode mode);
+McxStatus xml_attr_bool32(xmlNodePtr node, const char * attribute_name, int32_t * dest, SSDParamMode mode);
+McxStatus xml_attr_bool64(xmlNodePtr node, const char * attribute_name, int64_t * dest, SSDParamMode mode);
 McxStatus xml_attr_string(xmlNodePtr node, const char * attribute_name, char ** dest, SSDParamMode mode);
 McxStatus xml_attr_path(xmlNodePtr node, const char * attribute_name, char ** dest, SSDParamMode mode);
 McxStatus xml_attr_enum(xmlNodePtr node, const char * attribute_name, MapStringInt * mapping, int * dest, SSDParamMode mode);
@@ -72,15 +75,18 @@ McxStatus xml_attr_enum_weak_ptr(xmlNodePtr node, const char * attribute_name, v
 McxStatus xml_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType * type, ChannelValueData * dest, SSDParamMode mode);
 
 McxStatus xml_opt_attr_double(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(double) * dest);
-McxStatus xml_opt_attr_int(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest);
+McxStatus xml_opt_attr_int32(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest);
+McxStatus xml_opt_attr_int64(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int64_t) * dest);
 McxStatus xml_opt_attr_size_t(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(size_t) * dest);
-McxStatus xml_opt_attr_bool(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest);
+McxStatus xml_opt_attr_bool32(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int) * dest);
+McxStatus xml_opt_attr_bool64(xmlNodePtr node, const char * attribute_name, OPTIONAL_VALUE(int64_t) * dest);
 McxStatus xml_opt_attr_enum(xmlNodePtr node, const char * attribute_name, MapStringInt * mapping, OPTIONAL_VALUE(int) * dest);
 McxStatus xml_opt_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType * type, OPTIONAL_VALUE(ChannelValueData) * dest);
 
 McxStatus xml_attr_double_vec(xmlNodePtr node, const char * attribute_name, size_t * len, double ** dest, SSDParamMode mode);
-McxStatus xml_attr_bool_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int ** dest, SSDParamMode mode);
-McxStatus xml_attr_int_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int ** dest, SSDParamMode mode);
+McxStatus xml_attr_bool32_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int32_t ** dest, SSDParamMode mode);
+McxStatus xml_attr_bool64_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int64_t ** dest, SSDParamMode mode);
+McxStatus xml_attr_int64_vec(xmlNodePtr node, const char * attribute_name, size_t * len, int64_t ** dest, SSDParamMode mode);
 
 McxStatus xml_attr_vec_len(xmlNodePtr node, const char * attribute_name, ChannelType * type, size_t expectedLen, void ** dest, SSDParamMode mode);
 

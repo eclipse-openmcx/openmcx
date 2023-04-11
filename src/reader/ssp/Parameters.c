@@ -727,12 +727,12 @@ static ArrayParameterDimensionInput * SSDReadArrayParameterDimension(xmlNodePtr 
     element->context = (void *) node;
 
 
-    retVal = xml_attr_int(node, "start", &input->start, SSD_MANDATORY);
+    retVal = xml_attr_size_t(node, "start", &input->start, SSD_MANDATORY);
     if (retVal == RETURN_ERROR) {
         goto cleanup;
     }
 
-    retVal = xml_attr_int(node, "end", &input->end, SSD_MANDATORY);
+    retVal = xml_attr_size_t(node, "end", &input->end, SSD_MANDATORY);
     if (retVal == RETURN_ERROR) {
         goto cleanup;
     }
@@ -831,10 +831,10 @@ static McxStatus SSDReadDimensionlessArrayParameter(SSDParameter * parameter, Ar
                 retVal = xml_attr_double(paramTypeNode, "value", (double*)input->values + paramValue->idx1, SSD_MANDATORY);
                 break;
             case CHANNEL_INTEGER:
-                retVal = xml_attr_int(paramTypeNode, "value", (int*)input->values + paramValue->idx1, SSD_MANDATORY);
+                retVal = xml_attr_int64(paramTypeNode, "value", (int64_t*)input->values + paramValue->idx1, SSD_MANDATORY);
                 break;
             case CHANNEL_BOOL:
-                retVal = xml_attr_bool(paramTypeNode, "value", (int*)input->values + paramValue->idx1, SSD_MANDATORY);
+                retVal = xml_attr_bool64(paramTypeNode, "value", (int64_t*)input->values + paramValue->idx1, SSD_MANDATORY);
                 break;
             default:
                 break;
@@ -917,10 +917,10 @@ static McxStatus SSDReadDimensionArrayParameter(SSDParameter * parameter, ArrayP
                 retVal = xml_attr_double(paramTypeNode, "value", (double*)input->values + index, SSD_MANDATORY);
                 break;
             case CHANNEL_INTEGER:
-                retVal = xml_attr_int(paramTypeNode, "value", (int*)input->values + index, SSD_MANDATORY);
+                retVal = xml_attr_int64(paramTypeNode, "value", (int64_t*)input->values + index, SSD_MANDATORY);
                 break;
             case CHANNEL_BOOL:
-                retVal = xml_attr_bool(paramTypeNode, "value", (int*)input->values + index, SSD_MANDATORY);
+                retVal = xml_attr_bool64(paramTypeNode, "value", (int64_t*)input->values + index, SSD_MANDATORY);
                 break;
             default:
                 break;
@@ -1293,7 +1293,7 @@ McxStatus SSDReadFmuParameterData(xmlNodePtr specificDataNode, ParameterInput * 
     FmuParameterInput * input = (FmuParameterInput *) paramInput;
     McxStatus retVal = RETURN_OK;
 
-    retVal = xml_attr_bool(specificDataNode, "isInitialValue", &input->isInitialValue, SSD_MANDATORY);
+    retVal = xml_attr_bool32(specificDataNode, "isInitialValue", &input->isInitialValue, SSD_MANDATORY);
     if (retVal == RETURN_ERROR) {
         return RETURN_ERROR;
     }

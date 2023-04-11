@@ -33,8 +33,8 @@ typedef struct VectorEndpointInput {
 
     char * component;
     char * channel;
-    int startIndex;
-    int endIndex;
+    int64_t startIndex;
+    int64_t endIndex;
 } VectorEndpointInput;
 
 #ifdef __cplusplus

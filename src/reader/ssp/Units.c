@@ -101,42 +101,42 @@ ObjectContainer * SSDReadUnits(xmlNodePtr unitsNode) {
             xmlNodePtr baseUnitNode = xml_child(unitNode, "BaseUnit");
             si_def unitSIDef = { 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 0.0 };
 
-            retVal = xml_attr_int(baseUnitNode, "kg", &unitSIDef.kg, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "kg", &unitSIDef.kg, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "m", &unitSIDef.m, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "m", &unitSIDef.m, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "s", &unitSIDef.s, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "s", &unitSIDef.s, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "A", &unitSIDef.A, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "A", &unitSIDef.A, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "K", &unitSIDef.K, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "K", &unitSIDef.K, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "mol", &unitSIDef.mol, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "mol", &unitSIDef.mol, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "cd", &unitSIDef.cd, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "cd", &unitSIDef.cd, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
 
-            retVal = xml_attr_int(baseUnitNode, "rad", &unitSIDef.rad, SSD_OPTIONAL);
+            retVal = xml_attr_int32(baseUnitNode, "rad", &unitSIDef.rad, SSD_OPTIONAL);
             if (retVal == RETURN_ERROR) {
                 goto cleanup_1;
             }
