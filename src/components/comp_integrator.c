@@ -25,7 +25,7 @@ typedef struct CompIntegrator {
     double deriv;
     double initialState;
 
-    int numSubSteps;
+    int64_t numSubSteps;
 } CompIntegrator;
 
 
