@@ -33,8 +33,8 @@ struct ComponentInput {
 
     ComponentType * type;
     char * name;
-    OPTIONAL_VALUE(int) triggerSequence;
-    OPTIONAL_VALUE(int) inputAtEndTime;
+    OPTIONAL_VALUE(int64_t) triggerSequence;
+    OPTIONAL_VALUE(int64_t) inputAtEndTime;
     OPTIONAL_VALUE(double) deltaTime;
 
     PortsInput * inports;

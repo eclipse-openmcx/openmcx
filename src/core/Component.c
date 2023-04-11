@@ -78,7 +78,7 @@ McxStatus ComponentRead(Component * comp, ComponentInput * input, const struct C
 
     // trigger sequence
     if (input->triggerSequence.defined) {
-        comp->data->triggerSequence = input->triggerSequence.value;
+        comp->data->triggerSequence = (int) input->triggerSequence.value;
     }
     if (comp->data->triggerSequence < -1) {
         ComponentLog(comp, LOG_ERROR, "Invalid trigger sequence number %d, expected non-negative", comp->data->triggerSequence);
@@ -87,7 +87,7 @@ McxStatus ComponentRead(Component * comp, ComponentInput * input, const struct C
     // input_time
     if (input->inputAtEndTime.defined) {
         mcx_log(LOG_DEBUG, "    Using individual evaluation time for input");
-        comp->data->useInputsAtCouplingStepEndTime = input->inputAtEndTime.value;
+        comp->data->useInputsAtCouplingStepEndTime = (int) input->inputAtEndTime.value;
         ComponentSetHasOwnInputEvaluationTime(comp, TRUE);
         ComponentSetStoreInputsAtCouplingStepEndTime(comp, ComponentGetUseInputsAtCouplingStepEndTime(comp));
     }
