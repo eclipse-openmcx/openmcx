@@ -26,8 +26,8 @@ extern const ObjectClass _VectorPortInput;
 struct VectorPortInput {
     InputElement _;
 
-    int startIndex;
-    int endIndex;
+    int64_t startIndex;
+    int64_t endIndex;
 
     char * name;
     char * nameInModel;
@@ -46,7 +46,7 @@ struct VectorPortInput {
     void * default_;
     void * initial;
 
-    OPTIONAL_VALUE(int) writeResults;
+    OPTIONAL_VALUE(int64_t) writeResults;
 
     fVectorPortInputCopyFrom CopyFrom;
 };

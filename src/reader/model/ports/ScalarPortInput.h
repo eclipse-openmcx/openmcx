@@ -43,7 +43,7 @@ struct ScalarPortInput {
     OPTIONAL_VALUE(ChannelValueData) default_;
     OPTIONAL_VALUE(ChannelValueData) initial;
 
-    OPTIONAL_VALUE(int) writeResults;
+    OPTIONAL_VALUE(int64_t) writeResults;
 
     fScalarPortInputCopyFrom CopyFrom;
 };
