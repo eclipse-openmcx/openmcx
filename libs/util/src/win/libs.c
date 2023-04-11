@@ -10,6 +10,7 @@
 
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
 #include <windows.h>
+#undef OS_WINDOWS // gets redefinied in shlwapi.h
 #include <shlwapi.h>
 
 #include "common/logging.h"
