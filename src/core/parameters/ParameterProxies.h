@@ -52,6 +52,7 @@ typedef const char * (*fArrayParameterProxyGetDesc)(ArrayParameterProxy * proxy)
 typedef const char * (*fArrayParameterProxyGetUnit)(ArrayParameterProxy * proxy);
 typedef size_t (*fArrayParameterProxyGetNumDims)(ArrayParameterProxy * proxy);
 typedef size_t (*fArrayParameterProxyGetDim)(ArrayParameterProxy * proxy, size_t idx);
+typedef size_t (*fArrayParameterProxyGetSize)(ArrayParameterProxy * proxy);
 typedef ObjectContainer * (*fArrayParameterProxyGetValues)(ArrayParameterProxy * proxy);
 typedef ChannelType * (*fArrayParameterProxyGetType)(ArrayParameterProxy * proxy);
 typedef fmi2_value_reference_t (*fArrayParameterProxyGetValueReference)(ArrayParameterProxy * proxy, size_t idx);
@@ -71,6 +72,7 @@ struct ArrayParameterProxy {
     fArrayParameterProxyGetUnit GetUnit;
     fArrayParameterProxyGetNumDims GetNumDims;
     fArrayParameterProxyGetDim GetDim;
+    fArrayParameterProxyGetSize GetSize;
     fArrayParameterProxyGetType GetType;
     fArrayParameterProxyGetValueReference GetValueReference;
     fArrayParameterProxyGetMin GetMin;

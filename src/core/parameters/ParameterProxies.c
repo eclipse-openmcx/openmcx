@@ -136,6 +136,15 @@ static size_t ArrayParameterProxyGetDim(ArrayParameterProxy * proxy, size_t idx)
     return proxy->dims_[idx];
 }
 
+static size_t ArrayParameterProxyGetSize(ArrayParameterProxy * proxy) {
+    size_t num_dims = proxy->GetNumDims(proxy);
+    size_t size = 1;
+    for (size_t idx = 0; idx < num_dims; idx++) {
+        size *= proxy->GetDim(proxy, idx);
+    }
+    return size;
+}
+
 static ChannelType * ArrayParameterProxyGetType(ArrayParameterProxy * proxy) {
     if (proxy->values_->Size(proxy->values_) > 0) {
         Fmu2Value * value = (Fmu2Value *)proxy->values_->At(proxy->values_, 0);
@@ -192,6 +201,7 @@ static ArrayParameterProxy * ArrayParameterProxyCreate(ArrayParameterProxy * pro
     proxy->GetValues = ArrayParameterProxyGetValues;
     proxy->GetDim = ArrayParameterProxyGetDim;
     proxy->GetNumDims = ArrayParameterProxyGetNumDims;
+    proxy->GetSize = ArrayParameterProxyGetSize;
     proxy->GetType = ArrayParameterProxyGetType;
     proxy->GetValueReference = ArrayParameterProxyGetValueReference;
     proxy->GetMin = ArrayParameterProxyGetMin;

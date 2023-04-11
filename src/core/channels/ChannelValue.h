@@ -79,6 +79,8 @@ const ChannelType * ChannelTypeBaseType(const ChannelType * a);
 int ChannelTypeEq(const ChannelType * a, const ChannelType * b);
 int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB);
 
+int ChannelTypeUsesInt(const ChannelType * a);
+
 typedef struct MapStringChannelType {
     const char * key;
     ChannelType * value;
@@ -130,7 +132,7 @@ int mcx_array_leq(const mcx_array * left, const mcx_array * right);
 union ChannelValueData {
     /* the order is significant. double needs to be the first entry for union initialization to work */
     double d;
-    int i;
+    int64_t i;
     char * s;
     binary_string b;
     mcx_array a;
@@ -235,6 +237,21 @@ McxStatus ChannelValueAddOffset(ChannelValue * val, ChannelValue * offset);
  */
 McxStatus ChannelValueScale(ChannelValue * val, ChannelValue * factor);
 
+/*
+ * Cast CHANNEL_INTEGER member of val to int/char and store result
+ * in res. If value does not fit, return RETURN_ERROR.
+ */
+McxStatus ChannelIntegerAsInt(const ChannelValue * val, int * res);
+McxStatus ChannelIntegerAsChar(const ChannelValue * val, char * res);
+/*
+ * Cast all elements of the integer array ChannelValue to int and store
+ * results in the (already existing) buffer res.
+ */
+McxStatus ChannelIntegerAsIntArray(const ChannelValue * val, int * res);
+/*
+ * Cast all elements of an int array to a int64_t ChannelValue array.
+ */
+McxStatus ChannelIntegerFromIntArray(ChannelValue * val, const int * in);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

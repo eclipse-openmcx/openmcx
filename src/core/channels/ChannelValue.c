@@ -11,6 +11,7 @@
 #include "core/channels/ChannelValue.h"
 #include "core/channels/ChannelDimension.h"
 #include "util/stdlib.h"
+#include "util/intconv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -228,6 +229,10 @@ int ChannelTypeEq(const ChannelType * a, const ChannelType * b) {
     }
 }
 
+int ChannelTypeUsesInt(const ChannelType * a) {
+    return a->con == CHANNEL_INTEGER || a->con == CHANNEL_BOOL;
+}
+
 McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * inner) {
     a->numDims = numDims;
     a->dims = (size_t *) mcx_calloc(sizeof(size_t), numDims);
@@ -288,7 +293,7 @@ int mcx_array_leq(const mcx_array * left, const mcx_array * right) {
                 }
                 break;
             case CHANNEL_INTEGER:
-                if (((int *) left->data)[i] > ((int *) right->data)[i]) {
+                if (((int64_t *) left->data)[i] > ((int64_t *) right->data)[i]) {
                     return 0;
                 }
                 break;
@@ -361,7 +366,7 @@ McxStatus mcx_array_get_elem(const mcx_array * a, size_t idx, ChannelValueData *
             break;
         case CHANNEL_INTEGER:
         case CHANNEL_BOOL:
-            ChannelValueDataSetFromReference(element, a->type, ((int *) a->data) + idx);
+            ChannelValueDataSetFromReference(element, a->type, ((int64_t *) a->data) + idx);
             break;
         case CHANNEL_STRING:
             ChannelValueDataSetFromReference(element, a->type, ((char **) a->data) + idx);
@@ -394,10 +399,10 @@ McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * eleme
             *((double *) a->data + idx) = element->d;
             break;
         case CHANNEL_INTEGER:
-            *((int *) a->data + idx) = element->i;
+            *((int64_t *) a->data + idx) = element->i;
             break;
         case CHANNEL_BOOL:
-            *((int *) a->data + idx) = element->i != 0 ? 1 : 0;
+            *((int64_t *) a->data + idx) = element->i != 0 ? 1 : 0;
             break;
         case CHANNEL_STRING:
             {
@@ -531,11 +536,11 @@ size_t ChannelValueDataDoubleToBuffer(char * buffer, void * value, size_t i) {
 }
 
 size_t ChannelValueDataIntegerToBuffer(char * buffer, void * value, size_t i) {
-    return sprintf(buffer, "%d", ((int *) value)[i]);
+    return sprintf(buffer, "%lld", ((int64_t *) value)[i]);
 }
 
 size_t ChannelValueDataBoolToBuffer(char * buffer, void * value, size_t i) {
-    return sprintf(buffer, "%1d", (((int *) value)[i] != 0) ? 1 : 0);
+    return sprintf(buffer, "%1d", (((int64_t *) value)[i] != 0) ? 1 : 0);
 }
 
 char * ChannelValueToString(ChannelValue * value) {
@@ -555,7 +560,7 @@ char * ChannelValueToString(ChannelValue * value) {
         ChannelValueDataDoubleToBuffer(buffer, &value->value.d, 0);
         break;
     case CHANNEL_INTEGER:
-        length = 1 /* sign */ + mcx_digits10(abs(value->value.i)) + 1 /* string termination*/;
+        length = 1 /* sign */ + mcx_digits10(llabs(value->value.i)) + 1 /* string termination*/;
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
@@ -667,13 +672,13 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
         sprintf(buffer, doubleFmt, (unsigned)precision, (unsigned)precision, value->d);
         break;
     case CHANNEL_INTEGER:
-        length = 1 /* sign */ + mcx_digits10(abs(value->i)) + 1 /* string termination*/;
+        length = 1 /* sign */ + mcx_digits10(llabs(value->i)) + 1 /* string termination*/;
 
         if (len < length) {
             mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
             return RETURN_ERROR;
         }
-        sprintf(buffer, "%d", value->i);
+        sprintf(buffer, "%lld", value->i);
         break;
     case CHANNEL_BOOL:
         length = 2;
@@ -852,10 +857,10 @@ McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType 
         data->d = * (double *) reference;
         break;
     case CHANNEL_INTEGER:
-        data->i = * (int *) reference;
+        data->i = * (int64_t *) reference;
         break;
     case CHANNEL_BOOL:
-        data->i = * (int *) reference;
+        data->i = * (int64_t *) reference;
         break;
     case CHANNEL_STRING:
         if (NULL != reference && NULL != * (char * *) reference ) {
@@ -945,10 +950,10 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, const Channel
             *(double *) reference = value->d;
             break;
         case CHANNEL_INTEGER:
-            *(int *) reference = value->i;
+            *(int64_t *) reference = value->i;
             break;
         case CHANNEL_BOOL:
-            *(int *) reference = value->i;
+            *(int64_t *) reference = value->i;
             break;
         case CHANNEL_STRING:
             if (*(char **) reference) {
@@ -1167,7 +1172,7 @@ static int ChannelValueArrayElemAddOffset(void * elem, size_t idx, ChannelType *
             *(double *) elem = *(double *) elem + ((double *) offset->data)[idx];
             break;
         case CHANNEL_INTEGER:
-            *(int *) elem = *(int *) elem + ((int *) offset->data)[idx];
+            *(int64_t *) elem = *(int64_t *) elem + ((int64_t *) offset->data)[idx];
             break;
         default:
             mcx_log(LOG_ERROR, "ChannelValueArrayElemAddOffset: Type %s not allowed", ChannelTypeToString(type));
@@ -1207,7 +1212,7 @@ static int ChannelValueArrayElemScale(void * elem, size_t idx, ChannelType * typ
             *(double *) elem = *(double *) elem * ((double *) factor->data)[idx];
             break;
         case CHANNEL_INTEGER:
-            *(int *) elem = *(int *) elem * ((int *) factor->data)[idx];
+            *(int64_t *) elem = *(int64_t *) elem * ((int64_t *) factor->data)[idx];
             break;
         default:
             mcx_log(LOG_ERROR, "ChannelValueArrayElemScale: Type %s not allowed", ChannelTypeToString(type));
@@ -1306,6 +1311,59 @@ ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType 
     }
 
     return array;
+}
+
+
+McxStatus ChannelIntegerAsInt(const ChannelValue * val, int * res) {
+#ifdef MCX_DEBUG
+    if (!ChannelTypeUsesInt(val->type)) {
+        mcx_log(LOG_ERROR, "Cannot convert non-integer ChannelValue to an int");
+        return RETURN_ERROR;
+    }
+#endif // MCX_DEBUG
+    return mcx_int64_to_int(val->value.i, res);
+}
+
+McxStatus ChannelIntegerAsChar(const ChannelValue * val, char * res) {
+#ifdef MCX_DEBUG
+    if (!ChannelTypeUsesInt(val->type)) {
+        mcx_log(LOG_ERROR, "Cannot convert non-integer ChannelValue to a char");
+        return RETURN_ERROR;
+    }
+#endif // MCX_DEBUG
+    return mcx_int64_to_char(val->value.i, res);
+}
+
+McxStatus ChannelIntegerAsIntArray(const ChannelValue * val, int * res) {
+#ifdef MCX_DEBUG
+    if (!ChannelTypeIsArray(val->type)) {
+        mcx_log(LOG_ERROR, "Type error: Called integer array cast on scalar ChannelValue");
+        return RETURN_ERROR;
+    }
+    ChannelType * inner = ChannelTypeArrayInner(val->type);
+    if (!ChannelTypeUsesInt(inner)) {
+        mcx_log(LOG_ERROR, "Cannot convert non-integer (array) ChannelValue to an int array");
+        return RETURN_ERROR;
+    }
+#endif // MCX_DEBUG
+    size_t size = mcx_array_num_elements(&val->value.a);
+    return mcx_int64_to_int_array((int64_t *) val->value.a.data, res, size);
+}
+
+McxStatus ChannelIntegerFromIntArray(ChannelValue * val, const int * in) {
+#ifdef MCX_DEBUG
+    if (!ChannelTypeIsArray(val->type)) {
+        mcx_log(LOG_ERROR, "Type error: Called integer array cast on scalar ChannelValue");
+        return RETURN_ERROR;
+    }
+    ChannelType * inner = ChannelTypeArrayInner(val->type);
+    if (!ChannelTypeUsesInt(inner)) {
+        mcx_log(LOG_ERROR, "Cannot set int array to ChannelValue of non-integer type");
+        return RETURN_ERROR;
+    }
+#endif // MCX_DEBUG
+    size_t size = mcx_array_num_elements(&val->value.a);
+    return mcx_int_to_int64_array(in, (int64_t *) val->value.a.data, size);
 }
 
 #ifdef __cplusplus

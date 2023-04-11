@@ -66,8 +66,8 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
         VectorPortInput * vectorPortInput = input->port.vectorPort;
         InputElement * vectorPortElement = (InputElement *) vectorPortInput;
 
-        int startIdx = 0;
-        int endIdx   = 0;
+        int64_t startIdx = 0;
+        int64_t endIdx   = 0;
 
         startIdx = vectorPortInput->startIndex;
         if (startIdx < 0) {
