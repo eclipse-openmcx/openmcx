@@ -241,7 +241,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
             } else {
                 size_t i = 0;
                 size_t numFilters = FilteredConnectionGetNumFilters(filteredConnection);
-                ChannelType * type = info->type;
+                const ChannelType * type = info->type;
 
                 mcx_array * elements = (mcx_array *) ChannelValueDataPointer(&filteredConnection->data.updateBuffer);
                 char * dest = (char *) elements->data;

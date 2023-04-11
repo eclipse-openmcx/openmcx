@@ -19,7 +19,7 @@ extern "C" {
 
 typedef struct MemoryFilter MemoryFilter;
 
-typedef McxStatus (* fMemoryFilterSetup)(MemoryFilter * filter, ChannelType * type, size_t historySize, int reverseSearch);
+typedef McxStatus (* fMemoryFilterSetup)(MemoryFilter * filter, const ChannelType * type, size_t historySize, int reverseSearch);
 
 extern const struct ObjectClass _MemoryFilter;
 

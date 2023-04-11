@@ -49,7 +49,7 @@ ChannelValueReference * MakeChannelValueReference(ChannelValue * value, ChannelD
 
 McxStatus ChannelValueReferenceSetFromPointer(ChannelValueReference * ref, const void * ptr, ChannelDimension * srcDimension, TypeConversion * conv) {
     if (conv) {
-        return conv->Convert(conv, ref, (void *) ptr);
+        return conv->Convert(conv, ref, ptr);
     }
 
     if (ref->type == CHANNEL_VALUE_REF_VALUE) {

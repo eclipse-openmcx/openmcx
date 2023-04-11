@@ -229,7 +229,7 @@ McxStatus ConnectionSetup(Connection * connection, struct ChannelOut * out, stru
 struct ChannelFilter *FilterFactory(ConnectionState *state,
                                     InterExtrapolationType extrapolation_type,
                                     InterExtrapolationParams *extrapolation_params,
-                                    ChannelType *channel_type,
+                                    const ChannelType *channel_type,
                                     InterExtrapolatingType inter_extrapolating_type,
                                     int is_decoupled,
                                     Component * sourceComp,
