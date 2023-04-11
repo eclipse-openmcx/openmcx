@@ -928,7 +928,7 @@ static size_t MemoryFilterHistorySize(Component * sourceComp, Component * target
     return size + model->config->memFilterHistoryExtra;
 }
 
-static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType * sourceType, size_t historySize) {
+static MemoryFilter * SetMemoryFilter(int reverseSearch, const ChannelType * sourceType, size_t historySize) {
     McxStatus retVal = RETURN_OK;
 
     MemoryFilter * filter = (MemoryFilter *)object_create(MemoryFilter);
@@ -953,7 +953,7 @@ static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType * sourceTyp
 ChannelFilter * FilterFactory(ConnectionState * state,
                               InterExtrapolationType extrapolation_type,
                               InterExtrapolationParams * extrapolation_params,
-                              ChannelType * channel_type,
+                              const ChannelType * channel_type,
                               InterExtrapolatingType inter_extrapolating_type,
                               int is_decoupled,
                               Component * sourceComp,

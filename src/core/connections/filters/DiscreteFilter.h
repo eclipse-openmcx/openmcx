@@ -19,7 +19,7 @@ extern "C" {
 
 typedef struct DiscreteFilter DiscreteFilter;
 
-typedef McxStatus (* fDiscreteFilterSetup)(DiscreteFilter * filter, ChannelType * type);
+typedef McxStatus (* fDiscreteFilterSetup)(DiscreteFilter * filter, const ChannelType * type);
 
 extern const struct ObjectClass _DiscreteFilter;
 

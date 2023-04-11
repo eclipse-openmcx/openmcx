@@ -40,7 +40,7 @@ char * CreateIndexedName(const char * name, unsigned i) {
 }
 
 
-ChannelType * ChannelTypeClone(ChannelType * type) {
+ChannelType * ChannelTypeClone(const ChannelType * type) {
     switch (type->con) {
     case CHANNEL_UNKNOWN:
     case CHANNEL_INTEGER:
@@ -50,7 +50,7 @@ ChannelType * ChannelTypeClone(ChannelType * type) {
     case CHANNEL_BINARY:
     case CHANNEL_BINARY_REFERENCE:
         // Scalar types are used statically (&ChannelTypeDouble, etc)
-        return type;
+        return (ChannelType *) type;
     case CHANNEL_ARRAY: {
         ChannelType * clone = (ChannelType *) mcx_calloc(sizeof(ChannelType), 1);
         if (!clone) { return NULL; }
@@ -167,11 +167,11 @@ int ChannelTypeIsBinary(const ChannelType * a) {
     return a->con == CHANNEL_BINARY || a->con == CHANNEL_BINARY_REFERENCE;
 }
 
-ChannelType * ChannelTypeBaseType(const ChannelType * a) {
+const ChannelType * ChannelTypeBaseType(const ChannelType * a) {
     if (ChannelTypeIsArray(a)) {
         return ChannelTypeBaseType(a->ty.a.inner);
     } else {
-        return (ChannelType *) a;
+        return a;
     }
 }
 
@@ -278,7 +278,7 @@ int mcx_array_leq(const mcx_array * left, const mcx_array * right) {
         return 0;
     }
 
-    numElems = mcx_array_num_elements((mcx_array *) left);
+    numElems = mcx_array_num_elements(left);
 
     for (i = 0; i < numElems; i++) {
         switch (left->type->con) {
@@ -484,8 +484,8 @@ ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension
     }
 }
 
-void ChannelValueInit(ChannelValue * value, ChannelType * type) {
-    value->type = type;
+void ChannelValueInit(ChannelValue * value, const ChannelType * type) {
+    value->type = (ChannelType *) type;
     ChannelValueDataInit(&value->value, type);
 }
 
@@ -753,7 +753,7 @@ void * ChannelValueDataPointer(ChannelValue * value) {
     }
 }
 
-void ChannelValueDataInit(ChannelValueData * data, ChannelType * type) {
+void ChannelValueDataInit(ChannelValueData * data, const ChannelType * type) {
     switch (type->con) {
         case CHANNEL_DOUBLE:
             data->d = 0.0;
@@ -835,7 +835,7 @@ McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data
     }
     switch (type->con) {
         default:
-            if (predicate(data, (void *) reference, type)) {
+            if (predicate(data, reference, type)) {
                 return ChannelValueDataSetFromReference(data, type, reference);
             }
             break;
@@ -934,7 +934,7 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
     return RETURN_OK;
 }
 
-McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference) {
+McxStatus ChannelValueDataSetToReference(ChannelValueData * value, const ChannelType * type, void * reference) {
     if (!reference) {
         mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Reference not defined");
         return RETURN_ERROR;
@@ -1022,7 +1022,7 @@ McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference) {
 }
 
 #ifdef __cplusplus
-size_t ChannelValueTypeSize(ChannelType * type) {
+size_t ChannelValueTypeSize(const ChannelType * type) {
     switch (type->con) {
     case CHANNEL_DOUBLE:
         return sizeof(ChannelValueData::d);
@@ -1041,7 +1041,7 @@ size_t ChannelValueTypeSize(ChannelType * type) {
     return 0;
 }
 #else //__cplusplus
-size_t ChannelValueTypeSize(ChannelType * type) {
+size_t ChannelValueTypeSize(const ChannelType * type) {
     ChannelValueData value;
     switch (type->con) {
     case CHANNEL_DOUBLE:
@@ -1066,7 +1066,7 @@ int ChannelTypeMatch(ChannelType * a, ChannelType * b) {
     return ChannelTypeEq(a, b);
 }
 
-const char * ChannelTypeToString(ChannelType * type) {
+const char * ChannelTypeToString(const ChannelType * type) {
     switch (type->con) {
     case CHANNEL_UNKNOWN:
         return "Unknown";

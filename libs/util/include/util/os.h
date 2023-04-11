@@ -42,9 +42,9 @@ McxStatus mcx_os_set_env_var(const char * name, const char * value);
  */
 char * mcx_resolve_env_var(const char * path);
 
-int mcx_parse_win_env_var(char * path, char ** res);
-int mcx_parse_linux_par_env_var(char * path, char ** res);
-int mcx_parse_linux_bra_env_var(char * path, char ** res);
+int mcx_parse_win_env_var(const char * path, char ** res);
+int mcx_parse_linux_par_env_var(const char * path, char ** res);
+int mcx_parse_linux_bra_env_var(const char * path, char ** res);
 
 /**
  * Get string description of errno.

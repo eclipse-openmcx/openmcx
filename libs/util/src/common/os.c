@@ -85,7 +85,7 @@ int mcx_os_fprintf(FILE *stream, const char *format, ...) {
     return ret;
 }
 
-int mcx_parse_win_env_var(char * path, char ** res) {
+int mcx_parse_win_env_var(const char * path, char ** res) {
     size_t i = 0;
 
     *res = NULL;
@@ -120,7 +120,7 @@ int mcx_parse_win_env_var(char * path, char ** res) {
     return (int)i;
 }
 
-static int input_parse_linux_env_var(char * path, char ** res, char open, char close) {
+static int input_parse_linux_env_var(const char * path, char ** res, char open, char close) {
     size_t i = 0;
 
     *res = NULL;
@@ -161,11 +161,11 @@ static int input_parse_linux_env_var(char * path, char ** res, char open, char c
     return (int)i;
 }
 
-int mcx_parse_linux_par_env_var(char * path, char ** res) {
+int mcx_parse_linux_par_env_var(const char * path, char ** res) {
     return input_parse_linux_env_var(path, res, '(', ')');
 }
 
-int mcx_parse_linux_bra_env_var(char * path, char ** res) {
+int mcx_parse_linux_bra_env_var(const char * path, char ** res) {
     return input_parse_linux_env_var(path, res, '{', '}');
 }
 
@@ -184,7 +184,7 @@ int mcx_parse_linux_bra_env_var(char * path, char ** res) {
  * If path does not start with an environment variable, *res is set to
  * NULL and 0 is returned.
  */
-static int mcx_parse_env_var(char * path, char ** res) {
+static int mcx_parse_env_var(const char * path, char ** res) {
     int num;
 
     if (num = mcx_parse_win_env_var(path, res)) {
@@ -201,7 +201,7 @@ static int mcx_parse_env_var(char * path, char ** res) {
     return 0;
 }
 
-static int mcx_parse_escaped_env_delimiter_win(char * path) {
+static int mcx_parse_escaped_env_delimiter_win(const char * path) {
     if (strlen(path) > 1 && path[0] == '%' && path[1] == '%') {
         return (int)'%';
     } else {
@@ -209,7 +209,7 @@ static int mcx_parse_escaped_env_delimiter_win(char * path) {
     }
 }
 
-static int mcx_parse_escaped_env_delimiter_linux(char * path) {
+static int mcx_parse_escaped_env_delimiter_linux(const char * path) {
     if (strlen(path) > 1 && path[0] == '$' && path[1] == '$') {
         return (int)'$';
     } else {
@@ -217,7 +217,7 @@ static int mcx_parse_escaped_env_delimiter_linux(char * path) {
     }
 }
 
-static int mcx_parse_escaped_env_delimiter(char * path) {
+static int mcx_parse_escaped_env_delimiter(const char * path) {
     int num;
 
     if (num = mcx_parse_escaped_env_delimiter_win(path)) {

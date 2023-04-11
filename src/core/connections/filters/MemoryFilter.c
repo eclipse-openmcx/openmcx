@@ -206,7 +206,7 @@ static McxStatus MemoryFilterEnterCommunicationMode(ChannelFilter * filter, doub
     return RETURN_OK;
 }
 
-static McxStatus MemoryFilterSetup(MemoryFilter * filter, ChannelType * type, size_t historySize, int reverseSearch) {
+static McxStatus MemoryFilterSetup(MemoryFilter * filter, const ChannelType * type, size_t historySize, int reverseSearch) {
     ChannelFilter * channelFilter = (ChannelFilter *)filter;
     size_t i = 0;
 

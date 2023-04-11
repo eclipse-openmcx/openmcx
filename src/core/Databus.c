@@ -273,14 +273,14 @@ cleanup_0:
     return info;
 }
 
-static int ChannelInfoSameNamePred(void * elem, const char * name) {
-    ChannelInfo * info = (ChannelInfo *) elem;
+static int ChannelInfoSameNamePred(const void * elem, const char * name) {
+    const ChannelInfo * info = (const ChannelInfo *) elem;
 
     return 0 == strcmp(ChannelInfoGetName(info), name);
 }
 
 static int ChannelInfosGetNameIdx(Vector * infos, const char * name) {
-    size_t idx = infos->FindIdx(infos, ChannelInfoSameNamePred, (void *) name);
+    size_t idx = infos->FindIdx(infos, ChannelInfoSameNamePred, name);
 
     return idx == SIZE_T_ERROR ? -1 : (int)idx;
 }
@@ -372,8 +372,8 @@ cleanup:
     return retVal;
 }
 
-static int IsWriteResults(void * elem, void * ignore) {
-    ChannelInfo * info = (ChannelInfo *) elem;
+static int IsWriteResults(const void * elem, const void * ignore) {
+    const ChannelInfo * info = (const ChannelInfo *) elem;
 
     return info->writeResult;
 }

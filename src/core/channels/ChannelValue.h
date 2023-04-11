@@ -60,7 +60,7 @@ extern ChannelType ChannelTypeBinaryReference;
 ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
 ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, uint64_t * dims);
 
-ChannelType * ChannelTypeClone(ChannelType * type);
+ChannelType * ChannelTypeClone(const ChannelType * type);
 void ChannelTypeDestructor(ChannelType * type);
 
 ChannelType * ChannelTypeArrayInner(ChannelType * array);
@@ -74,7 +74,7 @@ size_t ChannelTypeNumElements(const ChannelType * type);
 
 ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension * dimension);
 
-ChannelType * ChannelTypeBaseType(const ChannelType * a);
+const ChannelType * ChannelTypeBaseType(const ChannelType * a);
 
 int ChannelTypeEq(const ChannelType * a, const ChannelType * b);
 int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB);
@@ -142,7 +142,7 @@ struct ChannelValue {
 };
 
 // Takes ownership of type
-void   ChannelValueInit(ChannelValue * value, ChannelType * type);
+void   ChannelValueInit(ChannelValue * value, const ChannelType * type);
 void ChannelValueDestructor(ChannelValue * value);
 char * ChannelValueToString(ChannelValue * value);
 McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType * type, char * buffer, size_t len);
@@ -152,21 +152,21 @@ ChannelType * ChannelValueType(ChannelValue * value);
 void *      ChannelValueDataPointer(ChannelValue * value);
 
 void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
-void ChannelValueDataInit(ChannelValueData * data, ChannelType * type);
+void ChannelValueDataInit(ChannelValueData * data, const ChannelType * type);
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
-typedef int (*fChannelValueDataSetterPredicate)(void * first, void * second, ChannelType * type);
+typedef int (*fChannelValueDataSetterPredicate)(const void * first, const void * second, ChannelType * type);
 McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data,
                                                          ChannelType * type,
                                                          const void * reference,
                                                          fChannelValueDataSetterPredicate predicate);
-McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference);
+McxStatus ChannelValueDataSetToReference(ChannelValueData * value, const ChannelType * type, void * reference);
 
 McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
 McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference);
 
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 
-size_t ChannelValueTypeSize(ChannelType * type);
+size_t ChannelValueTypeSize(const ChannelType * type);
 int ChannelTypeMatch(ChannelType * a, ChannelType * b);
 
 ChannelValue * ChannelValueNewScalar(ChannelType * type, void * data);
@@ -179,7 +179,7 @@ ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType 
  * Returns a string representation of ChannelType for use in log
  * messages.
  */
-const char * ChannelTypeToString(ChannelType * type);
+const char * ChannelTypeToString(const ChannelType * type);
 
 /*
  * Creates a copy of value. Allocates memory if needed, e.g. when

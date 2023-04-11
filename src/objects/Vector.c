@@ -85,7 +85,7 @@ static McxStatus VectorSetAt(Vector * vector, size_t pos, void * elem) {
     return RETURN_OK;
 }
 
-static size_t VectorFindIdx(const Vector * vector, fVectorElemPredicate pred, void * args) {
+static size_t VectorFindIdx(const Vector * vector, fVectorElemPredicate pred, const void * args) {
     size_t i = 0;
     char * it = NULL;
 
@@ -98,7 +98,7 @@ static size_t VectorFindIdx(const Vector * vector, fVectorElemPredicate pred, vo
     return SIZE_T_ERROR;
 }
 
-static void * VectorFind(const Vector * vector, fVectorElemPredicate pred, void * args) {
+static void * VectorFind(const Vector * vector, fVectorElemPredicate pred, const void * args) {
     size_t idx = vector->FindIdx(vector, pred, args);
 
     if (idx == SIZE_T_ERROR) {
