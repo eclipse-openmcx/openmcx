@@ -125,7 +125,7 @@ struct ResultsStorage {
 
     StorageBackend * backends[BACKEND_NUM];
 
-    int storeAtRuntime[BACKEND_NUM];
+    int64_t storeAtRuntime[BACKEND_NUM];
 
     char *resultPath;
     int needsFullStorage;

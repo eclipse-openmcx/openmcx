@@ -272,7 +272,7 @@ static McxStatus StorageAddBackend(ResultsStorage * storage, BackendType type, i
             mcx_log(LOG_ERROR, "The %s result storage backend could not be created", GetBackendTypeString(type));
             return RETURN_ERROR;
         }
-        retVal = storeBackend->Configure(storeBackend, storage, storage->resultPath, flushEveryStore, storage->storeAtRuntime[type]);
+        retVal = storeBackend->Configure(storeBackend, storage, storage->resultPath, flushEveryStore, (int) storage->storeAtRuntime[type]);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "The %s result storage backend could not be configured", GetBackendTypeString(type));
             object_destroy(storeBackend);
