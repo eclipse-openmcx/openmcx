@@ -36,6 +36,8 @@ McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams
 
 McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencies * deps, int init);
 
+McxStatus Fmu2SetupInt32Buffer(Fmu2CommonStruct * fmu);
+
 // TODO: rename all variablearrays to something better
 McxStatus Fmu2SetVariableArrayInitialize(Fmu2CommonStruct * fmu, ObjectContainer * vals);
 McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals);
@@ -69,6 +71,8 @@ struct Fmu2CommonStruct {
     size_t numLogCategories;
     fmi2_string_t * logCategories;
 
+    fmi2_integer_t * int32Buffer;
+    size_t int32BufferSize;
 };
 
 McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu);

@@ -67,6 +67,7 @@ Fmu2ValueData * Fmu2ValueDataScalarMake(fmi2_import_variable_t * scalar);
 Fmu2ValueData * Fmu2ValueDataArrayMake(size_t numDims, size_t dims[], fmi2_import_variable_t ** values);
 Fmu2ValueData * Fmu2ValueDataBinaryMake(fmi2_import_variable_t * hi, fmi2_import_variable_t * lo, fmi2_import_variable_t * size);
 
+size_t Fmu2ValueDataArrayNumElems(const Fmu2ValueData * data);
 
 extern const struct ObjectClass _Fmu2VariableInfo;
 

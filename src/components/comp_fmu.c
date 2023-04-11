@@ -182,6 +182,12 @@ static McxStatus Fmu1Setup(Component * comp) {
         }
     }
 
+    retVal = Fmu1SetupInt32Buffer(&compFmu->fmu1);
+    if (RETURN_OK != retVal) {
+        ComponentLog(comp, LOG_ERROR, "Could not setup buffer for 32 bit int arrays");
+        return RETURN_ERROR;
+    }
+
     return RETURN_OK;
 }
 
@@ -483,6 +489,12 @@ static McxStatus Fmu2Setup(Component * comp) {
             ComponentLog(comp, LOG_ERROR, "Could not add local channels");
             return RETURN_ERROR;
         }
+    }
+
+    retVal = Fmu2SetupInt32Buffer(&compFmu->fmu2);
+    if (RETURN_OK != retVal) {
+        ComponentLog(comp, LOG_ERROR, "Could not setup buffer for 32 bit int arrays");
+        return RETURN_ERROR;
     }
 
     return RETURN_OK;

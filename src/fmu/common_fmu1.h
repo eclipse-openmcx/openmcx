@@ -53,6 +53,8 @@ typedef struct Fmu1CommonStruct {
 
     ObjectContainer * localValues;
 
+    fmi1_integer_t * int32Buffer;
+    size_t int32BufferSize;
 } Fmu1CommonStruct;
 
 McxStatus Fmu1CommonStructInit(Fmu1CommonStruct * fmu);
@@ -61,6 +63,8 @@ McxStatus Fmu1CommonStructSetup(FmuCommon * common, Fmu1CommonStruct * fmu1, Fmu
 void Fmu1CommonStructDestructor(Fmu1CommonStruct * fmu);
 
 ObjectContainer * Fmu1ReadParams(ParametersInput * input, fmi1_import_t * import, ObjectContainer * ignore);
+
+McxStatus Fmu1SetupInt32Buffer(Fmu1CommonStruct * fmu);
 
 McxStatus Fmu1SetVariableArray(Fmu1CommonStruct * fmu, ObjectContainer * vals);
 McxStatus Fmu1GetVariableArray(Fmu1CommonStruct * fmu, ObjectContainer * vals);

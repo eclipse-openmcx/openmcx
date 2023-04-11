@@ -24,6 +24,7 @@
 #include "util/string.h"
 #include "util/stdlib.h"
 #include "util/signals.h"
+#include "util/intconv.h"
 
 #include "objects/Map.h"
 
@@ -103,6 +104,9 @@ McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
 
     fmu->numLogCategories = 0;
     fmu->logCategories = NULL;
+
+    fmu->int32Buffer = NULL;
+    fmu->int32BufferSize = 0;
 
     return RETURN_OK;
 }
@@ -410,7 +414,7 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
                 }
             } else { // integer
                 ChannelValueInit(&chVal, ChannelTypeClone(&ChannelTypeInteger));
-                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int64_t *)input->values)[index])) {
                     retVal = RETURN_ERROR;
                     goto fmu2_read_array_param_values_for_cleanup;
                 }
@@ -1035,6 +1039,53 @@ cleanup:    // free dynamically allocated objects
 }
 
 
+static McxStatus Fmu2GetLargestArrayParameterProxySize(ObjectContainer * proxys /* of ArrayParameterProxy */, size_t * largest) {
+    size_t numArrayParams = proxys->Size(proxys);
+    for (size_t j = 0; j < numArrayParams; j++) {
+        ArrayParameterProxy * proxy = (ArrayParameterProxy *) proxys->At(proxys, j);
+        ChannelType * type = proxy->GetType(proxy);
+        if (ChannelTypeUsesInt(type)) {
+            size_t size = proxy->GetSize(proxy);
+            *largest = size > *largest ? size : *largest;
+        }
+    }
+    return RETURN_OK;
+}
+
+static McxStatus Fmu2GetLargestInOutArraySize(ObjectContainer * fmu2Values /* of Fmu2Value */, size_t * largest) {
+    size_t numFmu2Values = fmu2Values->Size(fmu2Values);
+    for (size_t j = 0; j < numFmu2Values; j++) {
+        Fmu2Value * var = (Fmu2Value *) fmu2Values->At(fmu2Values, j);
+        size_t size = Fmu2ValueDataArrayNumElems(var->data);
+        *largest = size > *largest ? size : *largest;
+    }
+    return RETURN_OK;
+}
+
+McxStatus Fmu2SetupInt32Buffer(Fmu2CommonStruct * fmu) {
+    size_t largestArraySize = 0;
+
+    // inputs
+    Fmu2GetLargestInOutArraySize(fmu->in, &largestArraySize);
+
+    // outputs
+    Fmu2GetLargestInOutArraySize(fmu->out, &largestArraySize);
+
+    // arrayParams
+    Fmu2GetLargestArrayParameterProxySize(fmu->arrayParams, &largestArraySize);
+
+    if (largestArraySize > fmu->int32BufferSize) {
+        fmu->int32Buffer = mcx_realloc(fmu->int32Buffer, largestArraySize * sizeof(fmi2_integer_t));
+        if (fmu->int32Buffer == NULL) {
+            mcx_log(LOG_ERROR, "Allocating buffer for 32 bit int array failed: Out of memory");
+            return RETURN_ERROR;
+        }
+        fmu->int32BufferSize = largestArraySize;
+    }
+
+    return RETURN_OK;
+}
+
 McxStatus Fmu2SetVariableInitialize(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     McxStatus status = RETURN_OK;
 
@@ -1069,7 +1120,17 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, (const fmi2_integer_t *) ChannelValueDataPointer(chVal));
+        fmi2_integer_t fmi_int = 0;
+        McxStatus cast_status = ChannelIntegerAsInt(chVal, &fmi_int);
+#ifdef ENABLE_BOUND_CHECKS
+        if (cast_status == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "Fmu2SetVariable: Cannot convert value of %s from internal 64 bit int (%lld) to 32 bit int",
+                    fmuVal->name, chVal->value.i);
+            return cast_status;
+        }
+#endif // ENABLE_BOUND_CHECKS
+
+        status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, &fmi_int);
 
         MCX_DEBUG_LOG("Set %s(%d)=%d", fmuVal->name, vr[0], *(int*)ChannelValueDataPointer(chVal));
 
@@ -1079,7 +1140,17 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, (const fmi2_boolean_t *) ChannelValueDataPointer(chVal));
+        fmi2_boolean_t fmi_bool = 0;
+        McxStatus cast_status = ChannelIntegerAsInt(chVal, &fmi_bool);
+#ifdef ENABLE_BOUND_CHECKS
+        if (cast_status == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "Fmu2SetVariable: Cannot convert value of %s from internal 64 bit int (%lld) to char",
+                    fmuVal->name, chVal->value.i);
+            return cast_status;
+        }
+#endif // ENABLE_BOUND_CHECKS
+
+        status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, &fmi_bool);
 
         break;
     }
@@ -1121,7 +1192,14 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
             status = fmi2_import_set_real(fmu->fmiImport, vrs, num, vals);
         } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
-            status = fmi2_import_set_integer(fmu->fmiImport, vrs, num, vals);
+            McxStatus cast_status = ChannelIntegerAsIntArray(&fmuVal->val, fmu->int32Buffer);
+#ifdef ENABLE_BOUND_CHECKS
+            if (cast_status == RETURN_ERROR) {
+                mcx_log(LOG_ERROR, "FMU: Cannot convert 64 bit int array to 32 bit FMI ints");
+                return cast_status;
+            }
+#endif // ENABLE_BOUND_CHECKS
+            status = fmi2_import_set_integer(fmu->fmiImport, vrs, num, fmu->int32Buffer);
         } else {
             mcx_log(LOG_ERROR, "FMU: Unsupported array variable type: %s", ChannelTypeToString(a->type));
             return RETURN_ERROR;
@@ -1220,7 +1298,11 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, (fmi2_integer_t *) ChannelValueDataPointer(chVal));
+        fmi2_integer_t fmi_int = 0;
+
+        status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, &fmi_int);
+
+        chVal->value.i = (int64_t) fmi_int;
 
         break;
     }
@@ -1228,7 +1310,11 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, (fmi2_boolean_t *) ChannelValueDataPointer(chVal));
+        fmi2_boolean_t fmi_bool = fmi2_false;
+
+        status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, &fmi_bool);
+
+        chVal->value.i = (int64_t) fmi_bool;
 
         break;
     }
@@ -1279,7 +1365,16 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
             status = fmi2_import_get_real(fmu->fmiImport, vrs, num, vals);
         } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
-            status = fmi2_import_get_integer(fmu->fmiImport, vrs, num, vals);
+            status = fmi2_import_get_integer(fmu->fmiImport, vrs, num, fmu->int32Buffer);
+            if (fmi2_status_ok == status) {
+                McxStatus cast_status = ChannelIntegerFromIntArray(&fmuVal->val, fmu->int32Buffer);
+#ifdef ENABLE_DEBUG
+                if (cast_status == RETURN_ERROR) {
+                    mcx_log(LOG_ERROR, "FMU: Setting int array to ChannelValue int64_t array failed");
+                    return RETURN_ERROR;
+                }
+#endif // ENABLE_DEBUG
+            }
         } else {
             // TODO: log message
             return RETURN_ERROR;

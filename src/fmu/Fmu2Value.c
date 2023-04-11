@@ -38,6 +38,21 @@ static Fmu2ValueData * Fmu2ValueDataCreate(Fmu2ValueData * data) {
     return data;
 }
 
+size_t Fmu2ValueDataArrayNumElems(const Fmu2ValueData * data) {
+    size_t i = 0;
+    size_t num = 1;
+
+    if (data->type != FMU2_VALUE_ARRAY) {
+        return 0;
+    }
+
+    for (i = 0; i < data->data.array.numDims; i++) {
+        num *= data->data.array.dims[i];
+    }
+
+    return num;
+}
+
 OBJECT_CLASS(Fmu2ValueData, Object);
 
 Fmu2VariableInfo * Fmu2VariableInfoMake(fmi2_import_variable_t * var) {
@@ -226,10 +241,10 @@ static McxStatus Fmu2ValueGetVariableStart(fmi2_base_type_enu_t t, fmi2_import_v
         value->value.d = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(var));
         break;
     case fmi2_base_type_int:
-        value->value.i = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(var));
+        value->value.i = (int64_t) fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(var));
         break;
     case fmi2_base_type_bool:
-        value->value.i = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(var));
+        value->value.i = (int64_t) fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(var));
         break;
     case fmi2_base_type_str: {
         const char * buffer = fmi2_import_get_string_variable_start(fmi2_import_get_variable_as_string(var));
@@ -256,13 +271,13 @@ static McxStatus Fmu2ValueGetArrayVariableStart(fmi2_base_type_enu_t t, fmi2_imp
         ((double *)a->data)[i] = fmi2_import_get_real_variable_start(fmi2_import_get_variable_as_real(var));
         break;
     case fmi2_base_type_int:
-        ((int *)a->data)[i] = fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(var));
+        ((int64_t *)a->data)[i] = (int64_t) fmi2_import_get_integer_variable_start(fmi2_import_get_variable_as_integer(var));
         break;
     case fmi2_base_type_enum:
-       ((int *)a->data)[i] = fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(var));
+       ((int64_t *)a->data)[i] = (int64_t) fmi2_import_get_enum_variable_start(fmi2_import_get_variable_as_enum(var));
         break;
     case fmi2_base_type_bool:
-        ((int *)a->data)[i] = fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(var));
+        ((int64_t *)a->data)[i] = (int64_t) fmi2_import_get_boolean_variable_start(fmi2_import_get_variable_as_boolean(var));
         break;
     default:
         mcx_log(LOG_ERROR, "Fmu2Value: Setup failed: Array base type %s not supported", fmi2_base_type_to_string(t));
