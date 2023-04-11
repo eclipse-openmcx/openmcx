@@ -143,7 +143,7 @@ static McxStatus adapt_long_path(const wchar_t * path, wchar_t ** adapted_path) 
             return RETURN_ERROR;
         }
 
-        wchar_t * prefixed_norm_path = (wchar_t *) mcx_calloc(strlen(LONG_UNC_PATH_PREFIX) + strlen(norm_path) + 1, sizeof(wchar_t));
+        wchar_t * prefixed_norm_path = (wchar_t *) mcx_calloc(wcslen(LONG_UNC_PATH_PREFIX) + wcslen(norm_path) + 1, sizeof(wchar_t));
         if (!prefixed_norm_path) {
             mcx_log(LOG_ERROR, "Util: Extending UNC path failed");
             mcx_free(norm_path);
@@ -178,7 +178,7 @@ static McxStatus adapt_long_path(const wchar_t * path, wchar_t ** adapted_path) 
             return RETURN_ERROR;
         }
 
-        wchar_t * prefixed_norm_path = (wchar_t *) mcx_calloc(strlen(LONG_PATH_PREFIX) + strlen(full_path) + 1, sizeof(wchar_t));
+        wchar_t * prefixed_norm_path = (wchar_t *) mcx_calloc(wcslen(LONG_PATH_PREFIX) + wcslen(full_path) + 1, sizeof(wchar_t));
         if (!prefixed_norm_path) {
             mcx_log(LOG_ERROR, "Util: Extending absolute path failed");
             mcx_free(full_path);
