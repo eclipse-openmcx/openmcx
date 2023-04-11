@@ -99,3 +99,7 @@ if(UNIX)
     set_target_properties(mcx_common PROPERTIES LINK_OPTIONS -Wl,--exclude-libs,ALL)
 endif()
 
+if(MSVC)
+    target_link_options(mcx_common PUBLIC /ignore:4099)  # disable LNK4099: "PDB 'XYZ.pdb' was not found with 'XYZ.lib'" warning
+endif()
+
