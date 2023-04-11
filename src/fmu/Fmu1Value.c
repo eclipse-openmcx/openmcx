@@ -117,7 +117,7 @@ static Fmu1ValueData * Fmu1ValueDataArrayMake(size_t numDims, size_t dims[], fmi
         }
 
         for (i = 0; i < num; i++) {
-            data->vr.array.values[i] = fmi2_import_get_variable_vr(data->var.array.values[i]);
+            data->vr.array.values[i] = fmi1_import_get_variable_vr(data->var.array.values[i]);
         }
     }
     return data;
