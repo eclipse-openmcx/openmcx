@@ -914,7 +914,7 @@ static McxStatus ArraysValidForConversion(ChannelValueReference * dest,
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertIntDouble(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
@@ -924,7 +924,7 @@ static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, Channel
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertDoubleInt(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
@@ -934,7 +934,7 @@ static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, Channel
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertBoolDouble(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
@@ -944,7 +944,7 @@ static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, Channe
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertDoubleBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
@@ -954,7 +954,7 @@ static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, Channe
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertBoolInteger(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
@@ -964,7 +964,7 @@ static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, Chann
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertIntegerBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
@@ -1100,7 +1100,7 @@ static McxStatus TypeConversionConvertArrayBoolToBool(TypeConversion * conversio
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleToArrayDouble(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertDoubleToArrayDouble(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
@@ -1115,7 +1115,7 @@ static McxStatus TypeConversionConvertDoubleToArrayDouble(Conversion * conversio
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntegerToArrayDouble(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertIntegerToArrayDouble(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
@@ -1130,7 +1130,7 @@ static McxStatus TypeConversionConvertIntegerToArrayDouble(Conversion * conversi
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolToArrayDouble(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertBoolToArrayDouble(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
@@ -1145,7 +1145,7 @@ static McxStatus TypeConversionConvertBoolToArrayDouble(Conversion * conversion,
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleToArrayInteger(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertDoubleToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
@@ -1160,7 +1160,7 @@ static McxStatus TypeConversionConvertDoubleToArrayInteger(Conversion * conversi
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntegerToArrayInteger(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertIntegerToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
@@ -1175,7 +1175,7 @@ static McxStatus TypeConversionConvertIntegerToArrayInteger(Conversion * convers
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolToArrayInteger(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertBoolToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeInteger)) {
         return RETURN_ERROR;
     }
@@ -1190,7 +1190,7 @@ static McxStatus TypeConversionConvertBoolToArrayInteger(Conversion * conversion
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleToArrayBool(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertDoubleToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
@@ -1205,7 +1205,7 @@ static McxStatus TypeConversionConvertDoubleToArrayBool(Conversion * conversion,
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntegerToArrayBool(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertIntegerToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
@@ -1220,7 +1220,7 @@ static McxStatus TypeConversionConvertIntegerToArrayBool(Conversion * conversion
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertBoolToArrayBool(Conversion * conversion, ChannelValueReference * dest, const void * src) {
+static McxStatus TypeConversionConvertBoolToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
     if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeBool)) {
         return RETURN_ERROR;
     }
