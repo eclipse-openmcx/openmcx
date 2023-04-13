@@ -274,7 +274,9 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
     }
 
     if (fmu->fmiImport) {
+        mcx_signal_handler_set_function("fmi2_import_free");
         fmi2_import_free(fmu->fmiImport);
+        mcx_signal_handler_unset_function();
         fmu->fmiImport = NULL;
     }
 }
