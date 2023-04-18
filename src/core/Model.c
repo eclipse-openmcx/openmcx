@@ -734,13 +734,14 @@ static void DestroyOneComponent(Component * comp) {
 static void ModelDestructor(void * self) {
     Model * model = (Model *) self;
     ObjectContainer * comps = model->components;
-    size_t i = 0;
+    int i = 0;
 
     if (0 == model)
         return;
 
-    for (i = 0; i < comps->Size(comps); i++) {
-        Component * comp = (Component *) comps->At(comps, i);
+    // Delete components in the reverse order they were created.
+    for (i = (int) comps->Size(comps) - 1; i >= 0; i--) {
+        Component* comp = (Component*)comps->At(comps, i);
         DestroyOneComponent(comp);
     }
 
