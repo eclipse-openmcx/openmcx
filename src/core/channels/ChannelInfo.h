@@ -14,6 +14,7 @@
 #include "core/channels/ChannelValue.h"
 #include "CentralParts.h"
 #include "core/channels/ChannelDimension.h"
+#include "core/channels/ConnectionStatus.h"
 
 #include "common/status.h"
 
@@ -51,6 +52,8 @@ typedef struct ChannelInfo {
 
     int connected;
     int initialValueIsExact;
+
+    ConnectionStatus * connectionStatus;
 } ChannelInfo;
 
 
