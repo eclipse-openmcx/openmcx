@@ -11,6 +11,8 @@
 #include "core/connections/ConnectionInfoFactory.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/channels/ChannelDimension.h"
+#include "core/channels/ConnectionStatus.h"
+
 #include "core/Databus.h"
 #include "objects/Vector.h"
 
@@ -272,6 +274,7 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
         int tmp = info->sourceChannel;
         Component * tmpCmp = info->sourceComponent;
         ChannelDimension * tmpDim = info->sourceDimension;
+        char * tmpStr = strFromChannel;
 
         info->sourceChannel = info->targetChannel;
         info->targetChannel = tmp;
@@ -284,6 +287,9 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
 
         mcx_log(LOG_DEBUG, "Connection: Inverted connection (%s, %s) -- (%s, %s)",
             info->targetComponent->GetName(info->targetComponent), strFromChannel, info->sourceComponent->GetName(info->sourceComponent), strToChannel);
+
+        strFromChannel = strToChannel;
+        strToChannel = tmpStr;
     }
 
     {
@@ -298,6 +304,68 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
             mcx_log(LOG_ERROR, "Connection: Lengths of vectors do not match");
             retVal = RETURN_ERROR;
             goto cleanup;
+        }
+    }
+
+    {   // check if ports are already occupied
+        Databus * databus = info->targetComponent->GetDatabus(info->targetComponent);
+        DatabusInfo * databusInfo = NULL;
+        databusInfo = DatabusGetInInfo(databus);
+        ChannelInfo * targetInfo = NULL;
+        targetInfo = DatabusInfoGetChannel(databusInfo, info->targetChannel);
+
+        if (!targetInfo->connectionStatus) {
+            targetInfo->connectionStatus = CreateConnectionStatus(targetInfo->dimension);
+            if (targetInfo->connectionStatus == NULL) {
+                mcx_log(
+                    LOG_ERROR,
+                    "Could not create ConnectionStatus for input %s of element %s",
+                    strToChannel,
+                    info->targetComponent->GetName(info->targetComponent)
+                );
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+        }
+
+        if (info->targetDimension) {
+            size_t num_targetDimension = info->targetDimension->num;
+            for (size_t i = 0; i < num_targetDimension; i++) {
+                size_t startIdxs_targetDimension = info->targetDimension->startIdxs[i];
+                size_t endIdxs_targetDimension = info->targetDimension->endIdxs[i];
+                size_t startIdxs = startIdxs_targetDimension - targetInfo->dimension->startIdxs[i];
+                size_t endIdxs = endIdxs_targetDimension - targetInfo->dimension->startIdxs[i];
+                for (size_t j = startIdxs; j <= endIdxs; j++) {
+                    if (targetInfo->connectionStatus->connected.array[i][j] != 0) {
+                        mcx_log(
+                            LOG_ERROR,
+                            "Same input port vector component (port: %s, dimension: %zu, idx: %zu) of element %s cannot be connected more "
+                            "than once",
+                            strToChannel,
+                            i + 1,
+                            j + targetInfo->dimension->startIdxs[i],
+                            info->targetComponent->GetName(info->targetComponent)
+                        );
+                        retVal = RETURN_ERROR;
+                        goto cleanup;
+                    } else {
+                        targetInfo->connectionStatus->connected.array[i][j] = 1;
+                    }
+                }
+            }
+        } else {
+            if (targetInfo->connectionStatus->connected.scalar == 0) {
+                targetInfo->connectionStatus->connected.scalar = 1;
+            } else {
+                mcx_log(
+                    LOG_ERROR,
+                    "Same input port %s of element %s cannot be connected more than once",
+                    strToChannel,
+                    info->targetComponent->GetName(info->targetComponent)
+                );
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
         }
     }
 
