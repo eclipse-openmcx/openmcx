@@ -358,7 +358,7 @@ char ** ExpandedChannelNames(const char * name, size_t start, size_t end) {
     }
 
     for (i = start; i <= end; i++) {
-        names[i-start] = CreateIndexedName(name, i);
+        names[i-start] = CreateIndexedName(name, (unsigned int) i);
     }
     names[i-start] = NULL;
 

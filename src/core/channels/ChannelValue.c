@@ -171,7 +171,7 @@ ChannelType * ChannelTypeBaseType(const ChannelType * a) {
     if (ChannelTypeIsArray(a)) {
         return ChannelTypeBaseType(a->ty.a.inner);
     } else {
-        return a;
+        return (ChannelType *) a;
     }
 }
 
@@ -278,7 +278,7 @@ int mcx_array_leq(const mcx_array * left, const mcx_array * right) {
         return 0;
     }
 
-    numElems = mcx_array_num_elements(left);
+    numElems = mcx_array_num_elements((mcx_array *) left);
 
     for (i = 0; i < numElems; i++) {
         switch (left->type->con) {
@@ -835,7 +835,7 @@ McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data
     }
     switch (type->con) {
         default:
-            if (predicate(data, reference, type)) {
+            if (predicate(data, (void *) reference, type)) {
                 return ChannelValueDataSetFromReference(data, type, reference);
             }
             break;

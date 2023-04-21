@@ -229,7 +229,7 @@ McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * va
             retVal = RangeConversionConvertValueRef(rangeConv, ref);
             DestroyChannelValueReference(ref);
         } else {
-            retVal = RangeConversionConvert(rangeConv, value);
+            retVal = RangeConversionConvert((Conversion *) rangeConv, value);
         }
 
         if (retVal == RETURN_ERROR) {
@@ -387,7 +387,7 @@ static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * v
                 return RETURN_ERROR;
             }
 
-            *elem = UnitConversionConvertValue(conversion, *elem);
+            *elem = UnitConversionConvertValue(unitConversion, *elem);
         }
     } else {
         double val = UnitConversionConvertValue(unitConversion, *(double *) ChannelValueDataPointer(value));
@@ -485,7 +485,7 @@ McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue *
             retVal = UnitConversionConvertValueRef(unitConv, ref);
             DestroyChannelValueReference(ref);
         } else {
-            retVal = UnitConversionConvert(unitConv, value);
+            retVal = UnitConversionConvert((Conversion *) unitConv, value);
         }
 
         if (retVal == RETURN_ERROR) {
@@ -754,7 +754,7 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
             retVal = LinearConversionConvertValueRef(linearConv, ref);
             DestroyChannelValueReference(ref);
         } else {
-            retVal = LinearConversionConvert(linearConv, value);
+            retVal = LinearConversionConvert((Conversion *) linearConv, value);
         }
 
         if (RETURN_OK != retVal) {
