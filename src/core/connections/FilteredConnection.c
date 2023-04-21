@@ -334,7 +334,7 @@ static McxStatus AddFilter(Connection * connection) {
         }
 
 cleanup:
-        mcx_free(connString);
+        mcx_free((void *) connString);
         if (retVal != RETURN_OK) {
             return retVal;
         }

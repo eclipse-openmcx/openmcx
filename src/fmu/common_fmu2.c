@@ -803,7 +803,7 @@ McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencie
             if (ChannelTypeIsArray(info->type)) {
                 in_channel_connectivity[i].is_connected = TRUE;
                 in_channel_connectivity[i].num_elems = 0;
-                in_channel_connectivity[i].elems = (int *) mcx_calloc(ChannelDimensionNumElements(info->dimension), sizeof(size_t));
+                in_channel_connectivity[i].elems = (size_t *) mcx_calloc(ChannelDimensionNumElements(info->dimension), sizeof(size_t));
                 if (!in_channel_connectivity[i].elems) {
                     mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element container allocation failed");
                     ret_val = RETURN_ERROR;
@@ -826,7 +826,7 @@ McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencie
                 in_channel_connectivity[i].is_connected = TRUE;
                 // scalar channels are treated like they have 1 element (equal to zero)
                 in_channel_connectivity[i].num_elems = 1;
-                in_channel_connectivity[i].elems = (int*)mcx_calloc(1, sizeof(size_t));
+                in_channel_connectivity[i].elems = (size_t *) mcx_calloc(1, sizeof(size_t));
                 if (!in_channel_connectivity[i].elems) {
                     mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element allocation failed");
                     ret_val = RETURN_ERROR;

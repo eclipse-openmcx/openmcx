@@ -280,7 +280,7 @@ static int ChannelInfoSameNamePred(void * elem, const char * name) {
 }
 
 static int ChannelInfosGetNameIdx(Vector * infos, const char * name) {
-    size_t idx = infos->FindIdx(infos, ChannelInfoSameNamePred, name);
+    size_t idx = infos->FindIdx(infos, ChannelInfoSameNamePred, (void *) name);
 
     return idx == SIZE_T_ERROR ? -1 : (int)idx;
 }

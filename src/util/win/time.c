@@ -58,7 +58,7 @@ double mcx_time_to_micro_s(McxTime * time) {
     micro_secs.QuadPart = time->QuadPart * 1000000;
     micro_secs.QuadPart /= freq.QuadPart;
 
-    return micro_secs.QuadPart;
+    return (double) micro_secs.QuadPart;
 }
 
 McxTime mcx_seconds_to_time(int seconds) {
