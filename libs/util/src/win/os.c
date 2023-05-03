@@ -111,7 +111,36 @@ int mcx_os_path_exists(const char * path) {
 }
 
 char * mcx_os_path_normalize(const char * path) {
-    return mcx_path_get_absolute(path);
+    DWORD retVal = 0;
+    DWORD len = 4096;
+    wchar_t * wPath = NULL;
+    wchar_t * wAbsPath = NULL;
+
+    if (NULL == path) {
+        return NULL;
+    }
+
+    wPath = mcx_string_to_widechar(path);
+    if (!wPath) {
+        return NULL;
+    }
+
+    wAbsPath = (wchar_t *) mcx_malloc(len * sizeof(wchar_t));
+    if (!wAbsPath) {
+        mcx_free(wPath);
+        return NULL;
+    }
+
+    retVal = GetFullPathNameW(wPath, len, wAbsPath, NULL);
+    mcx_free(wPath);
+    if (0 == retVal) {
+        mcx_free(wAbsPath);
+        return NULL;
+    } else {
+        char * absPath = mcx_string_to_utf8(wAbsPath);
+        mcx_free(wAbsPath);
+        return absPath;
+    }
 }
 
 McxStatus mcx_os_remove_dir_tree(const char * dir) {
