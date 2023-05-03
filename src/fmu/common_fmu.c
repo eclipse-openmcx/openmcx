@@ -266,9 +266,15 @@ McxStatus FmuOpen(FmuCommon * fmu, const struct Config * const config) {
             // fmilibrary does not normalize paths when joining them so they might get too long.
             // With mcx_path_get_absolute we normalize the path before.
             char * fmuFile = mcx_path_get_absolute(fmu->fmuFile);
-            mcx_free(fmu->fmuFile);
-            fmu->fmuFile = fmuFile;
-
+            if (fmuFile) {
+                mcx_free(fmu->fmuFile);
+                fmu->fmuFile = fmuFile;
+            }
+            fmuFile = mcx_os_path_normalize(fmu->fmuFile);
+            if (fmuFile) {
+                mcx_free(fmu->fmuFile);
+                fmu->fmuFile = fmuFile;
+            }
             mcx_log(LOG_DEBUG, "%s: Unpacking %s to %s", fmu->instanceName, fmu->fmuFile, fmu->path);
             fmu->version = fmi_import_get_fmi_version(fmu->context, fmu->fmuFile, fmu->path);
         }
