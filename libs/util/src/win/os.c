@@ -39,7 +39,7 @@ void mcx_os_get_args(char *** argList, int * nArgs) {
 }
 
 char * mcx_os_get_env_var(const char * name) {
-    DWORD len = 32767 + 1; /* max environment variable length */
+    DWORD len = PLATFORM_MAX_LONG_PATH + 1; /* max environment variable length */
 
     wchar_t * wValue = (wchar_t *) mcx_calloc(len, sizeof(wchar_t));
     wchar_t * wName;
@@ -112,7 +112,7 @@ int mcx_os_path_exists(const char * path) {
 
 char * mcx_os_path_normalize(const char * path) {
     DWORD retVal = 0;
-    DWORD len = 4096;
+    DWORD len = PLATFORM_MAX_LONG_PATH;
     wchar_t * wPath = NULL;
     wchar_t * wAbsPath = NULL;
 

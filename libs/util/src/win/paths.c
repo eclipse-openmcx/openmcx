@@ -27,7 +27,7 @@ extern "C" {
 
 char * mcx_path_get_absolute(const char * path) {
     DWORD retVal = 0;
-    DWORD len = 4096;
+    DWORD len = PLATFORM_MAX_LONG_PATH;
     wchar_t * wPath = NULL;
     wchar_t * wAbsPath = NULL;
 
@@ -71,7 +71,7 @@ int mcx_path_is_absolute(const char * path) {
 
 char * mcx_path_from_uri(const char * uri) {
     wchar_t * wchar_uri = NULL;
-    wchar_t wchar_path[4096] = { 0 };
+    wchar_t wchar_path[PLATFORM_MAX_LONG_PATH] = { 0 };
     DWORD buffer_len = sizeof(wchar_path) / sizeof(wchar_path[0]);
     char * path = NULL;
     HRESULT hres = S_OK;
