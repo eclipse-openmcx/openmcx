@@ -51,6 +51,30 @@ McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t dim,
     return RETURN_OK;
 }
 
+ChannelDimension * ChannelDimensionCreate1D(size_t start, size_t end) {
+    McxStatus retVal = RETURN_OK;
+
+    ChannelDimension * dimension = MakeChannelDimension();
+    if (dimension == NULL) {
+        mcx_log(LOG_ERROR, "ChannelDimensionCreate1D: Not enough memory");
+        return NULL;
+    }
+
+    retVal = ChannelDimensionSetup(dimension, 1);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelDimensionCreate1D: Channel dimension setup failed");
+        return NULL;
+    }
+
+    retVal = ChannelDimensionSetDimension(dimension, 0, start, end);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelDimensionCreate1D: Setting channel dimension (%zu -> %zu) failed", start, end);
+        return NULL;
+    }
+
+    return dimension;
+}
+
 size_t ChannelDimensionNumElements(const ChannelDimension * dimension) {
     size_t i = 0;
     size_t n = 1;

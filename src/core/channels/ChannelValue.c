@@ -191,6 +191,14 @@ size_t ChannelTypeNumElements(const ChannelType * type) {
     }
 }
 
+size_t ChannelTypeNumDims(const ChannelType * type) {
+    if (ChannelTypeIsArray(type)) {
+        return type->ty.a.numDims;
+    } else {
+        return 0;
+    }
+}
+
 int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB) {
     if (a->con == CHANNEL_ARRAY && b->con == CHANNEL_ARRAY) {
         if (sliceA && sliceB) {

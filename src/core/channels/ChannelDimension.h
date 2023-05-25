@@ -35,6 +35,8 @@ void DestroyChannelDimension(ChannelDimension * dimension);
 McxStatus ChannelDimensionSetup(ChannelDimension * dimension, size_t num);
 McxStatus ChannelDimensionSetDimension(ChannelDimension * dimension, size_t dim, size_t start, size_t end);
 
+ChannelDimension * ChannelDimensionCreate1D(size_t start, size_t end);
+
 int ChannelDimensionEq(const ChannelDimension * first, const ChannelDimension * second);
 int ChannelDimensionConformsToDimension(const ChannelDimension * first, const ChannelDimension * second);
 int ChannelDimensionConformsTo(const ChannelDimension * dimension, const size_t * dims, size_t numDims);

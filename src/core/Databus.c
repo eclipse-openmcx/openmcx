@@ -65,6 +65,7 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
     if (input->type == PORT_VECTOR) {
         VectorPortInput * vectorPortInput = input->port.vectorPort;
         InputElement * vectorPortElement = (InputElement *) vectorPortInput;
+        ChannelDimension * dimension = NULL;
 
         int64_t startIdx = 0;
         int64_t endIdx   = 0;
@@ -83,20 +84,9 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
             goto vector_cleanup_0;
         }
 
-        info->dimension = MakeChannelDimension();
-        if (!info->dimension) {
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
-        }
-
-        if (RETURN_OK != ChannelDimensionSetup(info->dimension, 1)) {
-            mcx_log(LOG_ERROR, "Could not setup ChannelDimension");
-            retVal = RETURN_ERROR;
-            goto vector_cleanup_0;
-        }
-
-        if (RETURN_OK != ChannelDimensionSetDimension(info->dimension, 0, (size_t) startIdx, (size_t) endIdx)) {
-            mcx_log(LOG_ERROR, "Could not SetDimension");
+        dimension = ChannelDimensionCreate1D((size_t) startIdx, (size_t) endIdx);
+        if (NULL == dimension) {
+            mcx_log(LOG_ERROR, "Could not create ChannelDimension");
             retVal = RETURN_ERROR;
             goto vector_cleanup_0;
         }
@@ -109,7 +99,8 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
                                           vectorPortInput->description,
                                           vectorPortInput->unit,
                                           ChannelTypeArray(vectorPortInput->type, 1, dims),
-                                          vectorPortInput->id)) {
+                                          vectorPortInput->id,
+                                          dimension)) {
             mcx_log(LOG_ERROR, "Could not Init ChannelInfo");
             retVal = RETURN_ERROR;
             goto vector_cleanup_0;
@@ -1106,6 +1097,7 @@ static McxStatus DatabusAddLocalChannelInternal(Databus * db,
     ChannelLocal * local = NULL;
     Channel * channel = NULL;
     size_t infoDataSize = 0;
+    ChannelDimension * dimension = NULL;
 
     char * uniqueName = NULL;
 
@@ -1119,7 +1111,19 @@ static McxStatus DatabusAddLocalChannelInternal(Databus * db,
     }
 
     uniqueName = DatabusGetUniqueChannelName(db, name);
-    retVal = ChannelInfoSetup(&chInfo, uniqueName, uniqueName, NULL, unit, type, id);
+
+    switch (ChannelTypeNumDims(type)) {
+        case 0:
+            dimension = NULL;
+            break;
+        case 1:
+            dimension = ChannelDimensionCreate1D(0, ChannelTypeNumElements(type) - 1);
+            break;
+        default:
+            mcx_log(LOG_ERROR, "Ports: Set local-reference: Only scalars or 1-dimensional arrays supported (encountered %d for %s)", ChannelTypeNumDims(type), uniqueName);
+            goto cleanup;
+    }
+    retVal = ChannelInfoSetup(&chInfo, uniqueName, uniqueName, NULL, unit, type, id, dimension);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Ports: Set local-reference: Setting up ChannelInfo for %s failed", ChannelInfoGetName(&chInfo));
         goto cleanup;

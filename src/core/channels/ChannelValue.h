@@ -71,6 +71,7 @@ int ChannelTypeIsArray(const ChannelType * a);
 int ChannelTypeIsBinary(const ChannelType * a);
 
 size_t ChannelTypeNumElements(const ChannelType * type);
+size_t ChannelTypeNumDims(const ChannelType * type);
 
 ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension * dimension);
 

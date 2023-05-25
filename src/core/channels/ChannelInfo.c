@@ -98,7 +98,8 @@ McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * descr,
                            const char * unit,
                            ChannelType * type,
-                           const char * id) {
+                           const char * id,
+                           ChannelDimension * dimension) {
     if (name && RETURN_OK != ChannelInfoSetName(info, name)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set name", name);
         return RETURN_ERROR;
@@ -122,6 +123,10 @@ McxStatus ChannelInfoSetup(ChannelInfo * info,
     if (RETURN_OK != ChannelInfoSetType(info, type)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set type", name);
         return RETURN_ERROR;
+    }
+
+    if (dimension) {
+        info->dimension = dimension;
     }
 
     return RETURN_OK;

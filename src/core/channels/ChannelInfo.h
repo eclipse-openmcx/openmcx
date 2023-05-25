@@ -73,13 +73,15 @@ McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type);
 
 int ChannelInfoIsBinary(const ChannelInfo * info);
 
+// steals `dimension`, pass NULL if scalar
 McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * name,
                            const char * nameInModel,
                            const char * descr,
                            const char * unit,
                            ChannelType * type,
-                           const char * id);
+                           const char * id,
+                           ChannelDimension * dimension);
 
 McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other);
 
