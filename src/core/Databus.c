@@ -42,7 +42,11 @@ static void DatabusInfoDataDestructor(DatabusInfoData * data) {
 
 static DatabusInfoData * DatabusInfoDataCreate(DatabusInfoData * data) {
     data->infos = (Vector *) object_create(Vector);
-    data->infos->Setup(data->infos, sizeof(ChannelInfo), ChannelInfoInit, ChannelInfoSetFrom, ChannelInfoDestroy);
+    data->infos->Setup(data->infos,
+                       sizeof(ChannelInfo),
+                       (fVectorElemInitializer) ChannelInfoInit,
+                       (fVectorElemSetter) ChannelInfoSetFrom,
+                       (fVectorElemDestructor) ChannelInfoDestroy);
     return data;
 }
 
@@ -271,7 +275,7 @@ static int ChannelInfoSameNamePred(const void * elem, const char * name) {
 }
 
 static int ChannelInfosGetNameIdx(Vector * infos, const char * name) {
-    size_t idx = infos->FindIdx(infos, ChannelInfoSameNamePred, name);
+    size_t idx = infos->FindIdx(infos, (fVectorElemPredicate) ChannelInfoSameNamePred, name);
 
     return idx == SIZE_T_ERROR ? -1 : (int)idx;
 }

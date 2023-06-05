@@ -1348,7 +1348,7 @@ static McxStatus TypeConversionConvertArrayIntegerToArrayDouble(TypeConversion *
     }
 
     Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
-    return ChannelValueReferenceElemMap(dest, IntegerArrayToDouble, &ctx);
+    return ChannelValueReferenceElemMap(dest, (fChannelValueReferenceElemMapFunc) IntegerArrayToDouble, &ctx);
 }
 
 static McxStatus TypeConversionConvertArrayBoolToArrayDouble(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
@@ -1357,7 +1357,7 @@ static McxStatus TypeConversionConvertArrayBoolToArrayDouble(TypeConversion * co
     }
 
     Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
-    return ChannelValueReferenceElemMap(dest, BoolArrayToDouble, &ctx);
+    return ChannelValueReferenceElemMap(dest, (fChannelValueReferenceElemMapFunc) BoolArrayToDouble, &ctx);
 }
 
 static McxStatus TypeConversionConvertArrayDoubleToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
@@ -1366,7 +1366,7 @@ static McxStatus TypeConversionConvertArrayDoubleToArrayInteger(TypeConversion *
     }
 
     Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
-    return ChannelValueReferenceElemMap(dest, DoubleArrayToInteger, &ctx);
+    return ChannelValueReferenceElemMap(dest, (fChannelValueReferenceElemMapFunc) DoubleArrayToInteger, &ctx);
 }
 
 static McxStatus TypeConversionConvertArrayBoolToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
@@ -1375,7 +1375,7 @@ static McxStatus TypeConversionConvertArrayBoolToArrayInteger(TypeConversion * c
     }
 
     Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
-    return ChannelValueReferenceElemMap(dest, BoolArrayToInteger, &ctx);
+    return ChannelValueReferenceElemMap(dest, (fChannelValueReferenceElemMapFunc) BoolArrayToInteger, &ctx);
 }
 
 static McxStatus TypeConversionConvertArrayDoubleToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
@@ -1384,7 +1384,7 @@ static McxStatus TypeConversionConvertArrayDoubleToArrayBool(TypeConversion * co
     }
 
     Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
-    return ChannelValueReferenceElemMap(dest, DoubleArrayToBool, &ctx);
+    return ChannelValueReferenceElemMap(dest, (fChannelValueReferenceElemMapFunc) DoubleArrayToBool, &ctx);
 }
 
 static McxStatus TypeConversionConvertArrayIntegerToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {
@@ -1393,7 +1393,7 @@ static McxStatus TypeConversionConvertArrayIntegerToArrayBool(TypeConversion * c
     }
 
     Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
-    return ChannelValueReferenceElemMap(dest, IntegerArrayToBool, &ctx);
+    return ChannelValueReferenceElemMap(dest, (fChannelValueReferenceElemMapFunc) IntegerArrayToBool, &ctx);
 }
 
 static McxStatus TypeConversionConvertId(TypeConversion * conversion, ChannelValueReference * dest, const void * src) {

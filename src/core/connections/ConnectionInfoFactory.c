@@ -426,7 +426,11 @@ Vector * ConnectionInfoFactoryCreateConnectionInfos(
         goto cleanup;
     }
 
-    list->Setup(list, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
+    list->Setup(list,
+                sizeof(ConnectionInfo),
+                (fVectorElemInitializer) ConnectionInfoInit,
+                (fVectorElemSetter) ConnectionInfoSetFrom,
+                (fVectorElemDestructor) DestroyConnectionInfo);
 
     retVal = ConnectionInfoFactoryInitConnectionInfo(&info, components, connInput, sourceCompOverride, targetCompOverride);
     if (RETURN_ERROR == retVal) {
