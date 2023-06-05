@@ -82,14 +82,14 @@ Fmu2VariableInfo * Fmu2VariableInfoMake(fmi2_import_variable_t * var) {
             case fmi2_base_type_int:
                 info->type = &ChannelTypeInteger;
                 min.i = fmi2_import_get_integer_variable_min(fmi2_import_get_variable_as_integer(var));
-                minDefined = min.i != -INT_MIN;
+                minDefined = -min.i != INT_MIN;
                 max.i = fmi2_import_get_integer_variable_max(fmi2_import_get_variable_as_integer(var));
                 maxDefined = max.i != INT_MAX;
                 break;
             case fmi2_base_type_enum:
                 info->type = &ChannelTypeInteger;
                 min.i = fmi2_import_get_enum_variable_min(fmi2_import_get_variable_as_enum(var));
-                minDefined = min.i != -INT_MIN;
+                minDefined = -min.i != INT_MIN;
                 max.i = fmi2_import_get_enum_variable_max(fmi2_import_get_variable_as_enum(var));
                 maxDefined = max.i != INT_MAX;
                 break;
