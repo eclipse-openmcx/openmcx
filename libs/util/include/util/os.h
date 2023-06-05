@@ -82,7 +82,7 @@ int mcx_os_sleep_ms(unsigned int ms);
  * is the program name.
  * @return the PID of the created process or 0 if an error occurred
  */
-size_t mcx_os_process_create(char * args[]);
+size_t mcx_os_process_create(const char * args[]);
 
 
 int mcx_os_mkdir(const char * dir);

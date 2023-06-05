@@ -256,7 +256,7 @@ int mcx_os_sleep_ms(unsigned int ms) {
     return GetLastError() ?-1 :0;
 }
 
-size_t mcx_os_process_create(char * args[]) {
+size_t mcx_os_process_create(const char * args[]) {
     LPSTR filePart;
     char filename[MAX_PATH];
 
@@ -270,9 +270,9 @@ size_t mcx_os_process_create(char * args[]) {
         goto cleanup;
     }
 
-    args[0] = filename;
+    args[0] = (const char *) filename;
 
-    cmd_str = mcx_string_merge_quoted_array_with_spaces(args);
+    cmd_str = mcx_string_merge_quoted_array_with_spaces((char **) args);
     if (!cmd_str) {
         pid = -1;
         goto cleanup;

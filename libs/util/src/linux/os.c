@@ -157,10 +157,10 @@ int mcx_os_sleep_ms(unsigned int ms){
     return usleep(1000 * ms);
 }
 
-size_t mcx_os_process_create(char * args[]) {
+size_t mcx_os_process_create(const char * args[]) {
     pid_t pid = fork();
 
-    char * cmd_str = mcx_string_merge_array_with_spaces(args);
+    const char * cmd_str = mcx_string_merge_array_with_spaces((char **) args);
     if (!cmd_str) {
         pid = -1;
         goto cleanup;
@@ -169,7 +169,7 @@ size_t mcx_os_process_create(char * args[]) {
     mcx_log(LOG_DEBUG, "process_create: %s", cmd_str);
 
     if (!pid) {
-        if (execvp(args[0], args) == -1) {
+        if (execvp(args[0], (char * const *) args) == -1) {
             mcx_log(LOG_ERROR, "Creating process for command %s failed", cmd_str);
             pid = -1;
         }
@@ -183,7 +183,7 @@ size_t mcx_os_process_create(char * args[]) {
 cleanup:
 
     if (cmd_str) {
-        mcx_free(cmd_str);
+        mcx_free((void *) cmd_str);
     }
 
     return (size_t) pid;
