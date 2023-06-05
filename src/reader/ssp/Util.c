@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 #include "util/os.h"
 #include "util/paths.h"
@@ -236,7 +237,7 @@ static int xml_parse_bool64(const xmlChar * buffer, int64_t * dest) {
         num += 1;
     }
 
-    ret_val = sscanf(buffer + num, "%lld", &value);
+    ret_val = sscanf(buffer + num, "%" PRId64, &value);
     if (ret_val == 1) {
         *dest = value != 0 ? TRUE : FALSE;
     } else if (xmlStrncmp("true", buffer + num, 4) == 0) {
@@ -337,7 +338,7 @@ static int xml_parse_int64(const xmlChar * buffer, int64_t * dest) {
         num += 1;
     }
 
-    ret_val = sscanf(buffer + num, "%lld", &value);
+    ret_val = sscanf(buffer + num, "%" PRId64, &value);
     if (ret_val == 1) {
         *dest = value;
     } else {

@@ -13,6 +13,8 @@
 #include "util/stdlib.h"
 #include "util/intconv.h"
 
+#include <inttypes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -544,7 +546,7 @@ size_t ChannelValueDataDoubleToBuffer(char * buffer, void * value, size_t i) {
 }
 
 size_t ChannelValueDataIntegerToBuffer(char * buffer, void * value, size_t i) {
-    return sprintf(buffer, "%lld", ((int64_t *) value)[i]);
+    return sprintf(buffer, "%" PRId64, ((int64_t *) value)[i]);
 }
 
 size_t ChannelValueDataBoolToBuffer(char * buffer, void * value, size_t i) {
@@ -686,7 +688,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
             mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
             return RETURN_ERROR;
         }
-        sprintf(buffer, "%lld", value->i);
+        sprintf(buffer, "%" PRId64, value->i);
         break;
     case CHANNEL_BOOL:
         length = 2;
