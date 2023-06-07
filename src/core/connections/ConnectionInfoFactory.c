@@ -132,7 +132,10 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
                 goto cleanup;
             }
 
-            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, connInput->from.vectorEndpoint->startIndex, connInput->from.vectorEndpoint->endIndex)) {
+            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension,
+                                                          0,
+                                                          (size_t) connInput->from.vectorEndpoint->startIndex,
+                                                          (size_t) connInput->from.vectorEndpoint->endIndex)) {
                 mcx_log(LOG_ERROR, "Source port %s: Could not set dimension boundaries", strFromChannel);
                 retVal = RETURN_ERROR;
                 DestroyChannelDimension(sourceDimension);

@@ -140,7 +140,7 @@ ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, ui
     }
 
     for (i = 0; i < numDims; i++) {
-        array->ty.a.dims[i] = dims[i];
+        array->ty.a.dims[i] = (size_t) dims[i];
     }
 
     return array;

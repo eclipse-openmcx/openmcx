@@ -95,7 +95,7 @@ static ChannelInfo * DatabusReadPortInput(PortInput * input) {
             goto vector_cleanup_0;
         }
 
-        size_t dims[1] = { endIdx - startIdx + 1 };
+        size_t dims[1] = { (size_t) (endIdx - startIdx + 1) };
 
         if (RETURN_OK != ChannelInfoSetup(info,
                                           vectorPortInput->name,
@@ -311,7 +311,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
         if (portInput->type == PORT_SCALAR) {
             requiredSize++;
         } else {
-            requiredSize += portInput->port.vectorPort->endIndex - portInput->port.vectorPort->startIndex + 1;
+            requiredSize += (size_t) (portInput->port.vectorPort->endIndex - portInput->port.vectorPort->startIndex + 1);
         }
 
         ChannelInfo * info = DatabusReadPortInput(portInput);

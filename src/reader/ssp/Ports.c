@@ -206,7 +206,7 @@ cleanup_1:
                             goto cleanup;
                         }
 
-                        num = vectorPortInput->endIndex - vectorPortInput->startIndex + 1;
+                        num = (size_t) (vectorPortInput->endIndex - vectorPortInput->startIndex + 1);
                     }
 
                     retVal = xml_attr_vec_len(vectorNode, "min", vectorPortInput->type, num, &vectorPortInput->min, SSD_OPTIONAL);

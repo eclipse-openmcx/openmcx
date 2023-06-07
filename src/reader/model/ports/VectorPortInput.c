@@ -81,7 +81,7 @@ static McxStatus CopyFrom(VectorPortInput * self, VectorPortInput * src) {
     self->startIndex = src->startIndex;
     self->endIndex = src->endIndex;
 
-    size_t len = self->endIndex - self->startIndex + 1;
+    size_t len = (size_t) (self->endIndex - self->startIndex + 1);
     size_t size = ChannelValueTypeSize(self->type);
 
     if (src->min) {
@@ -196,7 +196,7 @@ static void PrintOptionalInt64(char * prefix, OPTIONAL_VALUE(int64_t) value) {
 }
 
 void VectorPortInputPrint(VectorPortInput * input) {
-    size_t len = input->endIndex - input->startIndex + 1;
+    size_t len = (size_t) (input->endIndex - input->startIndex + 1);
 
     mcx_log(LOG_DEBUG, "VectorPortInput @ %#x {", input);
     mcx_log(LOG_DEBUG, "  .name: %s,", input->name);

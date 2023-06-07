@@ -227,13 +227,13 @@ static void ChannelInDataDestructor(ChannelInData * data) {
         mcx_free((void *) data->connList.connections);
     }
     if (data->typeConversions) {
-        for (int j = 0; j < data->connList.numConnections; j++) {
+        for (size_t j = 0; j < data->connList.numConnections; j++) {
             object_destroy(data->typeConversions[j]);
         }
         mcx_free((void *) data->typeConversions);
     }
     if (data->unitConversions) {
-        for (int j = 0; j < data->connList.numConnections; j++) {
+        for (size_t j = 0; j < data->connList.numConnections; j++) {
             object_destroy(data->unitConversions[j]);
         }
         mcx_free((void *) data->unitConversions);
