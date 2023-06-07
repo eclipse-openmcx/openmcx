@@ -1346,7 +1346,11 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         status = fmi2_import_get_integer(fmu->fmiImport, vrs, 3, vs);
 
         binary.len = vs[2];
+#if OS_64
         binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
+#else // OS_64
+        binary.data = (char *) (vs[0] & 0xffffffff);
+#endif // OS_64
 
         if (RETURN_OK != ChannelValueSetFromReference(chVal, &binary)) {
             return RETURN_ERROR;

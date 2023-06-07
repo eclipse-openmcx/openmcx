@@ -313,7 +313,11 @@ static McxStatus Fmu2ValueGetBinaryVariableStart(fmi2_import_variable_t * varHi,
     binary_string b;
 
     b.len = size;
+#ifdef OS_64
     b.data = (char *) ((((long long)hi & 0xffffffff) << 32) | (lo & 0xffffffff));
+#else // OS_64
+    b.data = (char *) (lo & 0xffffffff);
+#endif // OS_64
 
     if (RETURN_OK != ChannelValueSetFromReference(value, &b)) {
         mcx_log(LOG_ERROR, "Fmu2Value: Could not set value");
