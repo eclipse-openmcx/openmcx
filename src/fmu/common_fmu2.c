@@ -1172,8 +1172,8 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
                                         , fmuVal->data->vr.binary.size
                                         };
 
-        fmi2_integer_t vals[] = { (fmi2_integer_t)  ((long long)binary->data & (long long)0x00000000ffffffff)
-                                , (fmi2_integer_t) (((long long)binary->data & (long long)0xffffffff00000000) >> 32)
+        fmi2_integer_t vals[] = { (fmi2_integer_t)  ((long long) (size_t) binary->data & (long long)0x00000000ffffffff)
+                                , (fmi2_integer_t) (((long long) (size_t) binary->data & (long long)0xffffffff00000000) >> 32)
                                 , (fmi2_integer_t) binary->len
                                 };
 
