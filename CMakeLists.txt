@@ -21,6 +21,7 @@ option(ENABLE_STORAGE "Turn on result writing support" ON)
 option(ENABLE_DEBUG "Enable additional debug output" OFF)
 option(ENABLE_COVERAGE "Turn on code coverage support" OFF)
 option(ENABLE_BOUND_CHECKS "Turn on bound checks on casts with size differences" ON)
+option(ENABLE_STRICT_MODE "Turn on strict mode: Treat warnings as errors" ON)
 
 
 # dependencies
@@ -53,6 +54,16 @@ if(ENABLE_DEBUG)
     # all libraries we link against, so a debug mcx would only use the debug libc.
     add_link_options($<$<CXX_COMPILER_ID:MSVC>:/IGNORE:4098>)
 endif()
+
+
+if(ENABLE_STRICT_MODE)
+    add_compile_options($<IF:$<CXX_COMPILER_ID:MSVC>,/WX,-Werror>)
+    add_link_options($<IF:$<CXX_COMPILER_ID:MSVC>,/WX,-Werror>)
+    message(STATUS "Strict mode enabled: Treating warnings as errors")
+else()
+    message(STATUS "Strict mode disabled: Treating warnings normally")
+endif()
+
 
 if(WIN32 AND MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
