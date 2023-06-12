@@ -40,10 +40,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Error for warning: "function undefined; assuming extern returning int"
-add_compile_options($<$<C_COMPILER_ID:MSVC>:/we4013>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/we4013>)
 
-add_compile_options($<$<C_COMPILER_ID:MSVC>:/MP>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
 if(ENABLE_DEBUG)
@@ -53,7 +51,6 @@ if(ENABLE_DEBUG)
     # build of mcx (everything links to release build of libc), so this can only be a problem for us while developing.
     # Therefore, it is ok to ignore this warning here. The only really clean solution is to get a debug version of
     # all libraries we link against, so a debug mcx would only use the debug libc.
-    add_link_options($<$<C_COMPILER_ID:MSVC>:/IGNORE:4098>)
     add_link_options($<$<CXX_COMPILER_ID:MSVC>:/IGNORE:4098>)
 endif()
 
