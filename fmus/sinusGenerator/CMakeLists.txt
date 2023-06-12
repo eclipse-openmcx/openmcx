@@ -50,7 +50,7 @@ add_custom_command(
 
 add_custom_command(
     TARGET ${FMU_NAME}
-    COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${FMU_NAME}.fmu" --format=zip
+    COMMAND ${CMAKE_COMMAND} -E tar "cf" "${FMU_NAME}.fmu" --format=zip
             "modelDescription.xml"
             "binaries/${FMU_BINARY_DIR}/${FMU_NAME}${FMU_SO_SUFFIX}"
 )
