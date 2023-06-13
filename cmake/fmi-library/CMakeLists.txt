@@ -40,10 +40,17 @@ if (NOT EXISTS "${INCLUDE_DIR}")
   file(MAKE_DIRECTORY "${INCLUDE_DIR}")
 endif()
 
+# Disable warnings from fmi-library
+if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+  set(FMILIB_C_FLAGS "/wd4267 /wd4244 /wd4013 /wd4273")
+else()
+  set(FMILIB_C_FLAGS "-w")
+endif()
+
 add_custom_command(
   OUTPUT ${LIB_FILE}
-  COMMAND ${CMAKE_COMMAND} ARGS -G ${CMAKE_GENERATOR} ..
-  COMMAND ${CMAKE_COMMAND} ARGS --build . --target ${INSTALL_TARGET}
+  COMMAND ${CMAKE_COMMAND} ARGS -G ${CMAKE_GENERATOR} .. -DFMILIB_BUILD_TESTS=OFF -DFMILIB_BUILD_SHARED_LIB=OFF -DFMILIB_GENERATE_DOXYGEN_DOC=OFF -DCMAKE_C_FLAGS=\"${FMILIB_C_FLAGS}\"
+  COMMAND ${CMAKE_COMMAND} ARGS --build . --target ${INSTALL_TARGET} --config $<CONFIG>
   WORKING_DIRECTORY ${FMI_LIBRARY_DIR}/build # already exists in fmi-library repository
   DEPENDS ${FMILIB_SOURCES}
   COMMENT "Building fmi-library"
@@ -55,5 +62,4 @@ add_dependencies(fmi-library fmi-library_target)
 set_target_properties(fmi-library PROPERTIES
   IMPORTED_LOCATION ${LIB_FILE}
   INTERFACE_INCLUDE_DIRECTORIES ${INCLUDE_DIR}
-  INTERFACE_COMPILE_DEFINITIONS FMILIB_STATIC_LIB_ONLY
   )
