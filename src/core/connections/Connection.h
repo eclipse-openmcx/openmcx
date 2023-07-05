@@ -15,6 +15,8 @@
 #include "core/connections/ConnectionInfo.h"
 #include "objects/Vector.h"
 
+#include "channel_value/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

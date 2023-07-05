@@ -17,7 +17,7 @@
 #include "reader/model/components/specific_data/VectorIntegratorInput.h"
 #include "reader/model/components/specific_data/ConstantInput.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {

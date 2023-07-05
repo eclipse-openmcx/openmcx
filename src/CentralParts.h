@@ -46,36 +46,17 @@ extern "C" {
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
 
-#include "core/channels/ChannelValue.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#if defined _MSC_VER
-#ifndef __cplusplus
-#ifndef fmax
-#define fmax( a, b ) ( ((a) > (b)) ? (a) : (b) )
-#endif /* fmax */
-#ifndef fmin
-#define fmin( a, b ) ( ((a) < (b)) ? (a) : (b) )
-#endif /* fmin */
-#endif /* __cplusplus */
-
-#endif /* _MSC_VER */
-
-#define UNUSED(x) (void)(x)
+#include "common/definitions.h"
 
 #include "common/memory.h"
 
 #define mcx_printf printf
 
 #define ZERO_COMPARE     1.E-8
-
-#define NUM_PI 3.141592653589793
-
-#define TRUE   1
-#define FALSE  0
 
 typedef struct MapStringInt {
     const char * key;

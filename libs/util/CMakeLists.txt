@@ -13,9 +13,11 @@ cmake_minimum_required(VERSION 3.6 FATAL_ERROR)
 project(util VERSION 1.0.0 LANGUAGES C)
 
 set(UTIL_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/util/intconv.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/util/libs.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/util/os.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/util/paths.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/util/stdlib.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/util/string.h"
 )
 
@@ -24,6 +26,7 @@ if(WIN32)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/win/libs.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/win/os.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/win/paths.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/win/stdlib.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/win/string.c"
     )
 else()
@@ -31,14 +34,17 @@ else()
         "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/libs.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/os.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/paths.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/stdlib.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/string.c"
     )
 endif()
 
 
 set(UTIL_COMMON_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/common/intconv.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/common/os.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/common/paths.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/common/stdlib.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/common/string.c"
 )
 
@@ -56,6 +62,7 @@ target_compile_definitions(util
         $<$<BOOL:${MSVC}>:_CRT_SECURE_NO_DEPRECATE>
         $<$<BOOL:${UNIX}>:_XOPEN_SOURCE=500>
         $<$<BOOL:${UNIX}>:_POSIX_C_SOURCE=200112L>
+        $<$<BOOL:${ENABLE_BOUND_CHECKS}>:ENABLE_BOUND_CHECKS>
     PUBLIC
         $<$<BOOL:${WIN32}>:OS_WINDOWS>
         $<$<BOOL:${UNIX}>:OS_LINUX>

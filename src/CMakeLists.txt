@@ -68,6 +68,7 @@ target_link_libraries(
         tarjan
         common
         util
+        channel_value
     PRIVATE
         version
         ssp_headers

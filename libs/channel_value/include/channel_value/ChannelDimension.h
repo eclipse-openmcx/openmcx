@@ -11,8 +11,7 @@
 #ifndef MCX_CORE_CHANNELS_CHANNEL_DIMENSION_H
 #define MCX_CORE_CHANNELS_CHANNEL_DIMENSION_H
 
-#include "CentralParts.h"
-
+#include "common/status.h"
 
 #ifdef __cplusplus
 extern "C" {

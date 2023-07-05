@@ -12,6 +12,8 @@
 
 #include "util/compare.h"
 
+#include "channel_value/ChannelValue.h"
+
 #include <limits.h>
 
 #ifndef SIZE_MAX

@@ -8,12 +8,14 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "CentralParts.h"
-
 #include "util/stdlib.h"
 
 #include <stdlib.h>
 #include <ctype.h>
+#include <string.h>
+#include <limits.h>
+
+#include "common/memory.h"
 
 #ifdef __cplusplus
 extern "C" {

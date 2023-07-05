@@ -8,12 +8,19 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "core/channels/ChannelValue.h"
-#include "core/channels/ChannelDimension.h"
-#include "util/stdlib.h"
+#include "channel_value/ChannelValue.h"
+#include "channel_value/ChannelDimension.h"
+
 #include "util/intconv.h"
+#include "util/stdlib.h"
+
+#include "common/logging.h"
+#include "common/memory.h"
 
 #include <inttypes.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {

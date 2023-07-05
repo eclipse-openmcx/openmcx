@@ -12,7 +12,7 @@
 #define MCX_COMPONENTS_COMP_CONSTANT_H
 
 #include "core/Component.h"
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {

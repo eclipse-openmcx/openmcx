@@ -26,6 +26,8 @@
 
 #include "util/stdlib.h"
 
+#include "channel_value/ChannelValue.h"
+
 // private headers, see "Object-oriented programming in ANSI-C", Hanser 1994
 #include "core/Databus_impl.h"
 

@@ -12,7 +12,8 @@
 #define MCX_CORE_CONVERSION_H
 
 #include "units/Units.h"
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
+#include "channel_value/ChannelValue.h"
 
 
 #ifdef __cplusplus

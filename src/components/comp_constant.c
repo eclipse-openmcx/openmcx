@@ -10,7 +10,7 @@
 
 #include "components/comp_constant.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "core/Databus.h"
 #include "reader/model/components/specific_data/ConstantInput.h"
 

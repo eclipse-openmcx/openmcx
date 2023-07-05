@@ -13,7 +13,8 @@
 
 #include "CentralParts.h"
 #include "core/channels/Channel.h"
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
+#include "channel_value/ChannelValue.h"
 #include "fmilib.h"
 
 #ifdef __cplusplus

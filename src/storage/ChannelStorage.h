@@ -11,6 +11,8 @@
 #ifndef MCX_STORAGE_CHANNELSTORAGE_H
 #define MCX_STORAGE_CHANNELSTORAGE_H
 
+#include "channel_value/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

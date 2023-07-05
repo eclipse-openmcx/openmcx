@@ -14,6 +14,7 @@
 #include "core/Interpolation.h"
 #include "util/compare.h"
 
+#include "channel_value/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {

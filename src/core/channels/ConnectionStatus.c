@@ -8,9 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
 #include "core/channels/ConnectionStatus.h"
-#include "util/stdlib.h"
 
 
 #ifdef __cplusplus

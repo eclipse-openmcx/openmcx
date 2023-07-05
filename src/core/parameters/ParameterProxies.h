@@ -16,6 +16,7 @@
 #include "fmu/Fmu2Value.h"
 #include "objects/ObjectContainer.h"
 
+#include "channel_value/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {

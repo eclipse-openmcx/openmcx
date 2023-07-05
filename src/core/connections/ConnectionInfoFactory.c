@@ -10,7 +10,7 @@
 
 #include "core/connections/ConnectionInfoFactory.h"
 #include "core/connections/ConnectionInfo.h"
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
 #include "core/channels/ConnectionStatus.h"
 
 #include "core/Databus.h"
@@ -18,8 +18,6 @@
 
 #include "util/stdlib.h"
 #include "util/string.h"
-
-#include "core/channels/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {

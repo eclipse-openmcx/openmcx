@@ -19,6 +19,8 @@
 
 #include <locale.h>     /* struct lconv, setlocale, localeconv */
 
+#include "channel_value/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

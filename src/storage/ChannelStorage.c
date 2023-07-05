@@ -14,6 +14,8 @@
 #include "core/channels/ChannelInfo.h"
 #include "storage/ChannelStorage.h"
 
+#include "channel_value/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

@@ -17,7 +17,7 @@
 #include "reader/model/ports/ScalarPortInput.h"
 #include "reader/model/ports/VectorPortInput.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "util/string.h"
 
 

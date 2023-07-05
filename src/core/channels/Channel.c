@@ -10,14 +10,13 @@
 
 #include "CentralParts.h"
 #include "core/Config.h"
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "core/connections/Connection.h"
 #include "core/Conversion.h"
 
 #include "core/channels/ChannelInfo.h"
 #include "core/channels/ChannelValueReference.h"
 #include "core/channels/Channel.h"
-#include "core/channels/ChannelValue.h"
 #include "core/channels/Channel_impl.h"
 
 #include <stdarg.h>

@@ -11,7 +11,7 @@
 #include "fmu/common_fmu1.h"
 #include "fmu/common_fmu.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 
 #include "fmu/Fmu1Value.h"
 #include "reader/model/parameters/ParameterInput.h"

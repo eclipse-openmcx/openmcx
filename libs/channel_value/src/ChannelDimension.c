@@ -8,7 +8,13 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
+
+#include <stdio.h>
+
+#include "common/logging.h"
+#include "common/definitions.h"
+#include "common/memory.h"
 
 #include "util/stdlib.h"
 
@@ -122,7 +128,7 @@ ChannelDimension * CloneChannelDimension(const ChannelDimension * dimension) {
     return clone;
 
 cleanup:
-    object_destroy(clone);
+    DestroyChannelDimension(clone);
     return NULL;
 }
 

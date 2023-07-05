@@ -13,7 +13,8 @@
 
 #include "CentralParts.h"
 #include "core/Component_interface.h"
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
+#include "channel_value/ChannelValue.h"
 
 #define DECOUPLE_DEFAULT DECOUPLE_IFNEEDED
 

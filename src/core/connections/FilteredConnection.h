@@ -13,7 +13,7 @@
 
 #include "core/connections/Connection.h"
 #include "core/Conversion.h"
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "core/connections/filters/Filter.h"
 
 #ifdef __cplusplus

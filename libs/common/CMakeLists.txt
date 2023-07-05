@@ -15,6 +15,7 @@ project(common VERSION 1.0.0 LANGUAGES C)
 option(ENABLE_DEBUG "Enable additional debug output" OFF)
 
 set(COMMON_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/common/definitions.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/common/logging.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/common/memory.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/common/status.h"

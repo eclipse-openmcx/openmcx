@@ -25,6 +25,8 @@
 #include "util/string.h"
 #include "util/time.h"
 
+#include "channel_value/ChannelValue.h"
+
 #include <stdarg.h>
 
 #ifdef __cplusplus

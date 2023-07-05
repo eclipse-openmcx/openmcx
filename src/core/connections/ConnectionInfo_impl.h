@@ -14,11 +14,8 @@
 /* for interExtrapolation, DecoupleType */
 #include "CentralParts.h"
 
-/* for ChannelType */
-#include "core/channels/ChannelValue.h"
-
 /* for ChannelDimension */
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
 
 /* for Component */
 #include "core/Component.h"

@@ -13,6 +13,8 @@
 #include "core/connections/filters/IntExtFilter.h"
 #include "util/compare.h"
 
+#include "channel_value/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

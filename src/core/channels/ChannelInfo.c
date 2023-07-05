@@ -12,7 +12,7 @@
 
 #include "core/channels/ChannelInfo.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "objects/Object.h"
 #include "util/string.h"
 

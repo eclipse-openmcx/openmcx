@@ -11,7 +11,8 @@
 #ifndef MCX_CORE_CHANNELS_CHANNEL_VALUE_H
 #define MCX_CORE_CHANNELS_CHANNEL_VALUE_H
 
-#include "CentralParts.h"
+#include "common/status.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -254,8 +255,10 @@ McxStatus ChannelIntegerAsIntArray(const ChannelValue * val, int * res);
  */
 McxStatus ChannelIntegerFromIntArray(ChannelValue * val, const int * in);
 
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
+
 
 #endif /* MCX_CORE_CHANNELS_CHANNEL_VALUE_H */

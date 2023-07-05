@@ -38,6 +38,8 @@
 #include "util/os.h"
 #include "util/time.h"
 
+#include "channel_value/ChannelValue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

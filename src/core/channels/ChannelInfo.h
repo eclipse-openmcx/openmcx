@@ -11,9 +11,9 @@
 #ifndef MCX_CORE_CHANNELS_CHANNELINFO_H
 #define MCX_CORE_CHANNELS_CHANNELINFO_H
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "CentralParts.h"
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
 #include "core/channels/ConnectionStatus.h"
 
 #include "common/status.h"

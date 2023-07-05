@@ -14,7 +14,7 @@
 #include "reader/core/InputElement.h"
 #include "reader/model/components/ComponentInput.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {

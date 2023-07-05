@@ -11,7 +11,7 @@
 #include "CentralParts.h"
 #include "core/Conversion.h"
 #include "core/channels/ChannelValueReference.h"
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "units/Units.h"
 
 #ifdef __cplusplus

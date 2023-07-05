@@ -15,6 +15,8 @@
 
 #include "objects/Object.h"
 
+#include "channel_value/ChannelValue.h"
+
 #define MAKE_OPTIONAL_TYPE(T) typedef struct optional_##T {\
     int defined;\
     T value;\

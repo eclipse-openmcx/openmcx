@@ -12,7 +12,8 @@
 #define MCX_CORE_CHANNELS_CHANNEL_VALUE_REFERENCE_H
 
 #include "CentralParts.h"
-#include "core/channels/ChannelDimension.h"
+#include "channel_value/ChannelDimension.h"
+#include "channel_value/ChannelValue.h"
 
 #include "core/Conversion.h"
 

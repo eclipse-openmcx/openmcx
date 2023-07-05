@@ -10,7 +10,7 @@
 
 #include "fmu/Fmu2Value.h"
 
-#include "core/channels/ChannelValue.h"
+#include "channel_value/ChannelValue.h"
 #include "core/connections/ConnectionInfoFactory.h"
 #include "CentralParts.h"
 #include "util/string.h"
