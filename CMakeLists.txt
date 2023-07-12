@@ -45,15 +45,14 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/we4013>)
 
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
-if(ENABLE_DEBUG)
-    # External libraries are often linked to release builds of libc, while mcx in debug mode is linked
-    # to the debug version of libc. This can cause problems as all symbols of libc are now defined twice
-    # in the executable. As a result, warning LNK4098 is issued. This does obviously not occur on a release
-    # build of mcx (everything links to release build of libc), so this can only be a problem for us while developing.
-    # Therefore, it is ok to ignore this warning here. The only really clean solution is to get a debug version of
-    # all libraries we link against, so a debug mcx would only use the debug libc.
-    add_link_options($<$<CXX_COMPILER_ID:MSVC>:/IGNORE:4098>)
-endif()
+
+# External libraries are often linked to release builds of libc, while mcx in debug mode is linked
+# to the debug version of libc. This can cause problems as all symbols of libc are now defined twice
+# in the executable. As a result, warning LNK4098 is issued. This does obviously not occur on a release
+# build of mcx (everything links to release build of libc), so this can only be a problem for us while developing.
+# Therefore, it is ok to ignore this warning here. The only really clean solution is to get a debug version of
+# all libraries we link against, so a debug mcx would only use the debug libc.
+add_link_options($<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/IGNORE:4098>)
 
 
 if(ENABLE_STRICT_MODE)
