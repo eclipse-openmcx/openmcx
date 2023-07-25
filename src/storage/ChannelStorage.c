@@ -218,7 +218,7 @@ McxStatus ChannelStorageAllocateMemory(ChannelStorage * channelStore) {
         newSize = channelStore->numValuesAllocated * channels->Size(channels) * sizeof(ChannelValue);
         channelStore->values = (ChannelValue *)mcx_realloc(channelStore->values, newSize);
         if (!channelStore->values) {
-            mcx_log(LOG_DEBUG, "Results: Store ports: No memory for port values");
+            mcx_log(LOG_ERROR, "Results: Store ports: No memory for port values");
             return RETURN_ERROR;
         }
     }
