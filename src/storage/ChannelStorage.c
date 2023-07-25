@@ -171,6 +171,7 @@ static McxStatus ChannelStorageStoreFull(ChannelStorage * channelStore, double t
     if (channelStore->numValues + 1 > channelStore->numValuesAllocated) {
         size_t newSize = 0;
         if (channelStore->numValuesAllocated == 0) {
+            mcx_log(LOG_DEBUG, "Results: values not allocated before first storing, allocating now");
             channelStore->numValuesAllocated = 1;
         }
 
