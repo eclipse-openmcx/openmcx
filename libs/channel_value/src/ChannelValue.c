@@ -100,7 +100,7 @@ void ChannelTypeDestructor(ChannelType * type) {
     }
 }
 
-ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims) {
+ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, const size_t * dims) {
     ChannelType * array = NULL;
 
     if (!inner) {
@@ -153,7 +153,7 @@ ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, ui
     return array;
 }
 
-ChannelType * ChannelTypeArrayInner(ChannelType * array) {
+const ChannelType * ChannelTypeArrayInner(const ChannelType * array) {
     if (!ChannelTypeIsArray(array)) {
         return &ChannelTypeUnknown;
     }
@@ -250,7 +250,7 @@ int ChannelTypeUsesInt(const ChannelType * a) {
     return a->con == CHANNEL_INTEGER || a->con == CHANNEL_BOOL;
 }
 
-McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * inner) {
+McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, const ChannelType * inner) {
     a->numDims = numDims;
     a->dims = (size_t *) mcx_calloc(sizeof(size_t), numDims);
     if (!a->dims) {
@@ -258,7 +258,7 @@ McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelTy
     }
     memcpy(a->dims, dims, sizeof(size_t) * numDims);
 
-    a->type = inner;
+    a->type = (ChannelType *) inner;
     a->data = (void *) mcx_calloc(ChannelValueTypeSize(inner), mcx_array_num_elements(a));
     if (!a->data) {
         return RETURN_ERROR;
@@ -547,20 +547,20 @@ static int isSpecialChar(unsigned char c) {
     return (c < ' ' || c > '~');
 }
 
-size_t ChannelValueDataDoubleToBuffer(char * buffer, void * value, size_t i) {
+static size_t ChannelValueDataDoubleToBuffer(char * buffer, const void * value, size_t i) {
     const size_t precision = 13;
     return sprintf(buffer, "%*.*E", (unsigned) precision, (unsigned) precision, ((double *) value)[i]);
 }
 
-size_t ChannelValueDataIntegerToBuffer(char * buffer, void * value, size_t i) {
+static size_t ChannelValueDataIntegerToBuffer(char * buffer, const void * value, size_t i) {
     return sprintf(buffer, "%" PRId64, ((int64_t *) value)[i]);
 }
 
-size_t ChannelValueDataBoolToBuffer(char * buffer, void * value, size_t i) {
+static size_t ChannelValueDataBoolToBuffer(char * buffer, const void * value, size_t i) {
     return sprintf(buffer, "%1d", (((int64_t *) value)[i] != 0) ? 1 : 0);
 }
 
-char * ChannelValueToString(ChannelValue * value) {
+char * ChannelValueToString(const ChannelValue * value) {
     size_t i = 0;
     size_t length = 0;
     const size_t precision = 13;
@@ -672,7 +672,7 @@ char * ChannelValueToString(ChannelValue * value) {
     return buffer;
 }
 
-McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType * type, char * buffer, size_t len) {
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len) {
     size_t i = 0;
     size_t length = 0;
     const size_t precision = 13;
@@ -1357,7 +1357,7 @@ McxStatus ChannelIntegerAsIntArray(const ChannelValue * val, int * res) {
         mcx_log(LOG_ERROR, "Type error: Called integer array cast on scalar ChannelValue");
         return RETURN_ERROR;
     }
-    ChannelType * inner = ChannelTypeArrayInner(val->type);
+    const ChannelType * inner = ChannelTypeArrayInner(val->type);
     if (!ChannelTypeUsesInt(inner)) {
         mcx_log(LOG_ERROR, "Cannot convert non-integer (array) ChannelValue to an int array");
         return RETURN_ERROR;
@@ -1373,7 +1373,7 @@ McxStatus ChannelIntegerFromIntArray(ChannelValue * val, const int * in) {
         mcx_log(LOG_ERROR, "Type error: Called integer array cast on scalar ChannelValue");
         return RETURN_ERROR;
     }
-    ChannelType * inner = ChannelTypeArrayInner(val->type);
+    const ChannelType * inner = ChannelTypeArrayInner(val->type);
     if (!ChannelTypeUsesInt(inner)) {
         mcx_log(LOG_ERROR, "Cannot set int array to ChannelValue of non-integer type");
         return RETURN_ERROR;

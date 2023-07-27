@@ -60,13 +60,13 @@ extern ChannelType ChannelTypeBool;
 extern ChannelType ChannelTypeString;
 extern ChannelType ChannelTypeBinary;
 extern ChannelType ChannelTypeBinaryReference;
-ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
+ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, const size_t * dims);
 ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, uint64_t * dims);
 
 ChannelType * ChannelTypeClone(const ChannelType * type);
 void ChannelTypeDestructor(ChannelType * type);
 
-ChannelType * ChannelTypeArrayInner(ChannelType * array);
+const ChannelType * ChannelTypeArrayInner(const ChannelType * array);
 
 int ChannelTypeIsValid(const ChannelType * a);
 int ChannelTypeIsScalar(const ChannelType * a);
@@ -116,7 +116,7 @@ typedef struct {
     void * data;
 } mcx_array;
 
-McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * type);
+McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, const ChannelType * type);
 void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
 size_t mcx_array_num_elements(const mcx_array * a);
@@ -150,8 +150,8 @@ struct ChannelValue {
 // Takes ownership of type
 void   ChannelValueInit(ChannelValue * value, const ChannelType * type);
 void ChannelValueDestructor(ChannelValue * value);
-char * ChannelValueToString(ChannelValue * value);
-McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType * type, char * buffer, size_t len);
+char * ChannelValueToString(const ChannelValue * value);
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len);
 McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 
 ChannelType * ChannelValueType(ChannelValue * value);
