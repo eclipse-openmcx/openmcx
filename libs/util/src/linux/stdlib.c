@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#define _GNU_SOURCE 1 /* for qsort_r */
+#include "common/definitions.h"
 #include <stdlib.h>
 
 #include "util/stdlib.h"

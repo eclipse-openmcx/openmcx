@@ -11,6 +11,11 @@
 #ifndef MCX_COMMON_DEFINITIONS_H
 #define MCX_COMMON_DEFINITIONS_H
 
+#ifdef OS_LINUX
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif // _GNU_SOURCE
+#endif // OS_LINUX
 
 #define NUM_PI 3.141592653589793
 
@@ -18,6 +23,8 @@
 #define FALSE  0
 
 #define UNUSED(x) (void)(x)
+
+#include <math.h>
 
 #if defined _MSC_VER
 #ifndef __cplusplus

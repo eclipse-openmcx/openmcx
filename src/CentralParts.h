@@ -11,6 +11,8 @@
 #ifndef MCX_CENTRALPARTS_H
 #define MCX_CENTRALPARTS_H
 
+#include "common/definitions.h"
+
 #include "common/status.h"
 
 #if defined (OS_WINDOWS)
@@ -24,7 +26,6 @@
 #endif
 
 #if defined(OS_LINUX)
-#define _GNU_SOURCE 1 /* for qsort_r */
 #define _DEFAULT_SOURCE 1 /* for timersub */
 #include <sys/time.h>
 #include <math.h>
@@ -35,7 +36,6 @@
 #include <string.h>
 #include <errno.h>
 #include <float.h>
-#include <math.h>
 #include <limits.h>
 
 #ifdef __cplusplus
@@ -49,8 +49,6 @@ extern "C" {
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "common/definitions.h"
 
 #include "common/memory.h"
 

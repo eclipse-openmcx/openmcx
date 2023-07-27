@@ -11,10 +11,12 @@
 #ifndef MCX_CORE_CHANNELS_CHANNEL_VALUE_H
 #define MCX_CORE_CHANNELS_CHANNEL_VALUE_H
 
+#include "common/definitions.h"
 #include "common/status.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
 
 #ifdef __cplusplus
 extern "C" {
