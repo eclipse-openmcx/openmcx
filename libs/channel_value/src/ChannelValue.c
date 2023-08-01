@@ -356,6 +356,12 @@ size_t mcx_array_num_elements(const mcx_array * a) {
     return n;
 }
 
+size_t mcx_array_buffer_size(const mcx_array * a) {
+    size_t numel = mcx_array_num_elements(a);
+    size_t elem_size = ChannelValueTypeSize(a->type);
+    return numel * elem_size;
+}
+
 McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx) {
     size_t num_elems = mcx_array_num_elements(a);
     size_t i = 0;
@@ -928,7 +934,7 @@ McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType 
                 return RETURN_ERROR;
             }
 
-            memcpy(data->a.data, a->data, ChannelValueTypeSize(data->a.type) * mcx_array_num_elements(&data->a));
+            memcpy(data->a.data, a->data, mcx_array_buffer_size(&data->a));
         }
     case CHANNEL_UNKNOWN:
     default:
@@ -1027,7 +1033,7 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, const Channel
                     return RETURN_ERROR;
                 }
 
-                memcpy(a->data, value->a.data, ChannelValueTypeSize(a->type) * mcx_array_num_elements(a));
+                memcpy(a->data, value->a.data, mcx_array_buffer_size(a));
                 break;
             }
         case CHANNEL_UNKNOWN:
@@ -1284,7 +1290,7 @@ ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType *
     ChannelValueInit(value, ChannelTypeArray(type, numDims, dims));
 
     if (value->value.a.data && data) {
-        memcpy(value->value.a.data, data, ChannelValueTypeSize(type) * mcx_array_num_elements(&value->value.a));
+        memcpy(value->value.a.data, data, mcx_array_buffer_size(&value->value.a));
     }
 
     return value;

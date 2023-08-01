@@ -120,6 +120,7 @@ McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, const Cha
 void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
 size_t mcx_array_num_elements(const mcx_array * a);
+size_t mcx_array_buffer_size(const mcx_array * a);
 
 typedef int (*mcx_array_map_f_ptr)(void * element, size_t idx, ChannelType * type, void * ctx);
 
