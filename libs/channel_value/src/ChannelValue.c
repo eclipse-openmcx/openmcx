@@ -566,29 +566,29 @@ static size_t ChannelValueDataBoolToBuffer(char * buffer, const void * value, si
     return sprintf(buffer, "%1d", (((int64_t *) value)[i] != 0) ? 1 : 0);
 }
 
-char * ChannelValueToString(const ChannelValue * value) {
+char * ChannelValueDataToString(const ChannelValueData * value, const ChannelType * type) {
     size_t i = 0;
     size_t length = 0;
     const size_t precision = 13;
     const uint32_t digits_of_exp = 4; // = (mcx_digits10(DBL_MAX_10_EXP) + 1 /* sign */
     char * buffer = NULL;
 
-    switch (value->type->con) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
         }
-        ChannelValueDataDoubleToBuffer(buffer, &value->value.d, 0);
+        ChannelValueDataDoubleToBuffer(buffer, &value->d, 0);
         break;
     case CHANNEL_INTEGER:
-        length = 1 /* sign */ + mcx_digits10(llabs(value->value.i)) + 1 /* string termination*/;
+        length = 1 /* sign */ + mcx_digits10(llabs(value->i)) + 1 /* string termination*/;
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
         }
-        ChannelValueDataIntegerToBuffer(buffer, &value->value.i, 0);
+        ChannelValueDataIntegerToBuffer(buffer, &value->i, 0);
         break;
     case CHANNEL_BOOL:
         length = 2;
@@ -596,18 +596,18 @@ char * ChannelValueToString(const ChannelValue * value) {
         if (!buffer) {
             return NULL;
         }
-        ChannelValueDataBoolToBuffer(buffer, &value->value.i, 0);
+        ChannelValueDataBoolToBuffer(buffer, &value->i, 0);
         break;
     case CHANNEL_STRING:
-        if (!value->value.s) {
+        if (!value->s) {
             return NULL;
         }
-        length = strlen(value->value.s) + 1 /* string termination */;
+        length = strlen(value->s) + 1 /* string termination */;
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
         }
-        sprintf(buffer, "%s", value->value.s);
+        sprintf(buffer, "%s", value->s);
         // remove all non printable characters and quotation marks
         if (length > 0) {
             for (i = 0; i < length - 1; i++) {
@@ -619,7 +619,7 @@ char * ChannelValueToString(const ChannelValue * value) {
         break;
     case CHANNEL_BINARY:
     case CHANNEL_BINARY_REFERENCE:
-        length = value->value.b.len * 4 + 1;
+        length = value->b.len * 4 + 1;
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
@@ -627,45 +627,45 @@ char * ChannelValueToString(const ChannelValue * value) {
         {
             size_t i = 0;
 
-            for (i = 0; i < value->value.b.len; i++) {
+            for (i = 0; i < value->b.len; i++) {
                 // specifier: x (hex integer) -----+
                 // length: 2 (unsigned char) -----+|
                 // width: 2 --------------------+ ||
                 // flag: 0-padded -------------+| ||
                 //                             || ||
                 // string literal "\x" ------+ || ||
-                sprintf(buffer + (4 * i), "\\x%02hhx", value->value.b.data[i]);
+                sprintf(buffer + (4 * i), "\\x%02hhx", value->b.data[i]);
             }
         }
         break;
     case CHANNEL_ARRAY:{
-        size_t (*fmt)(char * buffer, void * value, size_t i);
+        size_t (*fmt)(char * buffer, const void * value, size_t i);
 
-        if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeDouble)) {
+        if (ChannelTypeEq(ChannelTypeArrayInner(type), &ChannelTypeDouble)) {
             fmt = ChannelValueDataDoubleToBuffer;
-        } else if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeInteger)) {
+        } else if (ChannelTypeEq(ChannelTypeArrayInner(type), &ChannelTypeInteger)) {
             fmt = ChannelValueDataIntegerToBuffer;
-        } else if (ChannelTypeEq(ChannelTypeArrayInner(value->type), &ChannelTypeBool)) {
+        } else if (ChannelTypeEq(ChannelTypeArrayInner(type), &ChannelTypeBool)) {
             fmt = ChannelValueDataBoolToBuffer;
         } else {
             return NULL;
         }
 
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
-        length *= mcx_array_num_elements(&value->value.a);
+        length *= mcx_array_num_elements(&value->a);
         buffer = (char *) mcx_malloc(sizeof(char) * length);
         if (!buffer) {
             return NULL;
         }
 
-        if (mcx_array_num_elements(&value->value.a) > 0) {
+        if (mcx_array_num_elements(&value->a) > 0) {
             size_t i = 0;
             size_t n = 0;
 
-            n += fmt(buffer + n, value->value.a.data, 0);
-            for (i = 1; i < mcx_array_num_elements(&value->value.a); i++) {
+            n += fmt(buffer + n, value->a.data, 0);
+            for (i = 1; i < mcx_array_num_elements(&value->a); i++) {
                 n += sprintf(buffer + n, ",");
-                n += fmt(buffer + n, value->value.a.data, i);
+                n += fmt(buffer + n, value->a.data, i);
             }
         }
 
@@ -676,6 +676,10 @@ char * ChannelValueToString(const ChannelValue * value) {
     }
 
     return buffer;
+}
+
+char * ChannelValueToString(const ChannelValue * value) {
+    return ChannelValueDataToString(&value->value, value->type);
 }
 
 McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len) {
