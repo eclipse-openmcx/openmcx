@@ -876,6 +876,38 @@ McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data
     return RETURN_OK;
 }
 
+McxStatus ChannelValueDataShallowCopy(const ChannelValueData * in, ChannelValueData * out, const ChannelType * type) {
+    if (!in || !out || !type) {
+        mcx_log(LOG_ERROR, "Cannot copy NULL ChannelValueData");
+        return RETURN_ERROR;
+    }
+
+    switch (type->con) {
+        case CHANNEL_INTEGER:
+        case CHANNEL_BOOL:
+            out->i = in->i;
+            break;
+        case CHANNEL_DOUBLE:
+            out->d = in->d;
+            break;
+        case CHANNEL_STRING:
+            out->s = in->s;
+            break;
+        case CHANNEL_BINARY:
+        case CHANNEL_BINARY_REFERENCE:
+            out->b = in->b;
+            break;
+        case CHANNEL_ARRAY:
+            out->a = in->a;
+            break;
+        default:
+            mcx_log(LOG_ERROR, "Cannot deduce ChannelType for ChannelValueData copying");
+            return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference) {
     if (!reference) { return RETURN_OK; }
 

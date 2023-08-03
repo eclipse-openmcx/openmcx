@@ -161,6 +161,7 @@ void *      ChannelValueDataPointer(ChannelValue * value);
 
 void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
 void ChannelValueDataInit(ChannelValueData * data, const ChannelType * type);
+McxStatus ChannelValueDataShallowCopy(const ChannelValueData * in, ChannelValueData * out, const ChannelType * type);
 McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
 typedef int (*fChannelValueDataSetterPredicate)(const void * first, const void * second, ChannelType * type);
 McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data,
