@@ -13,6 +13,7 @@
 
 #include "util/intconv.h"
 #include "util/stdlib.h"
+#include "util/string.h"
 
 #include "common/logging.h"
 #include "common/memory.h"
@@ -21,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +49,121 @@ char * CreateIndexedName(const char * name, unsigned i) {
     snprintf(buffer, len, "%s[%d]", name, i);
 
     return buffer;
+}
+
+
+void IndexedChannelNameDestructor(IndexedChannelName * icn) {
+    if (icn->indices != NULL) {
+        mcx_free(icn->indices);
+    }
+    if (icn->name != NULL) {
+        mcx_free(icn->name);
+    }
+}
+
+static IndexedChannelName * RecursiveNameIndexer(IndexedChannelName * names, size_t * fixed_dims, size_t num_fixed_dims, ChannelValue * cv, const char * base) {
+    // if we have fixed all dimensions, add a new IndexedChannelName to the list
+    if (num_fixed_dims == cv->type->ty.a.numDims) {
+        names->num_dims = num_fixed_dims;
+        names->linear_idx = mcx_array_elem_idx(&cv->value.a, fixed_dims);
+        names->indices = mcx_calloc(num_fixed_dims, sizeof(size_t));
+        if (names->indices == NULL) {
+            goto out_of_memory;
+        }
+        size_t * ref = memcpy(names->indices, fixed_dims, sizeof(size_t) * num_fixed_dims);
+        if (ref != names->indices) {
+            mcx_log(LOG_ERROR, "Cannot create indexed names: Cannot copy indices");
+            return NULL;
+        }
+        names->name = mcx_string_copy(base);
+        if (names->name == NULL) {
+            goto out_of_memory;
+        }
+        return ++names;
+    }
+
+    // we are not yet finished, so recursively add the next index
+    size_t idx = 0;
+    IndexedChannelName * current_names_head = names;
+    for (idx = 0; idx < cv->type->ty.a.dims[num_fixed_dims]; idx++) {
+        fixed_dims[num_fixed_dims] = idx;
+        char * new_name = CreateIndexedName(base, (unsigned int) idx);
+        if (new_name == NULL) {
+            goto out_of_memory;
+        }
+        current_names_head = RecursiveNameIndexer(current_names_head, fixed_dims, num_fixed_dims + 1, cv, new_name);
+        mcx_free(new_name);
+        if (current_names_head == NULL) {
+            return NULL;
+        }
+    }
+    return current_names_head;
+
+out_of_memory:
+    mcx_log(LOG_ERROR, "Cannot create indexed names: Out of memory");
+    return NULL;
+}
+
+IndexedChannelName * ChannelValueGetIndexedNames(ChannelValue * cv, const char * name, size_t * num_out) {
+    IndexedChannelName * icn = NULL;
+    if (ChannelTypeIsArray(cv->type)) {
+        size_t numel = mcx_array_num_elements(&cv->value.a);
+        icn = mcx_calloc(numel, sizeof(IndexedChannelName));
+        if (icn == NULL) {
+            goto out_of_memory;
+        }
+        size_t * fixed_dims = mcx_calloc(cv->type->ty.a.numDims, sizeof(size_t));
+        if (fixed_dims == NULL) {
+            mcx_free(icn);
+            goto out_of_memory;
+        }
+        IndexedChannelName * ref = RecursiveNameIndexer(icn, fixed_dims, 0, cv, name);
+        if (ref == NULL) {
+            mcx_log(LOG_ERROR, "Creating indexed names failed");
+            mcx_free(icn);
+            return NULL;
+        }
+        if (ref != icn + numel) {
+            mcx_log(LOG_ERROR, "Creating indexed names failed: Missing elements");
+            mcx_free(icn);
+            return NULL;
+        }
+        if (num_out != NULL) {
+            *num_out = numel;
+        }
+    } else {
+        icn = mcx_calloc(1, sizeof(IndexedChannelName));
+        if (icn == NULL) {
+            goto out_of_memory;
+        }
+        icn->num_dims = 0;
+        icn->linear_idx = 0;
+        icn->indices = NULL;
+        icn->name = mcx_string_copy(name);
+        if (icn->name == NULL) {
+            mcx_free(icn);
+            goto out_of_memory;
+        }
+        if (num_out != NULL) {
+            *num_out = 1;
+        }
+    }
+
+    return icn;
+
+out_of_memory:
+    mcx_log(LOG_ERROR, "Cannot create indexed names: Out of memory");
+    if (num_out != NULL) {
+        *num_out = 0;
+    }
+    return NULL;
+}
+
+void ChannelValueDestroyIndexedNames(IndexedChannelName * icns, size_t num_values) {
+    for (IndexedChannelName * icn = icns; icn < icns + num_values; ++icn) {
+        IndexedChannelNameDestructor(icn);
+    }
+    mcx_free(icns);
 }
 
 
@@ -360,6 +477,20 @@ size_t mcx_array_buffer_size(const mcx_array * a) {
     size_t numel = mcx_array_num_elements(a);
     size_t elem_size = ChannelValueTypeSize(a->type);
     return numel * elem_size;
+}
+
+size_t mcx_array_elem_idx(mcx_array * a, const size_t * indices) {
+    size_t idx = 0;
+
+    for (size_t i = 0; i < a->numDims; i++) {
+        if (i != 0) {
+            idx *= a->dims[i];
+        }
+
+        idx += indices[i];
+    }
+
+    return idx;
 }
 
 McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx) {

@@ -24,8 +24,21 @@ extern "C" {
 
 
 typedef struct ChannelDimension ChannelDimension;
+typedef struct ChannelValue ChannelValue;
 
 char * CreateIndexedName(const char * name, unsigned i);
+
+typedef struct IndexedChannelName {
+    size_t num_dims;
+    size_t linear_idx;
+    size_t * indices;
+    char * name;
+} IndexedChannelName;
+
+void IndexedChannelNameDestructor(IndexedChannelName * icn);
+
+IndexedChannelName * ChannelValueGetIndexedNames(ChannelValue * cv, const char * name, size_t * num_out);
+void ChannelValueDestroyIndexedNames(IndexedChannelName * icns, size_t num_values);
 
 // possible types of values that can be put on channels
 typedef enum ChannelTypeConstructor {
@@ -121,6 +134,7 @@ void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
 size_t mcx_array_num_elements(const mcx_array * a);
 size_t mcx_array_buffer_size(const mcx_array * a);
+size_t mcx_array_elem_idx(mcx_array * a, const size_t * indices);
 
 typedef int (*mcx_array_map_f_ptr)(void * element, size_t idx, ChannelType * type, void * ctx);
 
