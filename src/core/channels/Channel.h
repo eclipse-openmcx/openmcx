@@ -174,7 +174,7 @@ typedef McxStatus (* fChannelInSetup)(ChannelIn * in, struct ChannelInfo * info)
 
 typedef McxStatus  (* fChannelInSetReference) (ChannelIn   * in,
                                                void        * reference,
-                                               ChannelType * type);
+                                               const ChannelType * type);
 
 typedef struct Vector * (* fChannelInGetConnectionInfos)(ChannelIn * in);
 

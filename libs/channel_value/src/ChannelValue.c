@@ -479,7 +479,7 @@ size_t mcx_array_buffer_size(const mcx_array * a) {
     return numel * elem_size;
 }
 
-size_t mcx_array_elem_idx(mcx_array * a, const size_t * indices) {
+size_t mcx_array_elem_idx(const mcx_array * a, const size_t * indices) {
     size_t idx = 0;
 
     for (size_t i = 0; i < a->numDims; i++) {
@@ -648,7 +648,7 @@ void ChannelValueInit(ChannelValue * value, const ChannelType * type) {
     ChannelValueDataInit(&value->value, type);
 }
 
-void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type) {
+void ChannelValueDataDestructor(ChannelValueData * data, const ChannelType * type) {
     if (type->con == CHANNEL_STRING) {
         if (data->s) {
             mcx_free(data->s);
@@ -904,7 +904,7 @@ McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, 
     return ChannelValueDataToStringBuffer(&value->value, value->type, buffer, len);
 }
 
-ChannelType * ChannelValueType(ChannelValue * value) {
+ChannelType * ChannelValueType(const ChannelValue * value) {
     return value->type;
 }
 
@@ -1039,7 +1039,7 @@ McxStatus ChannelValueDataShallowCopy(const ChannelValueData * in, ChannelValueD
     return RETURN_OK;
 }
 
-McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference) {
+McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, const ChannelType * type, const void * reference) {
     if (!reference) { return RETURN_OK; }
 
     switch (type->con) {
@@ -1284,7 +1284,7 @@ const char * ChannelTypeToString(const ChannelType * type) {
     }
 }
 
-ChannelValue * ChannelValueClone(ChannelValue * value) {
+ChannelValue * ChannelValueClone(const ChannelValue * value) {
     if (!value) { return NULL; }
 
     ChannelValue * clone = (ChannelValue *) mcx_malloc(sizeof(ChannelValue));

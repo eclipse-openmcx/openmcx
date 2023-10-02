@@ -239,7 +239,7 @@ static void ChannelInDataDestructor(ChannelInData * data) {
     }
 }
 
-static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, ChannelType * type) {
+static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, const ChannelType * type) {
     Channel * ch = (Channel *) in;
     ChannelInfo * info = &ch->info;
 

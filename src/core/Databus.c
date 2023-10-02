@@ -1026,7 +1026,7 @@ McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const voi
     return out->SetReferenceFunction(out, (const proc *) reference, type);
 }
 
-McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, ChannelType *  type) {
+McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, const ChannelType *  type) {
     ChannelIn * in = NULL;
     ChannelInfo * info = NULL;
 

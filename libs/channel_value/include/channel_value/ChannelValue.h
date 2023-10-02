@@ -134,7 +134,7 @@ void mcx_array_destroy(mcx_array * a);
 int mcx_array_dims_match(mcx_array * a, mcx_array * b);
 size_t mcx_array_num_elements(const mcx_array * a);
 size_t mcx_array_buffer_size(const mcx_array * a);
-size_t mcx_array_elem_idx(mcx_array * a, const size_t * indices);
+size_t mcx_array_elem_idx(const mcx_array * a, const size_t * indices);
 
 typedef int (*mcx_array_map_f_ptr)(void * element, size_t idx, ChannelType * type, void * ctx);
 
@@ -170,13 +170,13 @@ char * ChannelValueToString(const ChannelValue * value);
 McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len);
 McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 
-ChannelType * ChannelValueType(ChannelValue * value);
+ChannelType * ChannelValueType(const ChannelValue * value);
 void *      ChannelValueDataPointer(ChannelValue * value);
 
-void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
+void ChannelValueDataDestructor(ChannelValueData * data, const ChannelType * type);
 void ChannelValueDataInit(ChannelValueData * data, const ChannelType * type);
 McxStatus ChannelValueDataShallowCopy(const ChannelValueData * in, ChannelValueData * out, const ChannelType * type);
-McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
+McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, const ChannelType * type, const void * reference);
 typedef int (*fChannelValueDataSetterPredicate)(const void * first, const void * second, ChannelType * type);
 McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data,
                                                          ChannelType * type,
@@ -208,7 +208,7 @@ const char * ChannelTypeToString(const ChannelType * type);
  * Creates a copy of value. Allocates memory if needed, e.g. when
  * value is of type CHANNEL_STRING.
  */
-ChannelValue * ChannelValueClone(ChannelValue * value);
+ChannelValue * ChannelValueClone(const ChannelValue * value);
 
 /*
  * If both val1 and val2 have the same ChannelType that is either
