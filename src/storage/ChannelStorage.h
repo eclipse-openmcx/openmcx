@@ -31,6 +31,7 @@ typedef ChannelValue (* fChannelStorageGetValueAt)(ChannelStorage * channelStore
 typedef ChannelValue * (* fChannelStorageGetValuesAtRow)(ChannelStorage * channelStore, size_t row);
 typedef size_t (* fChannelStorageLength)(ChannelStorage * channelStore);
 typedef struct ChannelInfo * (* fChannelStorageGetChannelInfo)(ChannelStorage * channelStore, size_t idx);
+typedef McxStatus (* fChannelStorageSetSignedness)(ChannelStorage * channelStore, size_t idx, int isUnsigned);
 
 extern const struct ObjectClass _ChannelStorage;
 
@@ -49,12 +50,16 @@ typedef struct ChannelStorage {
 
     fChannelStorageGetChannelInfo GetChannelInfo;
 
+    fChannelStorageSetSignedness SetSignedness;
+
     ObjectContainer * channels; /* of Channel */
 
     // the vector of values
     size_t numValues; /* number of rows used*/
     size_t numValuesAllocated; /* number of rows allocated */
     ChannelValue * values; /* of size numValuesAllocated * descriptions->Size() */
+    size_t numIsUnsignedAllocated;
+    int * isUnsigned;
 
     double lastStored;
 

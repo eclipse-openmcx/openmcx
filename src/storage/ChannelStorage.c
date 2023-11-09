@@ -51,6 +51,24 @@ static McxStatus ChannelStorageRegisterChannelInternal(ChannelStorage * channelS
         return RETURN_ERROR;
     }
 
+    /* ensure isUnsigned is not full */
+    while (channels->Size(channels) > channelStore->numIsUnsignedAllocated) {
+        if (channelStore->numIsUnsignedAllocated == 0) {
+            channelStore->numIsUnsignedAllocated = 1;
+        } else {
+            channelStore->numIsUnsignedAllocated *= 2;
+        }
+        int * new_is_unsigned = mcx_realloc(channelStore->isUnsigned, channelStore->numIsUnsignedAllocated * sizeof(int));
+        if (new_is_unsigned == NULL) {
+            mcx_log(LOG_ERROR, "Results: Cannot allocate memory for sign of results: Out of memory");
+            return RETURN_ERROR;
+        }
+        channelStore->isUnsigned = new_is_unsigned;
+    }
+
+    size_t idx = channels->Size(channels) - 1;
+    channelStore->isUnsigned[idx] = FALSE;
+
     return RETURN_OK;
 }
 
@@ -64,6 +82,15 @@ static McxStatus ChannelStorageRegisterChannel(ChannelStorage * channelStore, Ch
     }
 
     return ChannelStorageRegisterChannelInternal(channelStore, channel);
+}
+
+static McxStatus ChannelStorageSetSignedness(ChannelStorage * channelStore, size_t idx, int isUnsigned) {
+    if (idx >= channelStore->numIsUnsignedAllocated) {
+        mcx_log(LOG_ERROR, "Results: Cannot set signedness at index %zu: Out of bounds", idx);
+        return RETURN_ERROR;
+    }
+    channelStore->isUnsigned[idx] = isUnsigned;
+    return RETURN_OK;
 }
 
 static McxStatus ChannelStorageSetup(ChannelStorage * channelStore, int fullStorage) {
@@ -314,6 +341,10 @@ static void ChannelStorageDestructor(ChannelStorage * channelStore) {
 
             object_destroy(channels);
         }
+
+        if (channelStore->isUnsigned) {
+            mcx_free(channelStore->isUnsigned);
+        }
     }
 }
 
@@ -330,6 +361,8 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
     channelStore->Length = ChannelStorageLength;
     channelStore->GetChannelInfo = ChannelStorageGetChannelInfo;
 
+    channelStore->SetSignedness = ChannelStorageSetSignedness;
+
     channelStore->channels = (ObjectContainer *) object_create(ObjectContainer);
     if (!channelStore->channels) {
         return NULL;
@@ -338,6 +371,8 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
     channelStore->numValues = 0;
     channelStore->numValuesAllocated = 0;
     channelStore->values    = NULL;
+    channelStore->isUnsigned = NULL;
+    channelStore->numIsUnsignedAllocated = 0;
 
     channelStore->lastStored = -1.0;
 
