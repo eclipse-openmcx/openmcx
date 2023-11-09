@@ -200,7 +200,7 @@ static char * QuoteString(const char * _str) {
     return newStr;
 }
 
-static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels, const char * separator) {
+static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels, const char * separator, int * isUnsigned) {
     size_t channel = 0;
     char staticBuffer[32];
     int storedLen = 0;
@@ -226,7 +226,7 @@ static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels
         case CHANNEL_BOOL:
             /* fixed length values */
 
-            retVal = ChannelValueToStringBuffer(&val, staticBuffer, 32);
+            retVal = ChannelValueToStringBufferSignedness(&val, staticBuffer, 32, isUnsigned[channel]);
             if (RETURN_OK == retVal) {
                 mcx_os_fprintf(file, "%s%s", sep, staticBuffer);
             } else {
@@ -275,6 +275,7 @@ static McxStatus StoreChannelValues(StorageBackend * backend, ChannelStoreType c
     StorageBackendText * textBackend = (StorageBackendText *) backend;
     ResultsStorage * storage = backend->storage;
     ComponentStorage * compStore = storage->componentStorage[comp];
+    ChannelStorage * channelStore = compStore->channels[chType];
     TextFile * textFile = NULL;
     McxStatus retVal;
 
@@ -285,7 +286,7 @@ static McxStatus StoreChannelValues(StorageBackend * backend, ChannelStoreType c
 
     textFile = &(textBackend->comps[comp].files[chType]);
 
-    retVal = WriteRow(textFile->fp, values, num, textBackend->separator);
+    retVal = WriteRow(textFile->fp, values, num, textBackend->separator, channelStore->isUnsigned);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Results: Could not write result row for \"%s\"", textFile->name);
         return RETURN_ERROR;
@@ -357,7 +358,13 @@ static McxStatus FinishedFull(StorageBackend * backend) {
 
             if (storage->channelStoreEnabled[chType] && textFile) {
                 for (chIdx = 0; chIdx < chStore->Length(chStore); chIdx++) {
-                    McxStatus retVal = WriteRow(textFile->fp, chStore->GetValuesAtRow(chStore, chIdx), chStore->GetChannelNum(chStore), textBackend->separator);
+                    McxStatus retVal = WriteRow(
+                        textFile->fp,
+                        chStore->GetValuesAtRow(chStore, chIdx),
+                        chStore->GetChannelNum(chStore),
+                        textBackend->separator,
+                        chStore->isUnsigned
+                    );
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Results: Could not write result row for %s", textFile->name);
                         finishedStatus = RETURN_ERROR;

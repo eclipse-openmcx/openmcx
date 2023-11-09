@@ -167,6 +167,8 @@ void   ChannelValueInit(ChannelValue * value, const ChannelType * type);
 void ChannelValueDestructor(ChannelValue * value);
 char * ChannelValueDataToString(const ChannelValueData * value, const ChannelType * type);
 char * ChannelValueToString(const ChannelValue * value);
+McxStatus ChannelValueDataToStringBufferSignedness(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len, int isUnsigned);
+McxStatus ChannelValueToStringBufferSignedness(const ChannelValue * value, char * buffer, size_t len, int isUnsigned);
 McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len);
 McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 

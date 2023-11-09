@@ -813,7 +813,7 @@ char * ChannelValueToString(const ChannelValue * value) {
     return ChannelValueDataToString(&value->value, value->type);
 }
 
-McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len) {
+McxStatus ChannelValueDataToStringBufferSignedness(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len, int isUnsigned) {
     size_t i = 0;
     size_t length = 0;
     const size_t precision = 13;
@@ -836,7 +836,13 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const C
             mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
             return RETURN_ERROR;
         }
-        sprintf(buffer, "%" PRId64, value->i);
+        const char * schema = NULL;
+        if (isUnsigned) {
+            schema = "%" PRIu64;
+        } else {
+            schema = "%" PRId64;
+        }
+        sprintf(buffer, schema, value->i);
         break;
     case CHANNEL_BOOL:
         length = 2;
@@ -900,8 +906,16 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const C
     return RETURN_OK;
 }
 
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, const ChannelType * type, char * buffer, size_t len) {
+    return ChannelValueDataToStringBufferSignedness(value, type, buffer, len, FALSE);
+}
+
+McxStatus ChannelValueToStringBufferSignedness(const ChannelValue * value, char * buffer, size_t len, int isUnsigned) {
+    return ChannelValueDataToStringBufferSignedness(&value->value, value->type, buffer, len, isUnsigned);
+}
+
 McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len) {
-    return ChannelValueDataToStringBuffer(&value->value, value->type, buffer, len);
+    return ChannelValueToStringBufferSignedness(value, buffer, len, FALSE);
 }
 
 ChannelType * ChannelValueType(const ChannelValue * value) {
