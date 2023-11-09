@@ -45,10 +45,6 @@ struct ComponentStorage {
     fComponentStorageFinished Finished;
 
     fComponentStorageRegisterChannel RegisterChannel;
-    fComponentStorageGetChannelNum GetChannelNum;
-    fComponentStorageGetChannelNum GetChannelInNum;
-    fComponentStorageGetChannelNum GetChannelOutNum;
-
     fComponentStorageDisableStorage DisableStorage;
 
     fComponentStorageRead Read;
