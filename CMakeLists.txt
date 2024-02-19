@@ -14,6 +14,9 @@ cmake_policy(SET CMP0077 NEW)  # multiple option calls do not remove/update vari
 
 project(openmcx C CXX)
 
+set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
+
 
 # project options
 option(ENABLE_MT "Turn on multithreading support" ON)
