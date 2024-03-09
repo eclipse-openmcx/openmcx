@@ -33,7 +33,7 @@ typedef enum ChannelTypeConstructor {
     CHANNEL_STRING = 4,
     CHANNEL_BINARY = 5,
     CHANNEL_BINARY_REFERENCE = 6,
-    CHANNEL_ARRAY = 7,
+    CHANNEL_ARRAY = 7
 } ChannelTypeConstructor;
 
 typedef struct ChannelTypeArrayType {

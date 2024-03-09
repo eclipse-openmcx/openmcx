@@ -458,6 +458,18 @@ McxStatus ComponentExitInitializationMode(Component * comp) {
     return RETURN_OK;
 }
 
+McxStatus ComponentEnterEventMode(Component * comp) {
+    return RETURN_OK;
+}
+
+McxStatus ComponentExitEventMode(Component * comp) {
+    return RETURN_OK;
+}
+
+int ComponentInEventMode(Component * comp) {
+    return FALSE;
+}
+
 static McxStatus ComponentUpdateInitialOutChannels(Component * comp) {
     return RETURN_OK;
 }
@@ -1199,6 +1211,10 @@ static Component * ComponentCreate(Component * comp) {
     comp->UpdateInitialOutChannels = ComponentUpdateInitialOutChannels;
     comp->UpdateOutChannels = NULL;
     comp->UpdateInChannels = NULL;
+
+    comp->EnterEventMode = ComponentEnterEventMode;
+    comp->InEventMode = ComponentInEventMode;
+    comp->ExitEventMode = ComponentExitEventMode;
 
     comp->RegisterStorage = ComponentRegisterStorage;
     comp->GetStorage = ComponentGetStorage;

@@ -23,8 +23,6 @@ ChannelType ChannelTypeBool = { CHANNEL_BOOL, NULL};
 ChannelType ChannelTypeString = { CHANNEL_STRING, NULL};
 ChannelType ChannelTypeBinary = { CHANNEL_BINARY, NULL};
 ChannelType ChannelTypeBinaryReference = { CHANNEL_BINARY_REFERENCE, NULL};
-
-
 char * CreateIndexedName(const char * name, unsigned i) {
     size_t len = 0;
     char * buffer = NULL;

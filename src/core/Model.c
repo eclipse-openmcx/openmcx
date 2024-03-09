@@ -313,7 +313,8 @@ static McxStatus ModelPreprocessBinaryConnections(Model * model) {
 
     McxStatus retVal = RETURN_OK;
 
-    if (task->stepTypeType != STEP_TYPE_SEQUENTIAL) {
+    if (task->stepTypeType != STEP_TYPE_SEQUENTIAL
+    ) {
         return RETURN_OK;
     }
 
@@ -880,7 +881,8 @@ static McxStatus ModelMakeConnections(Model * model) {
 
     InterExtrapolatingType isInterExtrapolating = INTERPOLATING;
 
-    if (STEP_TYPE_SEQUENTIAL == type) {
+    if (STEP_TYPE_SEQUENTIAL == type
+    ) {
         isInterExtrapolating = INTERPOLATING;
     } else {
         isInterExtrapolating = EXTRAPOLATING;
