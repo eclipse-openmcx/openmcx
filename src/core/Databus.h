@@ -292,6 +292,9 @@ size_t DatabusInfoGetNumWriteChannels(DatabusInfo * dbInfo);
 
 /* internal */
 
+int DatabusInChannelsDefined(Databus * db);
+int DatabusOutChannelsDefined(Databus * db);
+
 /**
  * Accessor function for the \a i-th in channel of \a db.
  *

@@ -973,6 +973,13 @@ static VectorChannelInfo * DatabusInfoGetVectorChannelInfo(DatabusInfo * info, s
     return (VectorChannelInfo *) info->data->origInfos->At(info->data->origInfos, i);
 }
 
+int DatabusInChannelsDefined(Databus * db) {
+    return db->data->in != NULL;
+}
+
+int DatabusOutChannelsDefined(Databus* db) {
+    return db->data->out != NULL;
+}
 
 ChannelIn * DatabusGetInChannel(Databus * db, size_t i) {
     DatabusInfo * info = NULL;

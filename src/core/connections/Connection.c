@@ -35,19 +35,23 @@ extern "C" {
 
 static void UpdateInChannelInfo(Component * comp, size_t idx) {
     Databus * db = comp->GetDatabus(comp);
-    Channel * channel = (Channel *) DatabusGetInChannel(db, idx);
 
-    if (channel) {
-        channel->info.connected = 1;
+    if (DatabusInChannelsDefined(db)) {
+        Channel * channel = (Channel *) DatabusGetInChannel(db, idx);
+        if (channel) {
+            channel->info.connected = 1;
+        }
     }
 }
 
 static void UpdateOutChannelInfo(Component * comp, size_t idx) {
     Databus * db = comp->GetDatabus(comp);
-    Channel * channel = (Channel *) DatabusGetOutChannel(db, idx);
 
-    if (channel) {
-        channel->info.connected = 1;
+    if (DatabusOutChannelsDefined(db)) {
+        Channel * channel = (Channel *) DatabusGetOutChannel(db, idx);
+        if (channel) {
+            channel->info.connected = 1;
+        }
     }
 }
 
