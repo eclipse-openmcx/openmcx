@@ -316,7 +316,7 @@ int IsStepTypeMultiThreading(StepTypeType type) {
            );
 }
 
-static McxStatus StepTypeConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel) {
+static McxStatus StepTypeConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel, Model * model) {
     return RETURN_OK;
 }
 

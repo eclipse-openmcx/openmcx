@@ -26,12 +26,12 @@ extern "C" {
 #endif /* __cplusplus */
 
 static MapStringChannelType _typeMapping[] = {
-    {"Real",        &ChannelTypeDouble},
-    {"Integer",     &ChannelTypeInteger},
-    {"Boolean",     &ChannelTypeBool},
-    {"String",      &ChannelTypeString},
-    {"Binary",      &ChannelTypeBinary},
-    {NULL,          &ChannelTypeUnknown},
+    {   "Real",  &ChannelTypeDouble},
+    {"Integer", &ChannelTypeInteger},
+    {"Boolean",    &ChannelTypeBool},
+    { "String",  &ChannelTypeString},
+    { "Binary",  &ChannelTypeBinary},
+    {     NULL, &ChannelTypeUnknown},
 };
 
 static MapStringChannelType _vectorTypeMapping[] = {

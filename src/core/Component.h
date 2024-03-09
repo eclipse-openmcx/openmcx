@@ -48,6 +48,10 @@ typedef McxStatus (* fComponentExitInitializationMode)(Component * comp);
 typedef McxStatus (* fComponentUpdateInitialOutChannels)(Component * comp);
 typedef McxStatus (* fComponentUpdateOutChannels)(Component * comp);
 
+typedef McxStatus (*fComponentEnterEventMode)(Component * comp);
+typedef McxStatus (*fComponentExitEventMode)(Component * comp);
+typedef int (*fComponentInEventMode)(Component * comp);
+
 typedef McxStatus (* fComponentUpdateInChannels)(Component * comp);
 
 typedef int (* fComponentContainsComponent)(Component * comp, const Component * otherComp);
@@ -124,6 +128,10 @@ struct Component {
 
     fComponentInitialize Initialize;
     fComponentExitInitializationMode ExitInitializationMode;
+
+    fComponentEnterEventMode EnterEventMode;
+    fComponentExitEventMode ExitEventMode;
+    fComponentInEventMode InEventMode;
 
     /**
      * Updates the initial values of the output channels depending on the

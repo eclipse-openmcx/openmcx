@@ -203,7 +203,7 @@ static McxStatus ParallelMTDoStep(StepType * stepType, StepTypeParams * params, 
     return RETURN_OK;
 }
 
-static McxStatus ParallelMTConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel) {
+static McxStatus ParallelMTConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel, Model * model) {
     StepTypeParallelMT * parallelMTType = (StepTypeParallelMT *) stepType;
 
     DoStepThreadCounter * counter = parallelMTType->counter;
