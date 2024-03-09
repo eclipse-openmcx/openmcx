@@ -38,6 +38,7 @@ static StorageBackend * StorageBackendCreate(StorageBackend * backend) {
     backend->Configure = NULL;
     backend->Setup = NULL;
     backend->Store = NULL;
+    backend->StoreChannelValues = NULL;
     backend->Finished = NULL;
 
     backend->id = 0;
@@ -241,8 +242,12 @@ static McxStatus StorageAddBackend(ResultsStorage * storage, BackendType type, i
         StorageBackend * storeBackend = NULL;
         switch (type) {
         case BACKEND_CSV:
-            storeBackend = (StorageBackend *)object_create(StorageBackendCsv);
+        {
+            {
+                storeBackend = (StorageBackend *)object_create(StorageBackendCsv);
+            }
             break;
+        }
         }
         if (NULL == storeBackend) {
             mcx_log(LOG_ERROR, "The %s result storage backend could not be created", GetBackendTypeString(type));

@@ -565,7 +565,6 @@ static Config * ConfigCreate(Config * config) {
     config->executable = NULL;
 
     config->flushEveryStore = FALSE;
-
     config->sumTimeDefined = FALSE;
     config->sumTime = TRUE;
 

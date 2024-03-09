@@ -56,6 +56,7 @@ struct Config {
     char * executable;
 
     int flushEveryStore;
+
     int sumTime;
     int sumTimeDefined;
 

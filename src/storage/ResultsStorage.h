@@ -35,6 +35,7 @@ typedef struct StorageBackend     StorageBackend;
 typedef McxStatus (* fStorageBackendConfigure)(StorageBackend * backend, ResultsStorage * storage, const char * path, int flushEveryStore, int storeAtRuntime);
 typedef McxStatus (* fStorageBackendSetup)(StorageBackend * backend);
 typedef McxStatus (* fStorageBackendStore)(StorageBackend * backend, ChannelStoreType chType, size_t comp, size_t row);
+typedef McxStatus (* fStorageBackendStoreChannelValues)(StorageBackend * backend, ChannelStoreType chType, size_t comp, ChannelValue * channels, size_t num);
 typedef McxStatus (* fStorageBackendFinished)(StorageBackend * backend);
 
 extern const struct ObjectClass _StorageBackend;
@@ -42,10 +43,11 @@ extern const struct ObjectClass _StorageBackend;
 struct StorageBackend {
     Object _; // super class first
 
-    fStorageBackendConfigure Configure;
-    fStorageBackendSetup     Setup;
-    fStorageBackendStore     Store;
-    fStorageBackendFinished  Finished;
+    fStorageBackendConfigure              Configure;
+    fStorageBackendSetup                  Setup;
+    fStorageBackendStore                  Store;
+    fStorageBackendStoreChannelValues     StoreChannelValues;
+    fStorageBackendFinished               Finished;
 
     int id;
 

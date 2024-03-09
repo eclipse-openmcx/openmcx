@@ -264,6 +264,11 @@ static ChannelValue ChannelStorageGetValueAt(ChannelStorage * channelStore, size
     return channelStore->values[row * colNum + col];
 }
 
+static ChannelValue * ChannelStorageGetValuesAtRow(ChannelStorage * channelStore, size_t row) {
+    size_t colNum = channelStore->channels->Size(channelStore->channels);
+    return channelStore->values + row * colNum;
+}
+
 
 static size_t ChannelStorageLength(ChannelStorage * channelStore) {
     return channelStore->numValues;
@@ -321,6 +326,7 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
     channelStore->GetChannelNum = ChannelStorageGetChannelNum;
 
     channelStore->GetValueAt = ChannelStorageGetValueAt;
+    channelStore->GetValuesAtRow = ChannelStorageGetValuesAtRow;
 
     channelStore->Length = ChannelStorageLength;
     channelStore->GetChannelInfo = ChannelStorageGetChannelInfo;
