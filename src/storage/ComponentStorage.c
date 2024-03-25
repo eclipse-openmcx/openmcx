@@ -234,6 +234,7 @@ static ComponentStorage * ComponentStorageCreate(ComponentStorage * compStore) {
     compStore->Finished  = ComponentStorageFinished;
 
     compStore->RegisterChannel = ComponentStorageRegisterChannel;
+
     compStore->StoreChannels = ComponentStorageStoreChannels;
 
     compStore->DisableStorage = ComponentStorageDisableStorage;
