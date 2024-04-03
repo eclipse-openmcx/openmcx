@@ -14,6 +14,9 @@
 #include "channel_value/ChannelValue.h"
 #include "units/Units.h"
 
+#include <stdint.h>
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -41,7 +44,7 @@ static int RangeConversionElemwiseLeq(const void * first, const void * second, C
         case CHANNEL_DOUBLE:
             return *(double *) first <= *(double *) second;
         case CHANNEL_INTEGER:
-            return *(int *) first <= *(int *) second;
+            return *(int64_t *) first <= *(int64_t *) second;
         default:
             return 0;
     }
@@ -52,7 +55,7 @@ static int RangeConversionElemwiseGeq(const void * first, const void * second, C
         case CHANNEL_DOUBLE:
             return *(double *) first >= *(double *) second;
         case CHANNEL_INTEGER:
-            return *(int *) first >= *(int *) second;
+            return *(int64_t *) first >= *(int64_t *) second;
         default:
             return 0;
     }
@@ -108,8 +111,8 @@ McxStatus RangeConversionMinValueRefConversion(void * element, size_t idx, Chann
             }
             case CHANNEL_INTEGER:
             {
-                int * elem = (int *) element;
-                *elem = *((int *) minElem);
+                int64_t * elem = (int64_t *) element;
+                *elem = *((int64_t *) minElem);
                 break;
             }
             default:
@@ -135,8 +138,8 @@ McxStatus RangeConversionMaxValueRefConversion(void * element, size_t idx, Chann
             }
         case CHANNEL_INTEGER:
             {
-                int * elem = (int *) element;
-                *elem = *((int *)maxElem);
+                int64_t * elem = (int64_t *) element;
+                *elem = *((int64_t *) maxElem);
                 break;
             }
         default:
@@ -287,7 +290,7 @@ static int RangeConversionElementEqualsMin(void * element, ChannelType * type) {
         case CHANNEL_DOUBLE:
             return *(double *) element == (-DBL_MAX);
         case CHANNEL_INTEGER:
-            return *(int *) element == INT_MIN;
+            return *(int64_t *) element == INT_MIN;
         default:
             return 0;
     }
@@ -298,7 +301,7 @@ static int RangeConversionElementEqualsMax(void * element, ChannelType * type) {
         case CHANNEL_DOUBLE:
             return *(double *) element == DBL_MAX;
         case CHANNEL_INTEGER:
-            return *(int *) element == INT_MAX;
+            return *(int64_t *) element == INT_MAX;
         default:
             return 0;
     }
@@ -310,8 +313,8 @@ static int RangeConversionIsEmpty(RangeConversion * conversion) {
             return (!conversion->min || *(double *) ChannelValueDataPointer(conversion->min) == (-DBL_MAX)) &&
                    (!conversion->max || *(double *) ChannelValueDataPointer(conversion->max) == DBL_MAX);
         case CHANNEL_INTEGER:
-            return (!conversion->min || *(int *) ChannelValueDataPointer(conversion->min) == INT_MIN) &&
-                   (!conversion->max || *(int *) ChannelValueDataPointer(conversion->max) == INT_MAX);
+            return (!conversion->min || *(int64_t *) ChannelValueDataPointer(conversion->min) == INT_MIN) &&
+                   (!conversion->max || *(int64_t *) ChannelValueDataPointer(conversion->max) == INT_MAX);
         case CHANNEL_ARRAY:
             return (!conversion->min || mcx_array_all(&conversion->min->value.a, RangeConversionElementEqualsMin)) &&
                    (!conversion->max || mcx_array_all(&conversion->max->value.a, RangeConversionElementEqualsMax));
@@ -571,8 +574,8 @@ McxStatus LinearConversionScaleValueRefConversion(void * element, size_t idx, Ch
         }
         case CHANNEL_INTEGER:
         {
-            int * elem = (int *) element;
-            *elem = *elem * *((int *)factorElem);
+            int64_t * elem = (int64_t *) element;
+            *elem = *elem * *((int64_t *) factorElem);
             break;
         }
         default:
@@ -602,8 +605,8 @@ McxStatus LinearConversionOffsetValueRefConversion(void * element, size_t idx, C
         }
         case CHANNEL_INTEGER:
         {
-            int * elem = (int *) element;
-            *elem = *elem + *((int *)offsetElem);
+            int64_t * elem = (int64_t *) element;
+            *elem = *elem + *((int64_t *) offsetElem);
             break;
         }
         default:
@@ -669,7 +672,7 @@ static int LinearConversionElementEqualsOne(void* element, ChannelType* type) {
         case CHANNEL_DOUBLE:
             return *(double *) element == 1.0;
         case CHANNEL_INTEGER:
-            return *(int *) element == 1;
+            return *(int64_t *) element == 1;
         default:
             return 0;
     }
@@ -680,7 +683,7 @@ static int LinearConversionElementEqualsZero(void * element, ChannelType * type)
         case CHANNEL_DOUBLE:
             return *(double *) element == 0.0;
         case CHANNEL_INTEGER:
-            return *(int *) element == 0;
+            return *(int64_t *) element == 0;
         default:
             return 0;
     }
@@ -693,9 +696,8 @@ static int LinearConversionIsEmpty(LinearConversion * conversion) {
             (!conversion->factor || * (double *) ChannelValueDataPointer(conversion->factor) == 1.0) &&
             (!conversion->offset || * (double *) ChannelValueDataPointer(conversion->offset) == 0.0);
     case CHANNEL_INTEGER:
-        return
-            (!conversion->factor || * (int *) ChannelValueDataPointer(conversion->factor) == 1) &&
-            (!conversion->offset || * (int *) ChannelValueDataPointer(conversion->offset) == 0);
+        return (!conversion->factor || *(int64_t *) ChannelValueDataPointer(conversion->factor) == 1) &&
+               (!conversion->offset || *(int64_t *) ChannelValueDataPointer(conversion->offset) == 0);
     case CHANNEL_ARRAY:
         return (!conversion->factor || mcx_array_all(&conversion->factor->value.a, LinearConversionElementEqualsOne)) &&
                (!conversion->offset || mcx_array_all(&conversion->offset->value.a, LinearConversionElementEqualsZero));
@@ -919,7 +921,7 @@ static McxStatus TypeConversionConvertIntDouble(TypeConversion * conversion, Cha
         return RETURN_ERROR;
     }
 
-    dest->ref.value->value.d = (double) *((int *) src);
+    dest->ref.value->value.d = (double) *((int64_t *) src);
 
     return RETURN_OK;
 }
@@ -929,7 +931,7 @@ static McxStatus TypeConversionConvertDoubleInt(TypeConversion * conversion, Cha
         return RETURN_ERROR;
     }
 
-    dest->ref.value->value.i = (int) floor(*((double *) src) + 0.5);
+    dest->ref.value->value.i = (int64_t) floor(*((double *) src) + 0.5);
 
     return RETURN_OK;
 }
@@ -939,7 +941,7 @@ static McxStatus TypeConversionConvertBoolDouble(TypeConversion * conversion, Ch
         return RETURN_ERROR;
     }
 
-    dest->ref.value->value.d = *((int *) src) != 0 ? 1. : 0.;
+    dest->ref.value->value.d = *((int64_t *) src) != 0 ? 1. : 0.;
 
     return RETURN_OK;
 }
@@ -959,7 +961,7 @@ static McxStatus TypeConversionConvertBoolInteger(TypeConversion * conversion, C
         return RETURN_ERROR;
     }
 
-    dest->ref.value->value.i = *((int *) src) != 0 ? 1 : 0;
+    dest->ref.value->value.i = *((int64_t *) src) != 0 ? 1 : 0;
 
     return RETURN_OK;
 }
@@ -969,7 +971,7 @@ static McxStatus TypeConversionConvertIntegerBool(TypeConversion * conversion, C
         return RETURN_ERROR;
     }
 
-    dest->ref.value->value.i = *((int *) src) != 0 ? 1 : 0;
+    dest->ref.value->value.i = *((int64_t *) src) != 0 ? 1 : 0;
 
     return RETURN_OK;
 }
@@ -994,9 +996,9 @@ static McxStatus TypeConversionConvertArrayIntegerToDouble(TypeConversion * conv
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.d = (double) *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+        dest->ref.value->value.d = (double) *((int64_t *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
     } else {
-        dest->ref.value->value.d = (double)  *(int *) ((mcx_array *) src)->data;
+        dest->ref.value->value.d = (double) *(int64_t *) ((mcx_array *) src)->data;
     }
 
     return RETURN_OK;
@@ -1008,9 +1010,9 @@ static McxStatus TypeConversionConvertArrayBoolToDouble(TypeConversion * convers
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.d = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1. : 0.;
+        dest->ref.value->value.d = *((int64_t *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1. : 0.;
     } else {
-        dest->ref.value->value.d = *(int *) ((mcx_array *) src)->data != 0 ? 1. : 0.;
+        dest->ref.value->value.d = *(int64_t *) ((mcx_array *) src)->data != 0 ? 1. : 0.;
     }
 
     return RETURN_OK;
@@ -1022,9 +1024,9 @@ static McxStatus TypeConversionConvertArrayDoubleToInteger(TypeConversion * conv
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.i = (int) floor(*((double *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) + 0.5);
+        dest->ref.value->value.i = (int64_t) floor(*((double *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) + 0.5);
     } else {
-        dest->ref.value->value.i = (int) floor(*(double *) ((mcx_array *) src)->data + 0.5);
+        dest->ref.value->value.i = (int64_t) floor(*(double *) ((mcx_array *) src)->data + 0.5);
     }
 
     return RETURN_OK;
@@ -1036,9 +1038,9 @@ static McxStatus TypeConversionConvertArrayIntegerToInteger(TypeConversion * con
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+        dest->ref.value->value.i = *((int64_t *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
     } else {
-        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data;
+        dest->ref.value->value.i = *(int64_t *) ((mcx_array *) src)->data;
     }
 
     return RETURN_OK;
@@ -1050,9 +1052,9 @@ static McxStatus TypeConversionConvertArrayBoolToInteger(TypeConversion * conver
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1 : 0;
+        dest->ref.value->value.i = *((int64_t *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1 : 0;
     } else {
-        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data != 0 ? 1 : 0;
+        dest->ref.value->value.i = *(int64_t *) ((mcx_array *) src)->data != 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1078,9 +1080,9 @@ static McxStatus TypeConversionConvertArrayIntegerToBool(TypeConversion * conver
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1 : 0;
+        dest->ref.value->value.i = *((int64_t *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1 : 0;
     } else {
-        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data != 0 ? 1 : 0;
+        dest->ref.value->value.i = *(int64_t *) ((mcx_array *) src)->data != 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1092,9 +1094,9 @@ static McxStatus TypeConversionConvertArrayBoolToBool(TypeConversion * conversio
     }
 
     if (conversion->sourceSlice) {
-        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+        dest->ref.value->value.i = *((int64_t *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
     } else {
-        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data;
+        dest->ref.value->value.i = *(int64_t *) ((mcx_array *) src)->data;
     }
 
     return RETURN_OK;
@@ -1121,10 +1123,10 @@ static McxStatus TypeConversionConvertIntegerToArrayDouble(TypeConversion * conv
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(double *) dest->ref.value->value.a.data = (double) *((int *) src);
+        *(double *) dest->ref.value->value.a.data = (double) *((int64_t *) src);
     } else {
         double * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = (double) *((int *) src);
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = (double) *((int64_t *) src);
     }
 
     return RETURN_OK;
@@ -1136,10 +1138,10 @@ static McxStatus TypeConversionConvertBoolToArrayDouble(TypeConversion * convers
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(double *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1. : 0.;
+        *(double *) dest->ref.value->value.a.data = *((int64_t *) src) != 0 ? 1. : 0.;
     } else {
         double * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1. : 0.;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int64_t *) src) != 0 ? 1. : 0.;
     }
 
     return RETURN_OK;
@@ -1151,10 +1153,10 @@ static McxStatus TypeConversionConvertDoubleToArrayInteger(TypeConversion * conv
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(int *) dest->ref.value->value.a.data = (int) floor(*((double *) src) + 0.5);
+        *(int64_t *) dest->ref.value->value.a.data = (int64_t) floor(*((double *) src) + 0.5);
     } else {
-        int * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = (int) floor(*((double *) src) + 0.5);
+        int64_t * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = (int64_t) floor(*((double *) src) + 0.5);
     }
 
     return RETURN_OK;
@@ -1166,10 +1168,10 @@ static McxStatus TypeConversionConvertIntegerToArrayInteger(TypeConversion * con
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(int *) dest->ref.value->value.a.data = *(int *) src;
+        *(int64_t *) dest->ref.value->value.a.data = *(int64_t *) src;
     } else {
-        int * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int *) src;
+        int64_t * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int64_t *) src;
     }
 
     return RETURN_OK;
@@ -1181,10 +1183,10 @@ static McxStatus TypeConversionConvertBoolToArrayInteger(TypeConversion * conver
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(int *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1 : 0;
+        *(int64_t *) dest->ref.value->value.a.data = *((int64_t *) src) != 0 ? 1 : 0;
     } else {
-        int * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
+        int64_t * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int64_t *) src) != 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1196,9 +1198,9 @@ static McxStatus TypeConversionConvertDoubleToArrayBool(TypeConversion * convers
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(int *) dest->ref.value->value.a.data = *((double *) src) > 0 ? 1 : 0;
+        *(int64_t *) dest->ref.value->value.a.data = *((double *) src) > 0 ? 1 : 0;
     } else {
-        int * data = dest->ref.slice.ref->value.a.data;
+        int64_t * data = dest->ref.slice.ref->value.a.data;
         *(data + dest->ref.slice.dimension->startIdxs[0]) = *((double *) src) > 0 ? 1 : 0;
     }
 
@@ -1211,10 +1213,10 @@ static McxStatus TypeConversionConvertIntegerToArrayBool(TypeConversion * conver
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(int *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1 : 0;
+        *(int64_t *) dest->ref.value->value.a.data = *((int64_t *) src) != 0 ? 1 : 0;
     } else {
-        int * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
+        int64_t * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int64_t *) src) != 0 ? 1 : 0;
     }
 
     return RETURN_OK;
@@ -1226,10 +1228,10 @@ static McxStatus TypeConversionConvertBoolToArrayBool(TypeConversion * conversio
     }
 
     if (dest->type == CHANNEL_VALUE_REF_VALUE) {
-        *(int *) dest->ref.value->value.a.data = *(int *) src;
+        *(int64_t *) dest->ref.value->value.a.data = *(int64_t *) src;
     } else {
-        int * data = dest->ref.slice.ref->value.a.data;
-        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int *) src;
+        int64_t * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int64_t *) src;
     }
 
     return RETURN_OK;
@@ -1267,7 +1269,7 @@ static McxStatus IntegerArrayToDouble(void * element, size_t idx, ChannelType * 
         return RETURN_ERROR;
     }
 
-    *(double *) element = (double) *((int *) src_elem);
+    *(double *) element = (double) *((int64_t *) src_elem);
 
     return RETURN_OK;
 }
@@ -1281,7 +1283,7 @@ static McxStatus BoolArrayToDouble(void * element, size_t idx, ChannelType * typ
         return RETURN_ERROR;
     }
 
-    *(double *) element = *((int *) src_elem) != 0 ? 1. : 0.;
+    *(double *) element = *((int64_t *) src_elem) != 0 ? 1. : 0.;
 
     return RETURN_OK;
 }
@@ -1295,7 +1297,7 @@ static McxStatus BoolArrayToInteger(void * element, size_t idx, ChannelType * ty
         return RETURN_ERROR;
     }
 
-    *(int *) element = *((int *) src_elem) != 0 ? 1 : 0;
+    *(int64_t *) element = *((int64_t *) src_elem) != 0 ? 1 : 0;
 
     return RETURN_OK;
 }
@@ -1309,7 +1311,7 @@ static McxStatus DoubleArrayToInteger(void * element, size_t idx, ChannelType * 
         return RETURN_ERROR;
     }
 
-    *(int *) element = (int) floor(*((double *) src_elem) + 0.5);
+    *(int64_t *) element = (int64_t) floor(*((double *) src_elem) + 0.5);
 
     return RETURN_OK;
 }
@@ -1323,7 +1325,7 @@ static McxStatus DoubleArrayToBool(void * element, size_t idx, ChannelType * typ
         return RETURN_ERROR;
     }
 
-    *(int *) element = *((double *) src_elem) > 0 ? 1 : 0;
+    *(int64_t *) element = *((double *) src_elem) > 0 ? 1 : 0;
 
     return RETURN_OK;
 }
@@ -1337,7 +1339,7 @@ static McxStatus IntegerArrayToBool(void * element, size_t idx, ChannelType * ty
         return RETURN_ERROR;
     }
 
-    *(int *) element = *((int *) src_elem) != 0 ? 1 : 0;
+    *(int64_t *) element = *((int64_t *) src_elem) != 0 ? 1 : 0;
 
     return RETURN_OK;
 }
