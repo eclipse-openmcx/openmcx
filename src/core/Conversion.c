@@ -290,7 +290,7 @@ static int RangeConversionElementEqualsMin(void * element, ChannelType * type) {
         case CHANNEL_DOUBLE:
             return *(double *) element == (-DBL_MAX);
         case CHANNEL_INTEGER:
-            return *(int64_t *) element == INT_MIN;
+            return *(int64_t *) element == INT64_MIN;
         default:
             return 0;
     }
@@ -301,7 +301,7 @@ static int RangeConversionElementEqualsMax(void * element, ChannelType * type) {
         case CHANNEL_DOUBLE:
             return *(double *) element == DBL_MAX;
         case CHANNEL_INTEGER:
-            return *(int64_t *) element == INT_MAX;
+            return *(int64_t *) element == INT64_MAX;
         default:
             return 0;
     }
@@ -313,8 +313,8 @@ static int RangeConversionIsEmpty(RangeConversion * conversion) {
             return (!conversion->min || *(double *) ChannelValueDataPointer(conversion->min) == (-DBL_MAX)) &&
                    (!conversion->max || *(double *) ChannelValueDataPointer(conversion->max) == DBL_MAX);
         case CHANNEL_INTEGER:
-            return (!conversion->min || *(int64_t *) ChannelValueDataPointer(conversion->min) == INT_MIN) &&
-                   (!conversion->max || *(int64_t *) ChannelValueDataPointer(conversion->max) == INT_MAX);
+            return (!conversion->min || *(int64_t *) ChannelValueDataPointer(conversion->min) == INT64_MIN) &&
+                   (!conversion->max || *(int64_t *) ChannelValueDataPointer(conversion->max) == INT64_MAX);
         case CHANNEL_ARRAY:
             return (!conversion->min || mcx_array_all(&conversion->min->value.a, RangeConversionElementEqualsMin)) &&
                    (!conversion->max || mcx_array_all(&conversion->max->value.a, RangeConversionElementEqualsMax));
