@@ -34,7 +34,7 @@ static void print_last_error() {
     DWORD err = GetLastError();
     switch (err) {
         case ERROR_BAD_EXE_FORMAT:
-            mcx_log(LOG_ERROR, "Util: There is a mismatch in bitness (32/64) between current Model.CONNECT Execution Engine and the dynamic library");
+            mcx_log(LOG_ERROR, "Util: There is a mismatch in bitness (32/64) between current MCX and the dynamic library");
             break;
         default:
             FormatMessage(
