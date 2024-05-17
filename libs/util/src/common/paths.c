@@ -332,7 +332,7 @@ int mcx_path_merge(const char * * pathList, size_t numbOfStrings, char * * retur
 
     for (i = 0; i < numbOfStrings; i++) {
         if (pathList[i]) {
-            strncat(*returnMergedPath, pathList[i], strlen(pathList[i]));
+            strcat(*returnMergedPath, pathList[i]);
             actStrLength = strlen(*returnMergedPath);
             if (0 == actStrLength) {
                 actStrLength = 1;
