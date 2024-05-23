@@ -492,7 +492,8 @@ static int ObjectContainerGetNameIndex(ObjectContainer * container, const char *
 }
 
 static Object * ObjectContainerGetByName(const ObjectContainer * container, const char * name) {
-    return container->At(container, container->GetNameIndex((ObjectContainer *)container, name));
+    int idx = container->GetNameIndex((ObjectContainer *)container, name);
+    return idx >= 0 ? container->At(container, idx) : NULL;
 }
 static int ObjectContainerContains(ObjectContainer * container, Object * obj) {
     size_t i = 0;
