@@ -36,6 +36,17 @@ mcx_table* mcx_interp_new_table( void ) {
     return table;
 }
 
+mcx_table * mcx_interp_create_arbitrary_table(size_t numSamplingPts, size_t numOrdinates, mcx_table_interp_type interp, mcx_table_extrap_type extrap) {
+    mcx_table * table = mcx_interp_new_table();
+    if (!table) {
+        mcx_log(LOG_ERROR, "Cannot create interpolation table");
+        return NULL;
+    }
+
+    table->interp = interp;
+    table->extrap = extrap;
+    return table;
+}
 
 int mcx_interp_setup_table(mcx_table * s_table, mcx_table_interp_type interp, mcx_table_extrap_type extrap) {
     if (!s_table) {

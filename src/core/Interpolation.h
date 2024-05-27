@@ -12,7 +12,6 @@
 #define MCX_CORE_INTERPOLATION_H
 
 #include "CentralParts.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -27,6 +26,7 @@ typedef enum {
     MCX_TABLE_EXTRAP_NOT_SET = -1,
     MCX_TABLE_EXTRAP_CONST = 0,
     MCX_TABLE_EXTRAP_LINEAR = 1,
+    MCX_TABLE_EXTRAP_PRD_LEFT = 2
 } mcx_table_extrap_type;
 
 typedef struct {
@@ -41,6 +41,8 @@ typedef struct {
 } mcx_table;
 mcx_table* mcx_interp_new_table( void );
 
+mcx_table * mcx_interp_create_arbitrary_table(size_t numSamplingPts, size_t numOrdinates, mcx_table_interp_type interp, mcx_table_extrap_type extrap);
+
 int    mcx_interp_setup_table(mcx_table * s_table, mcx_table_interp_type interp, mcx_table_extrap_type extrap);
 void   mcx_interp_free_table( mcx_table* s_table );
 void   mcx_interp_change_table_data(mcx_table *s_table, double *x_data, double *y_data, int nPoints);
@@ -49,7 +51,6 @@ double mcx_interp_get_value_from_table( mcx_table* s_table, double x );
 void   mcx_interp_get_value_from_table_multiple_ordinate( mcx_table* s_table, double x, double *y );
 double mcx_interp_get_value_from_table_multiple_ordinate_one_value( mcx_table* s_table, double x, int pos );
 int    mcx_interp_num_y_columns( mcx_table * s_table );
-
 
 typedef struct {
     double * x_data;
