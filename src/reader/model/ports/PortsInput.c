@@ -53,17 +53,12 @@ static McxStatus CopyFrom(PortsInput * self, PortsInput * src) {
 
     // copy src members
     for (i = 0; i < src->ports->Size(src->ports); i++) {
-        PortInput * srcPort = (PortInput *) src->ports->At(src->ports, i);
+        InputElement * srcPort = (InputElement *) src->ports->At(src->ports, i);
         const char * srcName = src->ports->GetElementName(src->ports, i);
 
-        PortInput * destPort = (PortInput *)object_create(PortInput);
-        if (!destPort) {
-            return RETURN_ERROR;
-        }
-
-        retVal = destPort->CopyFrom(destPort, srcPort);
-        if (retVal == RETURN_ERROR) {
-            mcx_log(LOG_ERROR, "Failed to copy data of port %s", srcName);
+        InputElement * destPort = srcPort->Clone(srcPort);
+        if (destPort == NULL) {
+            mcx_log(LOG_ERROR, "Failed to clone port %s", srcName);
             return RETURN_ERROR;
         }
 
