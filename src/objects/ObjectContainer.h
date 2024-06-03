@@ -78,6 +78,8 @@ typedef McxStatus(*fObjectContainerResize)(ObjectContainer * container, size_t s
 typedef McxStatus(*fObjectContainerPushBack)(ObjectContainer  * container, Object * obj);
 typedef Object * (*fObjectContainerAt)(const ObjectContainer * container, size_t pos);
 typedef McxStatus(*fObjectContainerSetAt)(ObjectContainer * container, size_t pos, Object * obj);
+typedef Object * (*fObjectContainerObjectCopyCallback)(Object * obj);
+typedef void (*fObjectContainerRegisterObjectCopyCallback)(ObjectContainer * container, fObjectContainerObjectCopyCallback callback);
 typedef ObjectContainer * (*fObjectContainerCopy)(ObjectContainer * container);
 typedef McxStatus(*fObjectContainerAppend)(ObjectContainer * container, ObjectContainer * appendee);
 typedef Object ** (*fObjectContainerData)(ObjectContainer * container);
@@ -110,6 +112,7 @@ typedef struct ObjectContainer {
     fObjectContainerAt At;
     fObjectContainerGetByName GetByName;
     fObjectContainerSetAt SetAt;
+    fObjectContainerRegisterObjectCopyCallback RegisterObjectCopyCallback;
     fObjectContainerCopy Copy;
     fObjectContainerAppend Append;
     fObjectContainerData Data;
@@ -128,6 +131,8 @@ typedef struct ObjectContainer {
     fObjectContainerSort Sort;
 
     fObjectContainerIterate Iterate;
+
+    fObjectContainerObjectCopyCallback ObjectCopyCallback;
 
     struct Object ** elements;
     size_t size;

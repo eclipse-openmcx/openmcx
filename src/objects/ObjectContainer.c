@@ -390,6 +390,14 @@ static McxStatus ObjectContainerSetAt(ObjectContainer * container, size_t pos, O
     return RETURN_OK;
 }
 
+static void ObjectContainerRegisterObjectCopyCallback(ObjectContainer * container, fObjectContainerObjectCopyCallback callback) {
+    container->ObjectCopyCallback = callback;
+}
+
+static Object * ObjectShallowCopyCallback(Object * obj) {
+    return obj;
+}
+
 static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     McxStatus retVal;
     size_t i = 0;
@@ -408,13 +416,15 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     }
 
     for (i = 0; i < newContainer->Size(newContainer); i++) {
-        newContainer->elements[i] = container->elements[i];
+        newContainer->elements[i] = container->ObjectCopyCallback(container->elements[i]);
         retVal = StringContainerSetString(newContainer->strToIdx, i,
             StringContainerGetString(container->strToIdx, i));
         if (retVal != RETURN_OK) {
             return NULL;
         }
     }
+
+    newContainer->RegisterObjectCopyCallback(newContainer, container->ObjectCopyCallback);
 
     return newContainer;
 }
@@ -559,6 +569,7 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
     container->At = ObjectContainerAt;
     container->GetByName = ObjectContainerGetByName;
     container->SetAt = ObjectContainerSetAt;
+    container->RegisterObjectCopyCallback = ObjectContainerRegisterObjectCopyCallback;
     container->Copy = ObjectContainerCopy;
     container->Append = ObjectContainerAppend;
     container->Data = ObjectContainerData;
@@ -576,6 +587,8 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
     container->SetElementName = ObjectContainerSetElementName;
     container->GetElementName = ObjectContainerGetElementName;
     container->GetNameIndex = ObjectContainerGetNameIndex;
+
+    container->ObjectCopyCallback = ObjectShallowCopyCallback;
 
     container->elements = NULL;
     container->size = 0;
