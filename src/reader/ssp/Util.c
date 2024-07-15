@@ -778,13 +778,19 @@ McxStatus xml_attr_path(xmlNodePtr node, const char * attribute_name, char ** de
         temp = resolved_path;
     }
 
-    resolved_uri = mcx_path_from_uri(temp);
-    if (resolved_uri) {
-        // the path was indeed a uri
-        mcx_free(temp);
-        temp = resolved_uri;
-    } else {
-        // the path was not a uri, so use as is
+#define FILE_SCHEMA_PREFIX "file:"
+
+    if (0 == strncmp(temp, FILE_SCHEMA_PREFIX, strlen(FILE_SCHEMA_PREFIX))) {
+        resolved_uri = mcx_path_from_uri(temp);
+        if (resolved_uri) {
+            // the path was indeed a uri
+            mcx_free(temp);
+            temp = resolved_uri;
+        } else {
+            mcx_log(LOG_ERROR, "In input file, line %d: %s is not a valid url.", node->line, temp);
+            ret_status = RETURN_ERROR;
+            goto cleanup;
+        }
     }
 
     if (!mcx_path_is_absolute(temp)) {
