@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SystemStructureDescription xmlns="http://ssp-standard.org/SSP1/SystemStructureDescription"
+                            xmlns:ssc="http://ssp-standard.org/SSP1/SystemStructureCommon"
+                            xmlns:ssv="http://ssp-standard.org/SSP1/SystemStructureParameterValues"
+                            version="1.0"
+                            name="connections">
+    <System name="Root">
+        <Elements>
+            <Component name="Sinus 1" source="file:../../fmus/sinusGenerator.fmu">
+                <Connectors>
+                    <Connector name="sinus_out" kind="output">
+                        <ssc:Real/>
+                    </Connector>
+                </Connectors>
+            </Component>
+
+            <Component name="Cosine 1" source="" type="application/avl-mcx-dcp">
+                <Connectors>
+                    <Connector name="amplitude" kind="input">
+                        <ssc:Real/>
+                    </Connector>
+
+                    <Connector name="cosine" kind="output">
+                        <ssc:Real/>
+                    </Connector>
+                </Connectors>
+
+                <Annotations>
+                    <!-- custom annotation for defining OpenMCx specific component data -->
+                    <ssc:Annotation type="com.avl.model.connect.ssp.component.dcp" xmlns:mc="com.avl.model.connect.ssp.component.dcp">
+                        <mc:SpecificData
+                            host="127.0.0.1"
+                            numerator="10"
+                            denominator="1000"
+                            mode="NRT"
+                            slaveDescription="../../install/dcp/cosine/slave.dcpx" />
+                    </ssc:Annotation>
+                </Annotations>
+            </Component>
+        </Elements>
+
+        <Connections>
+            <!-- connection between two scalar ports -->
+            <Connection startElement="Sinus 1" startConnector="sinus_out" endElement="Cosine 1" endConnector="amplitude">
+            </Connection>
+
+        </Connections>
+    </System>
+
+    <DefaultExperiment stopTime="10.0"/>
+</SystemStructureDescription>
