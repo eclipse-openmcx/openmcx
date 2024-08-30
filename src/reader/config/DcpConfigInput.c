@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2020 AVL List GmbH and others
+ * Copyright (c) 2024 AVL List GmbH and others
  * 
  * This program and the accompanying materials are made available under the
  * terms of the Apache Software License 2.0 which is available at
@@ -8,28 +8,27 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef MCX_READER_ENUM_MAPPING_H
-#define MCX_READER_ENUM_MAPPING_H
-
-#include "CentralParts.h"
+#include "reader/config/DcpConfigInput.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+static void DcpConfigInputDestructor(DcpConfigInput * input) {
+    if (input->masterIp) { mcx_free(input->masterIp); }
+}
 
-extern MapStringInt storeLevelMapping[];
-extern MapStringInt backendTypeMapping[];
-extern MapStringInt endTypeMapping[];
-extern MapStringInt stepTypeMapping[];
+static DcpConfigInput * DcpConfigInputCreate(DcpConfigInput * input) {
+    OPTIONAL_UNSET(input->portFrom);
+    OPTIONAL_UNSET(input->portTo);
 
-extern MapStringInt interExtrapolationIntervalMapping[];
-extern MapStringInt interExtrapolationOrderMapping[];
+    input->masterIp = NULL;
 
-extern MapStringInt dcpSlaveModeMapping[];
+    return input;
+}
+
+OBJECT_CLASS(DcpConfigInput, InputElement);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */
-
-#endif // !MCX_READER_ENUM_MAPPING_H

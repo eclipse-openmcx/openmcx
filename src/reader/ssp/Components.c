@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2020 AVL List GmbH and others
+ * Copyright (c) 2023 AVL List GmbH and others
  * 
  * This program and the accompanying materials are made available under the
  * terms of the Apache Software License 2.0 which is available at
@@ -26,6 +26,7 @@
 #include "reader/model/components/specific_data/IntegratorInput.h"
 #include "reader/model/components/specific_data/VectorIntegratorInput.h"
 #include "reader/model/components/specific_data/ConstantInput.h"
+#include "reader/model/components/specific_data/DcpInput.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,7 @@ SSDComponentSpecificDataDefinition ssdCommonSpecificDataDefinition[] = {
     {"application/avl-mcx-integrator", "com.avl.model.connect.ssp.component.integrator", object_class_of(ComponentTypeIntegrator), object_class_of(IntegratorInput), SSDReadIntegratorData, SSDDefaultData, object_class_of(PortInput), NULL, NULL, NULL, NULL, NULL, NULL, NULL},
     {"application/avl-mcx-vector-integrator", "com.avl.model.connect.ssp.component.vector_integrator", object_class_of(ComponentTypeVectorIntegrator), object_class_of(VectorIntegratorInput), SSDReadVectorIntegratorData, SSDDefaultData, object_class_of(PortInput), NULL, NULL, NULL, NULL, NULL, NULL, NULL},
     {"application/avl-mcx-constant", "com.avl.model.connect.ssp.component.constant", object_class_of(ComponentTypeConstant), object_class_of(ConstantInput), SSDReadConstantData, SSDDefaultData, object_class_of(PortInput), NULL, NULL, NULL, NULL, NULL, NULL, NULL},
+    {"application/avl-mcx-dcp", "com.avl.model.connect.ssp.component.dcp", object_class_of(ComponentTypeDcp), object_class_of(DcpInput), SSDReadDcpData, NULL, object_class_of(PortInput), NULL, NULL, SSDSetDcpParameters, object_class_of(ParameterInput), NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL}
 };
 

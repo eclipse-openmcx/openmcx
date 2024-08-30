@@ -13,6 +13,7 @@
 #include "reader/task/BackendInput.h"
 #include "reader/task/TaskInput.h"
 
+#include "reader/model/components/specific_data/DcpInput.h"
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -54,6 +55,13 @@ MapStringInt interExtrapolationIntervalMapping[] = {
 MapStringInt interExtrapolationOrderMapping[] = {
     {"zero",   POLY_CONSTANT},
     {"first",  POLY_LINEAR},
+    {NULL, 0}
+};
+
+MapStringInt dcpSlaveModeMapping[] = {
+    {"NRT", SLAVE_OP_MODE_NRT},
+    {"HRT", SLAVE_OP_MODE_HRT},
+    {"SRT", SLAVE_OP_MODE_SRT},
     {NULL, 0}
 };
 

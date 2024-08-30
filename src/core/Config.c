@@ -481,6 +481,26 @@ static McxStatus ConfigSetupFromInput(Config * config, ConfigInput * configInput
         return RETURN_WARNING;
     }
 
+#if defined (ENABLE_DCP)
+    {
+        // DCP settings
+        DcpConfigInput * dcpInput = configInput->dcp;
+
+        if (dcpInput != NULL) {
+            config->dcpMasterPortFrom = dcpInput->portFrom.defined ? dcpInput->portFrom.value : 8400;
+            config->dcpMasterPortTo = dcpInput->portTo.defined ? dcpInput->portTo.value : 8600;
+
+            if (dcpInput->masterIp != NULL) {
+                mcx_free(config->dcpMasterIp);
+                config->dcpMasterIp = mcx_string_copy(dcpInput->masterIp);
+            }
+        }
+
+        mcx_log(LOG_DEBUG, "DCP master settings: IP(%s):PORT([%d, %d])",
+                config->dcpMasterIp, config->dcpMasterPortFrom, config->dcpMasterPortTo);
+    }
+#endif // ENABLE_DCP
+
     return RETURN_OK;
 }
 
@@ -550,6 +570,11 @@ static void ConfigDestructor(void * self) {
     if (config->executable) {
         mcx_free(config->executable);
     }
+#if defined (ENABLE_DCP)
+    if (config->dcpMasterIp) {
+        mcx_free(config->dcpMasterIp);
+    }
+#endif // ENABLE_DCP
 }
 
 static Config * ConfigCreate(Config * config) {
@@ -589,6 +614,15 @@ static Config * ConfigCreate(Config * config) {
 
     config->nanCheck = NAN_CHECK_ALWAYS;
     config->nanCheckNumMessages = MAX_NUM_MSGS;
+
+#if defined (ENABLE_DCP)
+    config->dcpMasterPortFrom = 8400;
+    config->dcpMasterPortTo = 8600;
+    config->dcpMasterIp = mcx_string_copy("0.0.0.0");
+    if (config->dcpMasterIp == NULL) {
+        return NULL;
+    }
+#endif // ENABLE_DCP
 
     config->interpolationBuffSize = 1000;
     config->overrideInterpolationBuffSize = 0;

@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2020 AVL List GmbH and others
+ * Copyright (c) 2023 AVL List GmbH and others
  * 
  * This program and the accompanying materials are made available under the
  * terms of the Apache Software License 2.0 which is available at
@@ -13,6 +13,8 @@
 
 #include "reader/core/InputElement.h"
 
+#include "reader/config/DcpConfigInput.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -21,6 +23,8 @@ extern const ObjectClass _ConfigInput;
 
 typedef struct ConfigInput {
     InputElement _;
+
+    DcpConfigInput * dcp;
 
 } ConfigInput;
 

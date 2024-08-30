@@ -26,6 +26,7 @@
 #include "reader/ssp/schema/components/Integrator.h"
 #include "reader/ssp/schema/components/VectorIntegrator.h"
 #include "reader/ssp/schema/components/Constant.h"
+#include "reader/ssp/schema/components/Dcp.h"
 #include "reader/ssp/schema/Parameters.h"
 #include "reader/ssp/schema/FmuParameters.h"
 #include "reader/ssp/schema/standard/SystemStructureCommon.h"
@@ -79,6 +80,7 @@ static CatalogueEntry _schemaCatalogue[] = {
     {"com.avl.model.connect.ssp.parameter.fmu", fmuParametersSchemaStr, NULL, NULL},
     {"SystemStructureDescription.xsd", systemStructureDescriptionSchemaStr, NULL, NULL},
     {"SystemStructureParameterValues.xsd", systemStructureParameterValuesSchemaStr, NULL, NULL},
+    {"com.avl.model.connect.ssp.component.dcp", dcpSchemaStr, NULL, NULL},
     {NULL, NULL, NULL, NULL}
 };
 

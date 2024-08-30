@@ -92,6 +92,11 @@ __Windows__:
 
 This will generate and install the OpenMCx executable (named `openmcx` in the `install` folder).
 
+To get an `openmcx` executable with DCP support (currently only supported for windows), run:
+```bat
+.\build_with_dcp.bat
+```
+
 __Note__: `cmake`, `make`, `git` and `python` MUST be present on PATH when running the scripts
 listed above.
 
@@ -126,6 +131,18 @@ The behavior of the `openmcx` executable can be tweaked via the following option
 - `--enablegraphs`, `-g` - generate a graphical representation of model dependencies
                            (produces a `.dot`-file which can be processed via e.g.
                            [Graphviz](https://graphviz.org/) or [WebGraphviz](http://www.webgraphviz.com/))
+
+To run examples with DCP, the DCP slaves must be started first.
+
+An example DCP slave gets built in the `\install\dcp\cosine` folder and can be started with:
+```bat
+.\install\dcp\cosine>slave-cosine.exe
+```
+Afterwards, the DCP example can be simulated:
+```bat
+.\install\openmcx.exe -v .\examples\dcp_fmu\model.ssd
+```
+
 
 # Model Definition
 OpenMCx models are defined via the [SSP](https://ssp-standard.org/) standard. Supported is
@@ -334,7 +351,7 @@ tools/interfaces. The definition of a new component includes the following steps
 - Co-simulation standards:
   - [x] [FMI - Functional Mock-up Interface](https://fmi-standard.org/)
   - [x] [SSP - System Structure and Parameterization](https://ssp-standard.org/)
-  - [ ] [DCP - Distributed Co-Simulation Protocol](https://dcp-standard.org/)
+  - [x] [DCP - Distributed Co-Simulation Protocol](https://dcp-standard.org/)
   - [ ] [ASAM OSI - Open Simulation Interface](https://www.asam.net/standards/detail/osi)
 
 
@@ -343,7 +360,7 @@ tools/interfaces. The definition of a new component includes the following steps
     - [x] [Co-Simulation FMU](https://fmi-standard.org/)
     - [ ] [Model Exchange FMU](https://fmi-standard.org/)
   - [ ] [FMI 3.0](https://fmi-standard.org/)
-  - [ ] [DCP](https://dcp-standard.org/)
+  - [x] [DCP](https://dcp-standard.org/)
   - [ ] Signal Sources:
     - [x] Constant
     - [ ] Signal file (csv)

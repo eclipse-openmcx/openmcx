@@ -71,6 +71,12 @@ struct Config {
     size_t memFilterHistoryLimit;
     size_t memFilterHistoryExtra;
 
+#if defined (ENABLE_DCP)
+    size_t dcpMasterPortFrom;
+    size_t dcpMasterPortTo;
+    char * dcpMasterIp;
+#endif // ENABLE_DCP
+
     int cosimInitEnabled;
     int patchWrongInitBehavior;
 

@@ -25,13 +25,24 @@ option(ENABLE_DEBUG "Enable additional debug output" OFF)
 option(ENABLE_COVERAGE "Turn on code coverage support" OFF)
 option(ENABLE_BOUND_CHECKS "Turn on bound checks on casts with size differences" ON)
 option(ENABLE_STRICT_MODE "Turn on strict mode: Treat warnings as errors" ON)
+option(ENABLE_DCP "Turn on DCP support" OFF)
 
 
 # dependencies
 add_subdirectory(cmake/fmi-library)
 
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
 find_package(LibXml2 REQUIRED)
 find_package(ZLIB REQUIRED)
+
+if(ENABLE_DCP)
+    find_package(xercesc REQUIRED)
+    find_package(Threads REQUIRED)
+    find_package(ASIO REQUIRED)
+    find_package(DCPLib REQUIRED)
+endif()
+
 
 # global project settings
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -106,3 +117,7 @@ add_subdirectory(src)
     add_subdirectory(mcx)
 
 add_subdirectory("fmus" "fmus")
+
+if(ENABLE_DCP)
+    add_subdirectory("dcp")
+endif()

@@ -22,6 +22,49 @@ extern "C" {
 #endif /* __cplusplus */
 
 
+static DcpConfigInput * SSDReadDcpConfig(xmlNodePtr dcpNode) {
+    DcpConfigInput * configInput = (DcpConfigInput*)object_create(DcpConfigInput);
+    InputElement * element = (InputElement *)configInput;
+
+    McxStatus retVal = RETURN_OK;
+
+    if (!configInput) {
+        return NULL;
+    }
+
+    if (!dcpNode) {
+        mcx_log(LOG_ERROR, "SSDReadDcpConfig: No node provided");
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    element->type = INPUT_SSD;
+    element->context = (void*)dcpNode;
+
+    retVal = xml_opt_attr_size_t(dcpNode, "masterPortFrom", &configInput->portFrom);
+    if (retVal == RETURN_ERROR) {
+        goto cleanup;
+    }
+
+    retVal = xml_opt_attr_size_t(dcpNode, "masterPortTo", &configInput->portTo);
+    if (retVal == RETURN_ERROR) {
+        goto cleanup;
+    }
+
+    retVal = xml_attr_string(dcpNode, "masterIp", &configInput->masterIp, SSD_OPTIONAL);
+    if (retVal == RETURN_ERROR) {
+        goto cleanup;
+    }
+
+cleanup:
+    if (retVal == RETURN_ERROR) {
+        object_destroy(configInput);
+        return NULL;
+    }
+
+    return configInput;
+}
+
 ConfigInput * SSDReadConfig(xmlNodePtr annotationNode, xmlNodePtr elementsNode) {
     ConfigInput * configInput = (ConfigInput*)object_create(ConfigInput);
     InputElement * element = (InputElement *)configInput;
@@ -49,6 +92,16 @@ ConfigInput * SSDReadConfig(xmlNodePtr annotationNode, xmlNodePtr elementsNode) 
             goto cleanup;
         }
 
+        {
+            xmlNodePtr dcpNode = xml_child(configNode, "Dcp");
+            if (dcpNode) {
+                configInput->dcp = SSDReadDcpConfig(dcpNode);
+                if (!configInput->dcp) {
+                    retVal = RETURN_ERROR;
+                    goto cleanup;
+                }
+            }
+        }
     }
 
 cleanup:

@@ -28,6 +28,8 @@ McxStatus SSDCheckSourceEmpty(xmlNodePtr componentNode);
 McxStatus SSDDefaultData(xmlNodePtr componentNode, ComponentInput * compInput);
 McxStatus SSDDefaultFmuData(xmlNodePtr componentNode, ComponentInput * compInput);
 
+McxStatus SSDReadDcpData(xmlNodePtr componentNode, xmlNodePtr specificDataNode, ComponentInput * compInput);
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

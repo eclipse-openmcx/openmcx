@@ -52,6 +52,10 @@ ssp-standard (1.0)
  * Project: https://ssp-standard.org/
  * Source: https://ssp-standard.org/publications/SSP10/SSP10.zip
 
+DCPLib
+ * License: BSD-3-Clause license
+ * Source: https://github.com/modelica/DCPLib
+
 ## Cryptography
 
 Content may contain encryption software. The country in which you are currently

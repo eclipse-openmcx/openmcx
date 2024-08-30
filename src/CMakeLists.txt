@@ -48,6 +48,13 @@ else()
 endif()
 
 
+if (ENABLE_DCP)
+    set(DCP_SOURCES "dcp/master.cpp" "dcp/slave.cpp")
+    set(DCP_HEADERS "dcp/master.hpp" "dcp/slave.hpp")
+    list(APPEND MCX_HEADERS ${DCP_HEADERS})
+    list(APPEND MCX_SRC_COMMON ${DCP_SOURCES})
+endif()
+
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/" PREFIX "Source Files" FILES ${MCX_SRC_COMMON} ${UTIL_SRC} ${UNITS_SRC})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/" PREFIX "Header Files" FILES ${MCX_HEADERS})
 
@@ -75,6 +82,11 @@ target_link_libraries(
         optparse
         scope_guard
         fmi-library
+        $<$<BOOL:${ENABLE_DCP}>:DCPLib::Core>
+        $<$<BOOL:${ENABLE_DCP}>:DCPLib::Ethernet>
+        $<$<BOOL:${ENABLE_DCP}>:DCPLib::Master>
+        $<$<BOOL:${ENABLE_DCP}>:DCPLib::Slave>
+        $<$<BOOL:${ENABLE_DCP}>:DCPLib::Xml>
         ${LIBXML2_LIBRARIES}
         ZLIB::ZLIB
         $<$<BOOL:${UNIX}>:dl>
@@ -88,6 +100,7 @@ target_compile_definitions(
         $<$<BOOL:${ENABLE_MT}>:ENABLE_MT>
         $<$<BOOL:${ENABLE_DEBUG}>:MCX_DEBUG>
         $<$<BOOL:${ENABLE_BOUND_CHECKS}>:ENABLE_BOUND_CHECKS>
+        $<$<BOOL:${ENABLE_DCP}>:ENABLE_DCP>
         $<$<BOOL:${WIN32}>:OS_WINDOWS>
         $<$<BOOL:${UNIX}>:OS_LINUX>
     PRIVATE

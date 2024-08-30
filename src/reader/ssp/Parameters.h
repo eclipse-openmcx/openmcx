@@ -43,6 +43,9 @@ McxStatus SSDReadFmuParameterData(xmlNodePtr specificDataNode, ParameterInput * 
 
 McxStatus SSDDefaultFmuParameterData(xmlNodePtr connectorNode, ParameterInput * paramInput);
 
+McxStatus SSDSetDcpParameters(ComponentInput * compInput, ParametersInput * paramsInput);
+McxStatus SSDReadDcpParameterData(xmlNodePtr specificDataNode, ParameterInput * paramInput);
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

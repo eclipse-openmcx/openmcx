@@ -19,6 +19,7 @@
 #include "components/comp_fmu.h"
 #include "components/comp_integrator.h"
 #include "components/comp_vector_integrator.h"
+#include "components/comp_dcp.h"
 
 
 #ifdef __cplusplus
@@ -36,6 +37,8 @@ static Component * _CreateComponent(ComponentFactory * factory, ComponentType * 
         comp = (Component *) object_create(CompVectorIntegrator);
     } else if (object_same_type(ComponentTypeConstant, type)) {
         comp = (Component *) object_create(CompConstant);
+    } else if (object_same_type(ComponentTypeDcp, type)) {
+        comp = (Component *) object_create(CompDcp);
     }
     if (comp) {
         comp->data->id = id;

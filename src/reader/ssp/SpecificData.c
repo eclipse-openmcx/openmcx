@@ -16,6 +16,7 @@
 #include "reader/model/components/specific_data/IntegratorInput.h"
 #include "reader/model/components/specific_data/VectorIntegratorInput.h"
 #include "reader/model/components/specific_data/ConstantInput.h"
+#include "reader/model/components/specific_data/DcpInput.h"
 
 #include "channel_value/ChannelValue.h"
 
@@ -356,6 +357,48 @@ McxStatus SSDReadConstantData(xmlNodePtr componentNode, xmlNodePtr specificDataN
 
     input->values = SSDReadConstantValues(specificDataNode);
     if (!input->values) {
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus SSDReadDcpData(xmlNodePtr componentNode, xmlNodePtr specificDataNode, ComponentInput * compInput) {
+    DcpInput * input = (DcpInput *) compInput;
+    McxStatus retVal = RETURN_OK;
+
+    retVal = SSDCheckSourceEmpty(componentNode);
+    if (retVal == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    retVal = xml_opt_attr_int32(specificDataNode, "port", &input->port);
+    if (retVal == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    retVal = xml_attr_string(specificDataNode, "host", &input->ip, SSD_MANDATORY);
+    if (retVal == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    retVal = xml_opt_attr_size_t(specificDataNode, "numerator", &input->numerator);
+    if (retVal == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    retVal = xml_opt_attr_size_t(specificDataNode, "denominator", &input->denominator);
+    if (retVal == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    retVal = xml_attr_enum(specificDataNode, "mode", dcpSlaveModeMapping, (int *) &input->mode, SSD_MANDATORY);
+    if (retVal == RETURN_ERROR) {
+        return RETURN_ERROR;
+    }
+
+    retVal = xml_attr_path(specificDataNode, "slaveDescription", &input->slaveDescPath, SSD_MANDATORY);
+    if (retVal == RETURN_ERROR) {
         return RETURN_ERROR;
     }
 

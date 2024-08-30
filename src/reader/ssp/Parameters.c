@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2020 AVL List GmbH and others
+ * Copyright (c) 2023 AVL List GmbH and others
  * 
  * This program and the accompanying materials are made available under the
  * terms of the Apache Software License 2.0 which is available at
@@ -14,6 +14,7 @@
 
 #include "reader/model/parameters/specific_data/FmuParameterInput.h"
 #include "reader/model/components/specific_data/FmuInput.h"
+#include "reader/model/components/specific_data/DcpInput.h"
 
 #include "reader/EnumMapping.h"
 
@@ -1305,6 +1306,12 @@ McxStatus SSDDefaultFmuParameterData(xmlNodePtr connectorNode, ParameterInput * 
     FmuParameterInput * input = (FmuParameterInput *) paramInput;
 
     input->isInitialValue = FALSE;
+
+    return RETURN_OK;
+}
+
+McxStatus SSDSetDcpParameters(ComponentInput * compInput, ParametersInput * paramsInput) {
+    compInput->parameters = paramsInput;
 
     return RETURN_OK;
 }

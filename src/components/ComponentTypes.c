@@ -117,6 +117,25 @@ static ComponentTypeVectorIntegrator * ComponentTypeVectorIntegratorCreate(Compo
 
 OBJECT_CLASS(ComponentTypeVectorIntegrator, ComponentType);
 
+/*****************************************************************************/
+/*                        ComponentTypeDcp                                   */
+/*****************************************************************************/
+static const char * ComponentTypeDcpToString(ComponentType * type) {
+    return "DCP";
+}
+
+static void ComponentTypeDcpDestructor(ComponentTypeDcp * type) {
+}
+
+static ComponentTypeDcp * ComponentTypeDcpCreate(ComponentTypeDcp * type) {
+    ComponentType * base = (ComponentType *)type;
+
+    base->ToString = ComponentTypeDcpToString;
+
+    return type;
+}
+
+OBJECT_CLASS(ComponentTypeDcp, ComponentType);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

@@ -49,6 +49,10 @@ typedef struct ComponentTypeVectorIntegrator {
     ComponentType _;
 } ComponentTypeVectorIntegrator;
 
+extern const ObjectClass _ComponentTypeDcp;
+typedef struct ComponentTypeDcp {
+    ComponentType _;
+} ComponentTypeDcp;
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
