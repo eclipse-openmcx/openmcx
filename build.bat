@@ -24,7 +24,7 @@ if not exist build mkdir build
 cd build
 
 rem Default generator configuration
-set CMAKE_GENERATOR="Visual Studio 16 2019"
+set CMAKE_GENERATOR="Visual Studio 17 2022"
 set CMAKE_GENERATOR_PLATFORM=x64
 set VERBOSE=1
 
