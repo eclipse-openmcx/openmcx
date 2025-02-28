@@ -24,6 +24,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type);
+const char * Fmi2TypeToString(fmi2_base_type_enu_t type);
 
 struct Fmu2CommonStruct;
 
@@ -51,6 +52,8 @@ struct Fmu2CommonStruct {
     ObjectContainer * out;
     ObjectContainer * params;
     ObjectContainer * initialValues;
+
+    ObjectContainer * connectedIn;
 
     ObjectContainer * localValues;
     ObjectContainer * tunableParams;

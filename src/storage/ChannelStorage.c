@@ -36,16 +36,16 @@ static McxStatus ChannelStorageRegisterChannelInternal(ChannelStorage * channelS
 
     /* if values have already been written, do not allow registering additional channels */
     if (channelStore->values) {
-        info = channel->GetInfo(channel);
-        mcx_log(LOG_ERROR, "Results: Register port %s: Cannot register ports to storage after values have been stored", info->GetLogName(info));
+        info = &channel->info;
+        mcx_log(LOG_ERROR, "Results: Register port %s: Cannot register ports to storage after values have been stored", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
     /* add channel */
     retVal = channels->PushBack(channels, (Object *)object_strong_reference(channel));
     if (RETURN_OK != retVal) {
-        info = channel->GetInfo(channel);
-        mcx_log(LOG_DEBUG, "Results: Register port %s: Pushback of port failed", info->GetLogName(info));
+        info = &channel->info;
+        mcx_log(LOG_DEBUG, "Results: Register port %s: Pushback of port failed", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
@@ -56,8 +56,8 @@ static McxStatus ChannelStorageRegisterChannel(ChannelStorage * channelStore, Ch
     ObjectContainer * channels = channelStore->channels;
 
     if (0 == channels->Size(channels)) {
-        ChannelInfo *info = channel->GetInfo(channel);
-        mcx_log(LOG_ERROR, "Results: Register port %s: Port storage not yet setup", info->GetLogName(info));
+        ChannelInfo *info = &channel->info;
+        mcx_log(LOG_ERROR, "Results: Register port %s: Port storage not yet setup", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
@@ -65,7 +65,7 @@ static McxStatus ChannelStorageRegisterChannel(ChannelStorage * channelStore, Ch
 }
 
 static McxStatus ChannelStorageSetup(ChannelStorage * channelStore, int fullStorage) {
-    ChannelInfo * timeInfo = NULL;
+    ChannelInfo timeInfo = { 0 };
     Channel * timeChannel = NULL;
     McxStatus retVal = RETURN_OK;
 
@@ -77,38 +77,35 @@ static McxStatus ChannelStorageSetup(ChannelStorage * channelStore, int fullStor
     }
 
     /* add time channel */
-    timeInfo = (ChannelInfo *) object_create(ChannelInfo);
-    if (!timeInfo) { /* this can only fail because of no memory */
-        mcx_log(LOG_DEBUG, "Results: Setup port storage: No memory for time port data");
-        return RETURN_ERROR;
+    retVal = ChannelInfoInit(&timeInfo);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Results: Setup port storage: Initialization of time port data failed");
+        goto cleanup;
     }
 
-    retVal = timeInfo->Init(
-        timeInfo,
-        "Time",              /* name */
-        "",                  /* description */
-        GetTimeUnitString(), /* unit */
-        CHANNEL_DOUBLE,      /* type */
-        ""                   /* id*/ );
-    if (RETURN_OK != retVal) {
-        mcx_log(LOG_ERROR, "Results: Setup port storage: Could not setup time port data");
-        return RETURN_ERROR;
+    retVal = ChannelInfoSetup(&timeInfo, "Time", "", GetTimeUnitString(), CHANNEL_DOUBLE, "");
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Results: Setup port storage: Could not set up time port data");
+        goto cleanup;
     }
 
     timeChannel = (Channel *) object_create(Channel);
     if (!timeChannel) { /* this can only fail because of no memory */
         mcx_log(LOG_DEBUG, "Results: Setup port storage: No memory for time port");
-        return RETURN_ERROR;
+        retVal = RETURN_ERROR;
+        goto cleanup;
     }
 
-    retVal = timeChannel->Setup(timeChannel, timeInfo);
+    retVal = timeChannel->Setup(timeChannel, &timeInfo);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Results: Setup port storage: Could not setup time port");
-        return RETURN_ERROR;
+        goto cleanup;
     }
 
     retVal = ChannelStorageRegisterChannelInternal(channelStore, timeChannel);
 
+cleanup:
+    ChannelInfoDestroy(&timeInfo);
     object_destroy(timeChannel);
 
     return retVal;
@@ -155,8 +152,8 @@ static McxStatus ChannelStorageSetValueFromReferenceAt(ChannelStorage * channelS
     }
 
     if (row >= channelStore->numValues) {
-        ChannelInfo * info = channel->GetInfo(channel);
-        ChannelValueInit(&channelStore->values[row * colNum + col], info->GetType(info));
+        ChannelInfo * info = &channel->info;
+        ChannelValueInit(&channelStore->values[row * colNum + col], info->type);
     }
 
     ChannelValueSetFromReference(&channelStore->values[row * colNum + col], reference);
@@ -207,8 +204,8 @@ static McxStatus ChannelStorageStoreFull(ChannelStorage * channelStore, double t
         retVal = ChannelStorageSetValueFromReferenceAt(channelStore,
             channelStore->numValues, i, channel->GetValueReference(channel));
         if (RETURN_OK != retVal) { /* error msg in ChannelStorageSetValueFromReferenceAt */
-            ChannelInfo *info = channel->GetInfo(channel);
-            mcx_log(LOG_DEBUG, "Results: Error in store port %s", info->GetLogName(info));
+            ChannelInfo *info = &channel->info;
+            mcx_log(LOG_DEBUG, "Results: Error in store port %s", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
     }
@@ -249,8 +246,8 @@ static McxStatus ChannelStorageStoreNonFull(ChannelStorage * channelStore, doubl
         Channel * channel = (Channel *) channels->At(channels, i);
         retVal = ChannelStorageSetValueFromReferenceAt(channelStore, 0, i, channel->GetValueReference(channel));
         if (RETURN_OK != retVal) { /* error msg in ChannelStorageSetValueFromReferenceAt */
-            ChannelInfo *info = channel->GetInfo(channel);
-            mcx_log(LOG_DEBUG, "Results: Error in store port %s", info->GetLogName(info));
+            ChannelInfo *info = &channel->info;
+            mcx_log(LOG_DEBUG, "Results: Error in store port %s", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
     }
@@ -267,6 +264,11 @@ static ChannelValue ChannelStorageGetValueAt(ChannelStorage * channelStore, size
     return channelStore->values[row * colNum + col];
 }
 
+static ChannelValue * ChannelStorageGetValuesAtRow(ChannelStorage * channelStore, size_t row) {
+    size_t colNum = channelStore->channels->Size(channelStore->channels);
+    return channelStore->values + row * colNum;
+}
+
 
 static size_t ChannelStorageLength(ChannelStorage * channelStore) {
     return channelStore->numValues;
@@ -277,7 +279,7 @@ static ChannelInfo * ChannelStorageGetChannelInfo(ChannelStorage * channelStore,
     Channel * channel = (Channel *) channels->At(channels, idx);
 
     if (channel) {
-        return channel->GetInfo(channel);
+        return &channel->info;
     } else {
         return NULL;
     }
@@ -304,7 +306,7 @@ static void ChannelStorageDestructor(ChannelStorage * channelStore) {
             size_t i = 0;
             if (channels->Size(channels) > 0) {
                 Channel * channel = (Channel *) channels->At(channels, 0);
-                ChannelInfo * timeInfo = channel->GetInfo(channel);
+                ChannelInfo * timeInfo = &channel->info;
                 object_destroy(timeInfo);
             }
             for (i = 0; i < channels->Size(channels); i++) {
@@ -324,6 +326,7 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
     channelStore->GetChannelNum = ChannelStorageGetChannelNum;
 
     channelStore->GetValueAt = ChannelStorageGetValueAt;
+    channelStore->GetValuesAtRow = ChannelStorageGetValuesAtRow;
 
     channelStore->Length = ChannelStorageLength;
     channelStore->GetChannelInfo = ChannelStorageGetChannelInfo;

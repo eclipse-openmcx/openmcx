@@ -18,12 +18,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-typedef struct CompConstant {
-    Component _;
-
-    ChannelValue ** values;
-} CompConstant;
-
 static McxStatus Read(Component * comp, ComponentInput * input, const struct Config * const config) {
     CompConstant * compConstant = (CompConstant *)comp;
     ConstantInput * constantInput = (ConstantInput *)input;
@@ -60,6 +54,43 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
     }
 
     return RETURN_OK;
+}
+
+static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
+    Component * comp = (Component *) (compConstant);
+    Databus * db = comp->GetDatabus(comp);
+    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t i = 0;
+    size_t sum = 0;
+    ChannelValue * value = NULL;
+    VectorChannelInfo * vInfo = NULL;
+    size_t numCh = 0;
+    size_t startIdx = 0;
+    size_t endIdx = 0;
+
+    for (i = 0; i < numVecOut; i++) {
+        vInfo = DatabusGetOutVectorChannelInfo(db, i);
+        startIdx = vInfo->GetStartIndex(vInfo);
+        endIdx = vInfo->GetEndIndex(vInfo);
+        numCh = endIdx - startIdx + 1;
+
+        sum += numCh;
+        if (sum > idx) {
+            break;
+        }
+    }
+
+    if (i >= numVecOut) {
+        ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%zu) provided", idx);
+        return NULL;
+    }
+
+    value = compConstant->values[i];
+    if (!vInfo->IsScalar(vInfo)) {
+        value += idx - (sum - numCh);
+    }
+
+    return value;
 }
 
 static McxStatus Setup(Component * comp) {
@@ -118,13 +149,15 @@ static void CompConstantDestructor(CompConstant * compConst) {
 static Component * CompConstantCreate(Component * comp) {
     CompConstant * self = (CompConstant *)comp;
 
-    // map to local funciotns
+    // map to local functions
     comp->Read = Read;
     comp->Setup = Setup;
     comp->Initialize = Initialize;
 
     comp->GetFinishState = CompConstantGetFinishState;
 
+    // local functions
+    self->GetValue = GetValue;
     // local values
     self->values = NULL;
 

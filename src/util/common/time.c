@@ -20,6 +20,13 @@ void mcx_time_init(McxTime * time) {
     mcx_time_diff(&now, &now, time);
 }
 
+double mcx_time_to_milli_s(McxTime * time) {
+    return mcx_time_to_micro_s(time) / 1000.0;
+}
+double mcx_time_to_seconds(McxTime * time) {
+    return mcx_time_to_micro_s(time) / 1000000.0;
+}
+
 #ifdef __cplusplus
 } /* closing brace for extern "C" */
 #endif /* __cplusplus */

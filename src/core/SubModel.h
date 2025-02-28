@@ -19,6 +19,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
 typedef enum {
     INITIAL_DEPENDENCIES,
     RUNTIME_DEPENDENCIES
@@ -66,6 +67,7 @@ struct SubModel {
     fSubModelLoopEvaluationList LoopEvaluationList;
     fSubModelLoopComponents LoopComponents;
     fSubModelIsElement IsElement;
+    fSubModelIsElement ContainsOrIsElement;
 
     ObjectContainer * evaluationList; // contains CompAndGroup
     ObjectContainer * components; // contains Component
@@ -73,6 +75,8 @@ struct SubModel {
     ObjectContainer * outConnections;
 };
 
+
+StringContainer * SubModelGetAllObservableChannelsContainer(SubModel * subModel);
 
 extern const struct ObjectClass _SubModelGenerator;
 

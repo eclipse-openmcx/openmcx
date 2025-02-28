@@ -14,12 +14,14 @@
 #include "core/SubModel.h"
 #include "core/Component.h"
 #include "core/connections/Connection.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
 
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif /* __cplusplus */
+
 
 static McxStatus SubModelGeneratorSetComponents(SubModelGenerator * subModelGenerator, ObjectContainer * comps,
                                                 DependencyType depType);
@@ -80,7 +82,7 @@ static McxStatus SubModelGeneratorPrintNodeMap(SubModelGenerator * subModelGener
             }
             if (comp->OneOutputOneGroup(comp)) {
                 ChannelInfo * info   = DatabusGetOutChannelInfo(comp->GetDatabus(comp), compAndGroup->group);
-                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), info->GetName(info));
+                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), ChannelInfoGetName(info));
                 mcx_log(LOG_DEBUG, "         (%zu)", compAndGroup->group);
             } else if(depType == INITIAL_DEPENDENCIES && comp->GetNumInitialOutGroups(comp) == 1 ||
                       depType == RUNTIME_DEPENDENCIES && comp->GetNumOutGroups(comp) == 1) {
@@ -89,7 +91,7 @@ static McxStatus SubModelGeneratorPrintNodeMap(SubModelGenerator * subModelGener
                 mcx_log(LOG_INFO, " %s (%s, -)", enu, comp->GetName(comp));
             } else {
                 ChannelInfo * info = DatabusGetOutChannelInfo(comp->GetDatabus(comp), compAndGroup->group);
-                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), info->GetName(info));
+                mcx_log(LOG_INFO, " %s (%s, %s)", enu, comp->GetName(comp), ChannelInfoGetName(info));
             }
         }
     }
@@ -393,6 +395,27 @@ static int SubModelIsElement(SubModel * subModel, const Component * comp) {
     return 0;
 }
 
+static int SubModelContainsOrIsElement(SubModel * subModel, const Component * comp) {
+    ObjectContainer * comps = subModel->components;
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * iComp = (Component *) comps->At(comps, i);
+        if (!iComp) {
+            mcx_log(LOG_DEBUG, "Model: nullptr in submodel at idx %zu", i);
+            continue;
+        }
+
+        if (comp == iComp) {
+            return TRUE;
+        } else if (iComp->ContainsComponent && iComp->ContainsComponent(iComp, comp)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 // only need to consider DECOUPLE_IFNEEDED since DECOUPLE_ALWAYS is handled at connection->Setup()
 McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectContainer * comps) {
     size_t i; size_t k;
@@ -422,7 +445,7 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
             for (ii = 0; ii < group->nodes.size && decouplePriority < INT_MAX; ii++) {
                 for (jj = 0; jj < group->nodes.size && decouplePriority < INT_MAX; jj++) {
                     int localDecouplePriority = -1;
-                    ObjectContainer * connections = NULL;
+                    ObjectList * connections = NULL;
                     Component * fromComp = (Component *) comps->At(comps, group->nodes.values[ii]);
                     Component * toComp = (Component *) comps->At(comps, group->nodes.values[jj]);
 
@@ -445,18 +468,18 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
                         Connection * conn = (Connection *) connections->At(connections, k);
                         ConnectionInfo    * info = conn->GetInfo(conn);
 
-                        if (info->IsDecoupled(info)) {
+                        if (ConnectionInfoIsDecoupled(info)) {
                             continue;
                         }
 
                         if (fromComp->GetSequenceNumber(fromComp) > toComp->GetSequenceNumber(toComp)) {
                             localDecouplePriority = INT_MAX; // ordering by components takes priority
                             break;
-                        } else if (info->GetDecoupleType(info) == DECOUPLE_IFNEEDED) {
-                            if (info->GetDecouplePriority(info) > localDecouplePriority) {
-                                localDecouplePriority = info->GetDecouplePriority(info);
+                        } else if (info->decoupleType == DECOUPLE_IFNEEDED) {
+                            if (info->decouplePriority > localDecouplePriority) {
+                                localDecouplePriority = info->decouplePriority;
                             }
-                        } else if (info->GetDecoupleType(info) == DECOUPLE_NEVER) {
+                        } else if (info->decoupleType == DECOUPLE_NEVER) {
                             // if a connection in this bundle set to never decouple, discard this bundle
                             localDecouplePriority = -1;
                             break;
@@ -476,7 +499,7 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
 
             // decouple connection with highest priority
             if (decoupleFrom != SIZE_T_ERROR && decoupleTo != SIZE_T_ERROR) {
-                ObjectContainer * connections = NULL;
+                ObjectList * connections = NULL;
                 Component * fromComp = (Component *) comps->At(comps, group->nodes.values[decoupleFrom]);
                 Component * toComp = (Component *) comps->At(comps, group->nodes.values[decoupleTo]);
 
@@ -501,11 +524,11 @@ McxStatus OrderedNodesDecoupleConnections(OrderedNodes * orderedNodes, ObjectCon
                     Connection * conn = (Connection *) connections->At(connections, k);
                     ConnectionInfo * info = conn->GetInfo(conn);
 
-                    char * connStr = info->ConnectionString(info);
+                    char * connStr = ConnectionInfoConnectionString(info);
                     mcx_log(LOG_INFO, "Decoupling connection %s", connStr);
                     mcx_free(connStr);
 
-                    info->SetDecoupled(info);
+                    ConnectionInfoSetDecoupled(info);
                 }
 
                 object_destroy(connections);
@@ -577,6 +600,7 @@ static SubModel * SubModelCreate(SubModel * subModel) {
     subModel->LoopEvaluationList = SubModelLoopEvaluationList;
     subModel->LoopComponents = SubModelLoopComponents;
     subModel->IsElement = SubModelIsElement;
+    subModel->ContainsOrIsElement = SubModelContainsOrIsElement;
 
     subModel->outConnections = (ObjectContainer *) object_create(ObjectContainer);
     if (!subModel->outConnections) {
@@ -667,7 +691,7 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                     //check if connection exists (cosim init values are not deoupling connections, they only have lower priority than connection values)
                     ConnectionInfo * info = GetInConnectionInfo(targetComp, targetInChannelID);
                     if (NULL != info) {
-                        if (info->IsDecoupled(info)) {//decoupled connection
+                        if (ConnectionInfoIsDecoupled(info)) {//decoupled connection
                             dependency = DEP_INDEPENDENT;
                         }
                     } else {//no connection
@@ -681,21 +705,21 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                 Connection * conn = GetInConnection(targetComp, targetInChannelID);
 
                 if (info
-                    && (info->GetDecoupleType(info) & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED))
-                    && (!info->IsDecoupled(info))
+                    && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED))
+                    && (!ConnectionInfoIsDecoupled(info))
                     && conn
                     && conn->IsActiveDependency(conn))
                 {
-                    Component * sourceComp = info->GetSourceComponent(info);
+                    Component * sourceComp = info->sourceComponent;
                     size_t sourceOutGroup, sourceNode;
                     Databus * db = targetComp->GetDatabus(targetComp);
                     DatabusInfo * dbInfo = DatabusGetOutInfo(db);
                     size_t numOutChannels = DatabusInfoGetChannelNum(dbInfo);
 
                     if (INITIAL_DEPENDENCIES == depType) {
-                        sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->GetSourceChannelID(info));
+                        sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->sourceChannel);
                     } else {
-                        sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->GetSourceChannelID(info));
+                        sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->sourceChannel);
                     }
 
                     sourceNode = SubModelGeneratorGetNodeID(subModelGenerator, sourceComp, sourceOutGroup);
@@ -793,6 +817,39 @@ int OrderedNodesCheckIfLoopsExist(OrderedNodes * nodes) {
     }
 
     return FALSE;
+}
+
+static size_t SubModelGetNumObservableChannels(const SubModel * subModel) {
+    size_t count = 0;
+    ObjectContainer * comps = subModel->components;
+    Component * comp = NULL;
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        comp = (Component *) comps->At(comps, i);
+        count += comp->GetNumObservableChannels(comp);
+    }
+
+    return count;
+}
+
+StringContainer * SubModelGetAllObservableChannelsContainer(SubModel * subModel) {
+    ObjectContainer * comps = subModel->components;
+    size_t numObservableChannels = SubModelGetNumObservableChannels(subModel);
+
+    StringContainer * container = StringContainerCreate(numObservableChannels);
+    size_t count = 0;
+    size_t i = 0, j = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * comp = (Component *) comps->At(comps, i);
+        // TODO: make composable
+        comp->AddObservableChannels(comp, container, &count);
+    }
+
+    StringContainerResize(container, count);
+
+    return container;
 }
 
 #ifdef __cplusplus

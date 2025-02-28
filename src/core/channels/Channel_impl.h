@@ -13,32 +13,13 @@
 
 #include "CentralParts.h"
 #include "objects/ObjectContainer.h"
+#include "core/channels/ChannelInfo.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-// ----------------------------------------------------------------------
-// Channel
 
-typedef struct ChannelData {
-    Object _; // base class
-
-    // ----------------------------------------------------------------------
-    // General Information
-
-    ChannelInfo * info;
-
-    // ----------------------------------------------------------------------
-    // Value
-
-    // NOTE: This flag gets set if there is a defined value for the
-    // channel during initialization.
-    int isDefinedDuringInit;
-    const void * internalValue;
-    ChannelValue value;
-
-} ChannelData;
 
 // ----------------------------------------------------------------------
 // ChannelIn
@@ -95,7 +76,7 @@ typedef struct ChannelOutData {
     // Connections to Consumers
 
     // A list of all input channels that are connected to this output channel
-    ObjectContainer * connections;
+    ObjectList * connections;
 
 } ChannelOutData;
 

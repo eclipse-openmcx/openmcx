@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "core/Component.h"
+#include "core/Component_impl.h"
 #include "core/SubModel.h"
 #include "core/Databus.h"
 #include "storage/ComponentStorage.h"
@@ -60,12 +61,13 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             }
         }
 
+        TimeSnapshotStart(&comp->data->rtData.funcTimings.rtTriggerIn);
         // TODO: Rename this to UpdateInChannels
         if (TRUE == ComponentGetUseInputsAtCouplingStepEndTime(comp)) {
             tmpTime = interval.startTime;
             interval.startTime = interval.endTime;
 
-            retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+            retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
             if (RETURN_OK != retVal) {
                 mcx_log(LOG_ERROR, "%s: Update inports failed", comp->GetName(comp));
                 return RETURN_ERROR;
@@ -73,12 +75,13 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
             interval.startTime = tmpTime;
         } else {
-            retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+            retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
             if (RETURN_OK != retVal) {
                 mcx_log(LOG_ERROR, "%s: Update inports failed", comp->GetName(comp));
                 return RETURN_ERROR;
             }
         }
+        TimeSnapshotEnd(&comp->data->rtData.funcTimings.rtTriggerIn);
 
 #ifdef MCX_DEBUG
         if (time < MCX_DEBUG_LOG_TIME) {
@@ -86,6 +89,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
         }
 #endif // MCX_DEBUG
 
+        TimeSnapshotStart((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStoreIn);
         if (TRUE == ComponentGetStoreInputsAtCouplingStepEndTime(comp)) {
             retVal = comp->Store(comp, CHANNEL_STORE_IN, interval.endTime, level);
         } else if (FALSE == ComponentGetStoreInputsAtCouplingStepEndTime(comp)) {
@@ -98,6 +102,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             mcx_log(LOG_ERROR, "%s: Storing inport failed", comp->GetName(comp));
             return RETURN_ERROR;
         }
+        TimeSnapshotEnd((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStoreIn);
 
 #ifdef MCX_DEBUG
         if (time < MCX_DEBUG_LOG_TIME) {
@@ -121,6 +126,14 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             return RETURN_ERROR;
         }
 
+        if (comp->PostDoStep) {
+            retVal = comp->PostDoStep(comp);
+            if (RETURN_ERROR == retVal) {
+                mcx_log(LOG_ERROR, "%s: PostDoStep failed", comp->GetName(comp));
+                return RETURN_ERROR;
+            }
+        }
+
         /* the last coupling step is the new synchronization step */
         if (double_geq(comp->GetTime(comp), stepEndTime)) {
             level = STORE_SYNCHRONIZATION;
@@ -134,6 +147,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
         }
 #endif // MCX_DEBUG
 
+        TimeSnapshotStart((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStore);
         retVal = comp->Store(comp, CHANNEL_STORE_OUT, comp->GetTime(comp), level);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "%s: Storing outport failed", comp->GetName(comp));
@@ -149,6 +163,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
             mcx_log(LOG_ERROR, "%s: Storing real time factors failed", comp->GetName(comp));
             return RETURN_ERROR;
         }
+        TimeSnapshotEnd((TimeSnapshot *) &comp->data->rtData.funcTimings.rtStore);
     }
 
     if (comp->GetFinishState(comp) == COMP_IS_FINISHED) {
@@ -184,7 +199,7 @@ static McxStatus CompTriggerInputs(CompAndGroup * compGroup, void * param) {
         return RETURN_ERROR;
     }
 
-    retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+    retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "%s: Updating inports failed", comp->GetName(comp));
         return RETURN_ERROR;
@@ -236,6 +251,18 @@ McxStatus CompEnterCouplingStepMode(Component * comp, void * param) {
     return RETURN_OK;
 }
 
+McxStatus CompCollectModeSwitchData(Component * comp, void * param) {
+    McxStatus retVal = RETURN_OK;
+
+    retVal = DatabusCollectModeSwitchData(comp->GetDatabus(comp));
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "%s: Collecting mode switch data failed", comp->GetName(comp));
+        return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
 
 McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param) {
     const StepTypeParams * params = (const StepTypeParams *) param;
@@ -248,6 +275,11 @@ McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param) {
 
 // ----------------------------------------------------------------------
 // Step Type
+
+int IsStepTypeMultiThreading(StepTypeType type) {
+    return (type == STEP_TYPE_PARALLEL_MT
+           );
+}
 
 static McxStatus StepTypeConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel) {
     return RETURN_OK;

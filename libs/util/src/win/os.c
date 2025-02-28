@@ -87,10 +87,25 @@ const char * mcx_os_get_errno_descr(int errnum) {
 
 int mcx_os_path_exists(const char * path) {
     int ret;
-    wchar_t * wPath = mcx_string_to_widechar(path);
+    char * absoluteNormalizedPath = NULL;
+    wchar_t * wPath = NULL;
+
+    absoluteNormalizedPath = mcx_os_path_normalize(path);
+    if (path && !absoluteNormalizedPath) {
+        mcx_log(LOG_ERROR, "Util: Could not convert path '%s' to a normalized absolute path", path);
+        return 0;
+    }
+
+    wPath = mcx_string_to_widechar(absoluteNormalizedPath);
+
+    if (absoluteNormalizedPath) {
+        mcx_free(absoluteNormalizedPath);
+    }
 
     ret = (_waccess(wPath, 0) != -1);
-    mcx_free(wPath);
+    if (wPath) {
+        mcx_free(wPath);
+    }
 
     return ret;
 }

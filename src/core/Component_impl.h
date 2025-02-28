@@ -24,6 +24,50 @@ extern "C" {
 struct Model;
 struct Databus;
 
+typedef struct {
+    int enabled;
+
+    McxTime start;
+    McxTime end;
+
+    double startTime;
+    double endTime;
+} TimeSnapshot;
+
+
+void TimeSnapshotStart(TimeSnapshot * snapshot);
+void TimeSnapshotEnd(TimeSnapshot * snapshot);
+
+
+typedef struct {
+    TimeSnapshot snapshot;
+
+    double startTimePre;
+    double endTimePre;
+} DelayedTimeSnapshot;
+
+
+typedef struct {
+    McxTime rtGlobalSimStart;  // wall clock of start of simulation
+
+    TimeSnapshot rtCalc;
+    TimeSnapshot rtSync;
+
+    int profilingTimesEnabled;
+
+    TimeSnapshot rtInput;
+    TimeSnapshot rtOutput;
+    TimeSnapshot rtTriggerIn;
+
+    DelayedTimeSnapshot rtStore;
+    DelayedTimeSnapshot rtStoreIn;
+} FunctionTimings;
+
+
+void FunctionTimingsCalculateTimeDiffs(FunctionTimings * timings);
+void FunctionTimingsSetGlobalSimStart(FunctionTimings * timings, McxTime * simStart);
+
+
 typedef struct ComponentRTFactorData ComponentRTFactorData;
 
 struct ComponentRTFactorData {
@@ -33,27 +77,31 @@ struct ComponentRTFactorData {
     int defined;
     int enabled;
 
-    McxTime simClock; /* ticks in doStep since simulation start */
-    McxTime stepClock; /* ticks in the current communication step */
+    McxTime rtCalcSum;        // ticks in doStep since simulation start
+    double rtCalcSum_s;       // time in doSteps since simulation start
 
-    double simTime; /* time in doStep since simulation start */
-    double simTimeTotal; /* time since initialize */
-    double stepTime; /* time in the current communication step */
+    McxTime rtCommStepTime;   // ticks in the current communication step
+    double rtCommStepTime_s;  // time in the current communication step
 
-    double startTime; /* start time of simulation */
-    double commTime; /* simulated time in current communication step */
+    double simCommStepTime;   // simulated time in current communication step
 
-    double rtFactor;
-    double rtFactorAvg;
+    double rtTotalSum_s;      // time since initialize
 
-    McxTime startClock; /* wall clock of start of simulation */
-    McxTime lastDoStepClock; /* wall clock of last DoStep */
+    double simStartTime;      // start time of simulation
 
-    /* wall clock of last DoStep before entering communication mode */
-    McxTime lastCommDoStepClock;
+    double rtFactorCalc;
+    double rtFactorCalcAvg;
 
-    double totalRtFactor;
-    double totalRtFactorAvg;
+    double rtFactorTotal;
+    double rtFactorTotalAvg;
+
+    McxTime rtCompStart;       // wall clock of start of component
+
+    McxTime rtLastEndCalc; // wall clock of last Calc End
+
+    McxTime rtLastCompEnd; // wall clock of last DoStep before entering communication mode
+
+    FunctionTimings funcTimings;
 };
 
 

@@ -27,16 +27,23 @@ extern "C" {
 
 static int TaskSubmodelIsFinished(SubModel * subModel) {
     size_t i = 0;
-
     ObjectContainer * eval = subModel->evaluationList;
+    size_t numComps = eval->Size(eval);
+    int modelContainsOnlyNeverFinishingComps = numComps ? TRUE : FALSE;
 
-    for (i = 0; i < eval->Size(eval); i++) {
+    for (i = 0; i < numComps; i++) {
         CompAndGroup * compAndGroup = (CompAndGroup *) eval->At(eval, i);
         Component * comp = (Component *) compAndGroup->comp;
 
         if (comp->GetFinishState(comp) == COMP_IS_NOT_FINISHED) {
             return FALSE;
+        } else if (comp->GetFinishState(comp) != COMP_NEVER_FINISHES) {
+            modelContainsOnlyNeverFinishingComps = FALSE;
         }
+    }
+
+    if (modelContainsOnlyNeverFinishingComps) {
+        return FALSE;
     }
 
     return TRUE;
@@ -112,7 +119,7 @@ static McxStatus TaskInitialize(Task * task, Model * model) {
         return RETURN_ERROR;
     }
 
-    retVal = subModel->LoopComponents(subModel, CompPostDoUpdateState, (void *) task);
+    retVal = subModel->LoopComponents(subModel, CompPostDoUpdateState, (void *) stepParams);
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Post update state of elements failed during initialization");
         return RETURN_ERROR;
@@ -274,7 +281,7 @@ static McxStatus TaskRead(Task * task, TaskInput * taskInput) {
     }
 
     task->rtFactorEnabled = taskInput->timingOutput.defined ? taskInput->timingOutput.value : FALSE;
-    retVal = task->storage->Read(task->storage, taskInput->results, task->config);
+    retVal = task->storage->Read(task->storage, taskInput->results, task->config, IsStepTypeMultiThreading(task->stepTypeType));
 
     return retVal;
 }

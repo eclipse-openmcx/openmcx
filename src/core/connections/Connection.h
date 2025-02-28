@@ -13,6 +13,7 @@
 
 #include "CentralParts.h"
 #include "core/connections/ConnectionInfo.h"
+#include "objects/Vector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +31,7 @@ typedef enum {
     InInitializationMode
 } ConnectionState;
 
-McxStatus CheckConnectivity(ObjectContainer * connections);
+McxStatus CheckConnectivity(Vector * connections);
 McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInterExtrapolating);
 
 
@@ -49,6 +50,7 @@ typedef struct ChannelOut * (* fConnectionGetSource)(Connection * connection);
 typedef struct ChannelIn  * (* fConnectionGetTarget)(Connection * connection);
 
 typedef void * (* fConnectionGetValueReference)(Connection * connection);
+typedef void (* fConnectionSetValueReference)(Connection * connection, void * reference);
 
 typedef ConnectionInfo * (* fConnectionGetInfo)(Connection * connection);
 
@@ -74,8 +76,37 @@ typedef McxStatus (* fConnectionAddFilter)(Connection * connection);
 
 extern const struct ObjectClass _Connection;
 
+
 struct Connection {
     Object _; // base class
+
+    // source
+    struct ChannelOut * out_;
+
+    // target
+    struct ChannelIn * in_;
+
+
+    // ----------------------------------------------------------------------
+    // Value on channel
+
+    const void * value_;
+    int useInitialValue_;
+
+    ChannelValue store_;
+
+    int isActiveDependency_;
+
+    // Meta Data
+    ConnectionInfo info;
+
+    // Current state of the connection in state machine
+    ConnectionState state_;
+
+    // Temporary save functions during initialization mode
+    fConnectionUpdateFromInput NormalUpdateFrom_;
+    fConnectionUpdateToOutput NormalUpdateTo_;
+    const void * normalValue_;
 
     /**
      * Virtual Method.
@@ -100,6 +131,12 @@ struct Connection {
      * updated on each call to UpdateToOutput().
      */
     fConnectionGetValueReference GetValueReference;
+
+    /**
+     * Set the reference to the value of the connection. This value will be
+     * updated on each call to UpdateToOutput().
+     */
+    fConnectionSetValueReference SetValueReference;
 
     /**
      * Returns the connection info struct.
@@ -168,8 +205,6 @@ struct Connection {
     fConnectionUpdateInitialValue UpdateInitialValue;
 
     fConnectionAddFilter AddFilter;
-
-    struct ConnectionData * data;
 } ;
 
 //------------------------------------------------------------------------------

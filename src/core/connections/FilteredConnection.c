@@ -11,9 +11,9 @@
 #include "core/connections/FilteredConnection.h"
 #include "core/connections/FilteredConnection_impl.h"
 #include "core/connections/Connection.h"
-#include "core/connections/Connection_impl.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/connections/filters/DiscreteFilter.h"
 
 #ifdef __cplusplus
@@ -40,14 +40,14 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
                                          ChannelIn * in, ConnectionInfo * info) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
 
-    ChannelInfo * sourceInfo = ((Channel *)out)->GetInfo((Channel *) out);
-    ChannelInfo * targetInfo = ((Channel *)in)->GetInfo((Channel *) in);
+    ChannelInfo * sourceInfo = &((Channel *)out)->info;
+    ChannelInfo * targetInfo = &((Channel *)in)->info;
 
     McxStatus retVal = RETURN_OK;
 
     // Decoupling
-    if (DECOUPLE_ALWAYS == info->GetDecoupleType(info)) {
-        info->SetDecoupled(info);
+    if (DECOUPLE_ALWAYS == info->decoupleType) {
+        ConnectionInfoSetDecoupled(info);
     }
 
     // filter will be added after model is connected
@@ -57,7 +57,7 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     ChannelValueInit(&filteredConnection->data->store, sourceInfo->type);
 
     // value reference
-    connection->data->value = ChannelValueReference(&filteredConnection->data->store);
+    connection->value_ = ChannelValueReference(&filteredConnection->data->store);
 
 
     // Connection::Setup()
@@ -85,7 +85,7 @@ static McxStatus FilteredConnectionEnterCommunicationMode(Connection * connectio
         }
     }
 
-    connection->data->state = InCommunicationMode;
+    connection->state_ = InCommunicationMode;
     return RETURN_OK;
 }
 
@@ -106,7 +106,7 @@ static McxStatus FilteredConnectionEnterCouplingStepMode(Connection * connection
         }
     }
 
-    connection->data->state = InCouplingStepMode;
+    connection->state_ = InCouplingStepMode;
     return RETURN_OK;
 }
 
@@ -122,12 +122,11 @@ static void FilteredConnectionUpdateFromInput(Connection * connection, TimeInter
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
     ChannelFilter * filter = filteredConnection->GetWriteFilter(filteredConnection);
     Channel * channel = (Channel *) connection->GetSource(connection);
-    ChannelInfo * info = channel->GetInfo(channel);
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
-        ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateFromInput", time->startTime, info->GetName(info));
+        ChannelInfo * info = &channel->info;
+        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateFromInput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
 
@@ -145,12 +144,10 @@ static void FilteredConnectionUpdateToOutput(Connection * connection, TimeInterv
     Channel * channel = (Channel *) connection->GetSource(connection);
     ChannelOut * out  = (ChannelOut *) channel;
 
-    ChannelInfo * info = channel->GetInfo(channel);
-
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
-        ChannelInfo * info = channel->GetInfo(channel);
-        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateToOutput", time->startTime, info->GetName(info));
+        ChannelInfo * info = &channel->info;
+        MCX_DEBUG_LOG("[%f] FCONN   (%s) UpdateToOutput", time->startTime, ChannelInfoGetName(info));
     }
 #endif
 

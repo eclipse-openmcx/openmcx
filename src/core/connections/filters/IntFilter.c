@@ -165,13 +165,35 @@ static McxStatus IntFilterEnterCommunicationMode(ChannelFilter * filter, double 
     return RETURN_OK;
 }
 
-static McxStatus IntFilterSetup(IntFilter * intFilter, int degree){
+static McxStatus IntFilterSetup(IntFilter * intFilter, int degree, size_t buffSize){
     ChannelFilter * filter = (ChannelFilter *) intFilter;
 
     mcx_table_interp_type intType = MCX_TABLE_INTERP_NOT_SET;
     mcx_table_extrap_type extType = MCX_TABLE_EXTRAP_NOT_SET;
 
     int ret = 0;
+
+    if (buffSize == 0) {
+        mcx_log(LOG_ERROR, "IntFilter: Buffer size %zu not supported", buffSize);
+        return RETURN_ERROR;
+    }
+
+    intFilter->dataLen = buffSize;
+
+    intFilter->read_x_data = (double*)mcx_malloc(intFilter->dataLen * sizeof(double));
+    intFilter->read_y_data = (double*)mcx_malloc(intFilter->dataLen * sizeof(double));
+
+    intFilter->write_x_data = (double*)mcx_malloc(intFilter->dataLen * sizeof(double));
+    intFilter->write_y_data = (double*)mcx_malloc(intFilter->dataLen * sizeof(double));
+
+    if (!intFilter->read_x_data ||
+        !intFilter->read_y_data ||
+        !intFilter->write_x_data ||
+        !intFilter->write_y_data)
+    {
+        mcx_log(LOG_ERROR, "IntFilter: Buffer allocation failed");
+        return RETURN_ERROR;
+    }
 
     intFilter->couplingPolyDegree = degree;
 
@@ -201,11 +223,11 @@ static McxStatus IntFilterSetup(IntFilter * intFilter, int degree){
 static void IntFilterDestructor(IntFilter * filter){
     mcx_interp_free_table(filter->T);
 
-    mcx_free(filter->read_x_data);
-    mcx_free(filter->read_y_data);
+    if (filter->read_x_data) { mcx_free(filter->read_x_data); }
+    if (filter->read_y_data) { mcx_free(filter->read_y_data); }
 
-    mcx_free(filter->write_x_data);
-    mcx_free(filter->write_y_data);
+    if (filter->write_x_data) { mcx_free(filter->write_x_data); }
+    if (filter->write_y_data) { mcx_free(filter->write_y_data); }
 }
 
 static IntFilter * IntFilterCreate(IntFilter * intFilter){
@@ -226,14 +248,13 @@ static IntFilter * IntFilterCreate(IntFilter * intFilter){
 
     intFilter->T = mcx_interp_new_table();
 
-    /* this is just a generous heuristic value */
-    intFilter->dataLen = 1000;
+    intFilter->dataLen = 0;
 
-    intFilter->read_x_data = (double *) mcx_malloc(intFilter->dataLen * sizeof(double));
-    intFilter->read_y_data = (double *) mcx_malloc(intFilter->dataLen * sizeof(double));
+    intFilter->read_x_data = NULL;
+    intFilter->read_y_data = NULL;
 
-    intFilter->write_x_data = (double *) mcx_malloc(intFilter->dataLen * sizeof(double));
-    intFilter->write_y_data = (double *) mcx_malloc(intFilter->dataLen * sizeof(double));
+    intFilter->write_x_data = NULL;
+    intFilter->write_y_data = NULL;
 
     return intFilter;
 }

@@ -12,7 +12,7 @@
 #define MCX_CORE_CHANNELS_VECTORCHANNELINFO_H
 
 #include "CentralParts.h"
-#include "core/channels/ChannelInfo.h"
+#include "objects/Vector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,7 +53,7 @@ struct VectorChannelInfo {
     size_t startIndex;
     size_t endIndex;
 
-    ObjectContainer * channels; // of ChannelInfo, the elements of the vector
+    Vector * channels; // of ChannelInfo, the elements of the vector
 };
 
 #ifdef __cplusplus

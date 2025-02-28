@@ -118,7 +118,7 @@ char * ChannelValueToString(ChannelValue * value) {
     return buffer;
 }
 
-McxStatus ChannelValueDataToStringBuffer(ChannelValueData * value, ChannelType type, char * buffer, size_t len) {
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType type, char * buffer, size_t len) {
     size_t i = 0;
     size_t length = 0;
     const size_t precision = 13;
@@ -192,7 +192,7 @@ McxStatus ChannelValueDataToStringBuffer(ChannelValueData * value, ChannelType t
     return RETURN_OK;
 }
 
-McxStatus ChannelValueToStringBuffer(ChannelValue * value, char * buffer, size_t len) {
+McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len) {
     return ChannelValueDataToStringBuffer(&value->value, value->type, buffer, len);
 }
 
