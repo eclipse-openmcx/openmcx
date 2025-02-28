@@ -81,7 +81,7 @@ static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
     }
 
     if (i >= numVecOut) {
-        ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%d) provided", idx);
+        ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%zu) provided", idx);
         return NULL;
     }
 

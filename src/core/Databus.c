@@ -457,7 +457,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
         infos = DatabusReadPortInput(portInput);
         if (!infos) {
-            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read info of port %d", i);
+            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read info of port %zu", i);
             return RETURN_ERROR;
         }
 
@@ -485,7 +485,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
             retVal = dbInfos->PushBack(dbInfos, info);
             if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %d", i);
+                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %zu", i);
                 object_destroy(infos);
                 return RETURN_ERROR;
             }
@@ -493,7 +493,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
             infoCpy = dbInfos->At(dbInfos, dbInfos->Size(dbInfos) - 1);
             retVal = infoCpy->vector->AddElement(infoCpy->vector, infoCpy, idx);
             if (RETURN_ERROR == retVal) {
-                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not add vector info of port %d", i);
+                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not add vector info of port %zu", i);
                 object_destroy(infos);
                 return RETURN_ERROR;
             }
@@ -501,7 +501,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
             if (infos->Size(infos) == 1 && SpecificRead) {
                 retVal = SpecificRead(comp, infoCpy, portInput, i);
                 if (RETURN_ERROR == retVal) {
-                    mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %d", i);
+                    mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %zu", i);
                     return RETURN_ERROR;
                 }
             }

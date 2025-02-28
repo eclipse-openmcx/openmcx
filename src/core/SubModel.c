@@ -402,7 +402,7 @@ static int SubModelContainsOrIsElement(SubModel * subModel, const Component * co
     for (i = 0; i < comps->Size(comps); i++) {
         Component * iComp = (Component *) comps->At(comps, i);
         if (!iComp) {
-            mcx_log(LOG_DEBUG, "Model: nullptr in submodel at idx %d", i);
+            mcx_log(LOG_DEBUG, "Model: nullptr in submodel at idx %zu", i);
             continue;
         }
 
