@@ -21,6 +21,7 @@
 
 #include "util/string.h"
 #include "util/stdlib.h"
+#include "util/signals.h"
 
 #include "fmilib.h"
 
@@ -191,11 +192,13 @@ McxStatus Fmu2CommonStructSetup(FmuCommon * common, Fmu2CommonStruct * fmu2, fmi
     }
 
     mcx_log(LOG_DEBUG, "%s: instantiatefn: %x", common->instanceName, fmi2_import_instantiate);
+    mcx_signal_handler_set_function("fmi2_import_instantiate"),
     jmStatus = fmi2_import_instantiate(fmu2->fmiImport,
                                        common->instanceName,
                                        fmu_type,
                                        NULL,
                                        fmi2_false /* visible */);
+    mcx_signal_handler_unset_function();
     if (jm_status_error == jmStatus) {
         mcx_log(LOG_ERROR, "%s: Instantiate failed", common->instanceName);
         return RETURN_ERROR;
@@ -713,14 +716,19 @@ McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
 
     McxStatus retVal = RETURN_OK;
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2SetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }
@@ -785,8 +793,8 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
 
         status = fmi2_import_get_integer(fmu->fmiImport, vrs, 3, vs);
 
-    binary.len = vs[2];
-    binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
+        binary.len = vs[2];
+        binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
 
         ChannelValueSetFromReference(chVal, &binary);
 
@@ -820,15 +828,20 @@ McxStatus Fmu2GetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
 
     McxStatus retVal = RETURN_OK;
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2GetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "FMU: Getting of variable array failed at element %u", i);
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }

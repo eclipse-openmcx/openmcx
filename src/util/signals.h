@@ -24,6 +24,15 @@ void mcx_signal_handler_set_name(const char * threadName);
 void mcx_signal_handler_unset_name(void);
 
 /**
+ * Sets and unsets the current functions name for usage in signal handler messages
+ *
+ * Note: __func__ is part of C99 standard (ISO/IEC 9899:1999), section 6.4.2.2
+ */
+#define mcx_signal_handler_set_this_function() mcx_signal_handler_set_function(__func__)
+void mcx_signal_handler_set_function(const char * functionName);
+void mcx_signal_handler_unset_function(void);
+
+/**
  * Deletes the handler for SIGSEGV
  */
 void mcx_signal_handler_disable(void);
@@ -38,6 +47,7 @@ void mcx_signal_handler_sigint(int param);
  */
 int mcx_signal_handler_is_interrupted(void);
 
+const char * mcx_signal_handler_get_function_name(void);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

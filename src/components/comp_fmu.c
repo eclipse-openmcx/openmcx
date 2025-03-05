@@ -21,6 +21,7 @@
 #include "objects/Map.h"
 #include "reader/model/components/specific_data/FmuInput.h"
 #include "util/string.h"
+#include "util/signals.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -229,10 +230,12 @@ static McxStatus Fmu1Initialize(Component * comp, size_t group, double startTime
 
     // Initialization Mode
     ComponentLog(comp, LOG_DEBUG, "fmiInitializeSlave");
+    mcx_signal_handler_set_function("fmi1_import_initialize_slave");
     status = fmi1_import_initialize_slave(fmu1->fmiImport,
                                           startTime,
                                           fmi1_false,
                                           0.0);
+    mcx_signal_handler_unset_function();
     if (fmi1_status_ok != status) {
         ComponentLog(comp, LOG_ERROR, "fmiInitializeSlave failed");
         return RETURN_ERROR;
@@ -288,7 +291,9 @@ static McxStatus Fmu1DoStep(Component * comp, size_t group, double time, double 
     }
 
     // Do calculations
+    mcx_signal_handler_set_function("fmi1_import_do_step");
     status = fmi1_import_do_step(fmu1->fmiImport, compFmu->lastCommunicationTimePoint, deltaTime, fmi1_true);
+    mcx_signal_handler_unset_function();
     if (fmi1_status_ok == status) {
         // fine
     } else if (fmi1_status_discard == status) {
@@ -905,12 +910,14 @@ static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime
     defaultTolerance = fmi2_import_get_default_experiment_tolerance(fmu2->fmiImport);
 
     compFmu->lastCommunicationTimePoint = startTime;
+    mcx_signal_handler_set_function("fmi2_import_setup_experiment");
     status = fmi2_import_setup_experiment(fmu2->fmiImport,
                                           fmi2_false, /* toleranceDefine */
                                           defaultTolerance,
                                           startTime, /* startTime */
                                           fmi2_false, /* stopTimeDefined */
                                           0.0 /* stopTime */);
+    mcx_signal_handler_unset_function();
 
     if (fmi2_status_ok != status) {
         ComponentLog(comp, LOG_ERROR, "SetupExperiment failed");
@@ -918,7 +925,9 @@ static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime
     }
 
     // Initialization Mode
+    mcx_signal_handler_set_function("fmi2_import_enter_initialization_mode");
     status = fmi2_import_enter_initialization_mode(fmu2->fmiImport);
+    mcx_signal_handler_unset_function();
     if (fmi2_status_ok != status) {
         ComponentLog(comp, LOG_ERROR, "Could not enter Initialization Mode");
         return RETURN_ERROR;
@@ -961,7 +970,9 @@ static McxStatus Fmu2Initialize(Component * comp, size_t group, double startTime
 static McxStatus Fmu2ExitInitializationMode(Component *comp) {
     CompFMU *compFmu = (CompFMU*)comp;
 
+    mcx_signal_handler_set_function("fmi2_import_exit_initialization_mode");
     fmi2_status_t status = fmi2_import_exit_initialization_mode(compFmu->fmu2.fmiImport);
+    mcx_signal_handler_unset_function();
     if (fmi2_status_ok != status) {
         ComponentLog(comp, LOG_ERROR, "Could not exit Initialization Mode");
         return RETURN_ERROR;
@@ -987,14 +998,18 @@ static McxStatus Fmu2DoStep(Component * comp, size_t group, double time, double 
     TimeSnapshotEnd(&comp->data->rtData.funcTimings.rtInput);
 
     // Do calculations
+    mcx_signal_handler_set_function("fmi2_import_do_step");
     status = fmi2_import_do_step(fmu2->fmiImport, compFmu->lastCommunicationTimePoint, deltaTime, fmi2_true);
+    mcx_signal_handler_unset_function();
     if (fmi2_status_ok == status) {
         // fine
     } else if (fmi2_status_discard == status) {
         fmi2_status_t fmi2status;
         fmi2_boolean_t isTerminated = fmi2_false;
 
+        mcx_signal_handler_set_function("fmi2_import_get_boolean_status");
         fmi2status = fmi2_import_get_boolean_status(fmu2->fmiImport, fmi2_terminated, &isTerminated);
+        mcx_signal_handler_unset_function();
         if (fmi2_status_ok == fmi2status) {
             if (fmi2_true == isTerminated) {
                 comp->SetIsFinished(comp);
@@ -1330,21 +1345,29 @@ static void CompFMUDestructor(CompFMU * compFmu) {
     // TOOD: Move this to the common struct destructors
     if (fmu1->fmiImport) {
         if (fmi1_true == fmu1->runOk) {
+            mcx_signal_handler_set_function("fmi1_import_terminate_slave");
             fmi1_import_terminate_slave(fmu1->fmiImport);
+            mcx_signal_handler_unset_function();
         }
 
         if (fmi1_true == fmu1->instantiateOk) {
+            mcx_signal_handler_set_function("fmi1_import_free_slave_instance");
             fmi1_import_free_slave_instance(fmu1->fmiImport);
+            mcx_signal_handler_unset_function();
         }
     }
 
     if (fmu2->fmiImport) {
         if (fmi2_true == fmu2->runOk) {
+            mcx_signal_handler_set_function("fmi2_import_terminate");
             fmi2_import_terminate(fmu2->fmiImport);
+            mcx_signal_handler_unset_function();
         }
 
         if (fmi2_true == fmu2->instantiateOk) {
+            mcx_signal_handler_set_function("fmi2_import_free_instance");
             fmi2_import_free_instance(fmu2->fmiImport);
+            mcx_signal_handler_unset_function();
         }
     }
 

@@ -15,6 +15,7 @@
 #include "reader/model/parameters/ParameterInput.h"
 
 #include "util/string.h"
+#include "util/signals.h"
 
 #include "fmilib.h"
 
@@ -601,13 +602,18 @@ McxStatus Fmu1SetVariableArray(Fmu1CommonStruct * fmu, ObjectContainer * vals) {
     size_t i = 0;
     size_t numVars = vals->Size(vals);
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu1Value * fmuVal = (Fmu1Value *) vals->At(vals, i);
 
         if (RETURN_ERROR == Fmu1SetVariable(fmu, fmuVal)) {
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }
@@ -672,14 +678,19 @@ McxStatus Fmu1GetVariableArray(Fmu1CommonStruct * fmu, ObjectContainer * vals) {
     size_t i = 0;
     size_t numVars = vals->Size(vals);
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         McxStatus retVal = RETURN_OK;
         Fmu1Value * fmuVal = (Fmu1Value *) vals->At(vals, i);
         retVal = Fmu1GetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }

@@ -316,14 +316,20 @@ McxStatus RunMCX(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("ConfigSetupFromCmdLine");
     retVal = config->SetupFromCmdLine(config, argc, argv);
+    mcx_signal_handler_unset_function();
     if (retVal == RETURN_ERROR) {
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("SetupLogFiles");
     SetupLogFiles(config->logFile, config->writeAllLogFile);
+    mcx_signal_handler_unset_function();
     logInitialized = 1;
+    mcx_signal_handler_set_function("ConfigSetupFromEnvironment");
     retVal = config->SetupFromEnvironment(config);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_INFO, "Setting up configuration from environment failed");
         retVal = RETURN_ERROR;
@@ -337,14 +343,18 @@ McxStatus RunMCX(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("ReaderSetup");
     retVal = reader->Setup(reader, config->modelFile, config);
+    mcx_signal_handler_unset_function();
     if (retVal == RETURN_ERROR) {
         mcx_log(LOG_ERROR, "Input reader setup failed");
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("ReaderRead");
     mcxInput = reader->Read(reader, config->modelFile);
+    mcx_signal_handler_unset_function();
     if (!mcxInput) {
         mcx_log(LOG_ERROR, "Parsing of input file failed");
         retVal = RETURN_ERROR;
@@ -352,7 +362,9 @@ McxStatus RunMCX(int argc, char *argv[]) {
     }
     element = (InputElement *) mcxInput;
 
+    mcx_signal_handler_set_function("ConfigSetupFromInput");
     retVal = config->SetupFromInput(config, mcxInput->config);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Setting up configuration from input file failed");
         retVal = RETURN_ERROR;
@@ -387,20 +399,26 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_cpu_time_get(&clock_read_begin);
     mcx_time_get(&time_read_begin);
 
+    mcx_signal_handler_set_function("TaskRead");
     retVal = task->Read(task, mcxInput->task);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("ModelRead");
     retVal = model->Read(model, mcxInput->model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
     object_destroy(mcxInput);
+    mcx_signal_handler_set_function("ReaderCleanup");
     reader->Cleanup(reader);
+    mcx_signal_handler_unset_function();
     object_destroy(reader);
 
     mcx_cpu_time_get(&clock_read_end);
@@ -421,19 +439,25 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_cpu_time_get(&clock_setup_begin);
     mcx_time_get(&time_setup_begin);
 
+    mcx_signal_handler_set_function("TaskSetup");
     retVal = task->Setup(task, model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("ModelSetup");
     retVal = model->Setup(model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
+    mcx_signal_handler_set_function("TaskPrepareRun");
     retVal = task->PrepareRun(task, model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -457,7 +481,9 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_cpu_time_get(&clock_init_begin);
     mcx_time_get(&time_init_begin);
 
+    mcx_signal_handler_set_function("TaskInitialize");
     retVal = task->Initialize(task, model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -481,7 +507,9 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_log(LOG_INFO, " ");
     mcx_cpu_time_get(&clock_sim_begin);
     mcx_time_get(&time_sim_begin);
+    mcx_signal_handler_set_function("TaskRun");
     retVal = task->Run(task, model);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -512,6 +540,7 @@ McxStatus RunMCX(int argc, char *argv[]) {
     mcx_cpu_time_get(&clock_cleanup_begin);
     mcx_time_get(&time_cleanup_begin);
 
+    mcx_signal_handler_set_function("RunMCX:Cleanup");
     object_destroy(task);
     object_destroy(model);
     object_destroy(config);
@@ -554,6 +583,7 @@ cleanup:
         mcx_log(LOG_INFO, "**********************************************************************");
     }
 
+    mcx_signal_handler_unset_function(); // RunMCX:Cleanup
 
     return retVal;
 }
