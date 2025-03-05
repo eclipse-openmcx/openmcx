@@ -40,6 +40,8 @@ extern "C" {
 char * mcx_path_dir_name(const char * path);
 char * mcx_path_file_name(const char * path);
 
+void mcx_path_strip_ext(char * path);
+
 char * mcx_path_get_absolute(const char * path);
 int mcx_path_is_absolute(const char * path);
 

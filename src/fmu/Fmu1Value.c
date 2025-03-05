@@ -117,7 +117,7 @@ static Fmu1ValueData * Fmu1ValueDataArrayMake(size_t numDims, size_t dims[], fmi
         }
 
         for (i = 0; i < num; i++) {
-            data->vr.array.values[i] = fmi2_import_get_variable_vr(data->var.array.values[i]);
+            data->vr.array.values[i] = fmi1_import_get_variable_vr(data->var.array.values[i]);
         }
     }
     return data;
@@ -265,7 +265,7 @@ Fmu1Value * Fmu1ValueReadArray(const char * logPrefix, ChannelType * type, Chann
     }
 
     for (i = startIdx; i <= endIdx; i++) {
-        char * indexedChannelName = CreateIndexedName(channelName, i);
+        char * indexedChannelName = CreateIndexedName(channelName, (unsigned int) i);
         fmi1_import_variable_t * var = fmi1_import_get_variable_by_name(fmiImport, indexedChannelName);
         if (!var) {
             mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix, indexedChannelName);

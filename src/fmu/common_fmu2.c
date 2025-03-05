@@ -274,7 +274,9 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
     }
 
     if (fmu->fmiImport) {
+        mcx_signal_handler_set_function("fmi2_import_free");
         fmi2_import_free(fmu->fmiImport);
+        mcx_signal_handler_unset_function();
         fmu->fmiImport = NULL;
     }
 }
@@ -366,6 +368,7 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
             Fmu2Value * val = NULL;
             char * varName = (char *) mcx_calloc(stringBufferLength, sizeof(char));
             fmi2_import_variable_t * var = NULL;
+            const char * unitName = NULL;
             ChannelValue chVal;
 
             if (!varName) {
@@ -386,7 +389,14 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
                 goto fmu2_read_array_param_values_for_cleanup;
             }
 
-            val = Fmu2ValueScalarMake(varName, var, NULL, NULL);
+            if (fmi2_base_type_real == fmi2_import_get_variable_base_type(var)) {
+                fmi2_import_unit_t * unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(var));
+                if (unit) {
+                    unitName = fmi2_import_get_unit_name(unit);
+                }
+            }
+
+            val = Fmu2ValueScalarMake(varName, var, unitName, NULL);
             if (!val) {
                 retVal = RETURN_ERROR;
                 goto fmu2_read_array_param_values_for_cleanup;
@@ -520,7 +530,22 @@ McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams
                     goto cleanup_1;
                 }
 
-                retVal = proxy->Setup(proxy, name, parameterInput->parameter.arrayParameter->numDims, parameterInput->parameter.arrayParameter->dims);
+                size_t numDims = parameterInput->parameter.arrayParameter->numDims;
+                size_t * dims = mcx_malloc(sizeof(size_t) * numDims);
+                if (!dims) {
+                    mcx_log(LOG_ERROR, "FMU: Copying parameter array dimensions failed: No memory");
+                    retVal = RETURN_ERROR;
+                    goto cleanup_1;
+                }
+                size_t start, end;
+                for (size_t idx = 0; idx < numDims; idx++) {
+                    start = parameterInput->parameter.arrayParameter->dims[idx]->start;
+                    end = parameterInput->parameter.arrayParameter->dims[idx]->end;
+                    dims[idx] = end - start + 1;
+                }
+
+                retVal = proxy->Setup(proxy, name, numDims, dims);
+                mcx_free(dims);
                 if (RETURN_ERROR == retVal) {
                     mcx_log(LOG_ERROR, "FMU Array parameter %s: Array proxy setup failed", name);
                     goto cleanup_1;
@@ -778,7 +803,7 @@ McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencie
             if (ChannelTypeIsArray(info->type)) {
                 in_channel_connectivity[i].is_connected = TRUE;
                 in_channel_connectivity[i].num_elems = 0;
-                in_channel_connectivity[i].elems = (int *) mcx_calloc(ChannelDimensionNumElements(info->dimension), sizeof(size_t));
+                in_channel_connectivity[i].elems = (size_t *) mcx_calloc(ChannelDimensionNumElements(info->dimension), sizeof(size_t));
                 if (!in_channel_connectivity[i].elems) {
                     mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element container allocation failed");
                     ret_val = RETURN_ERROR;
@@ -801,7 +826,7 @@ McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencie
                 in_channel_connectivity[i].is_connected = TRUE;
                 // scalar channels are treated like they have 1 element (equal to zero)
                 in_channel_connectivity[i].num_elems = 1;
-                in_channel_connectivity[i].elems = (int*)mcx_calloc(1, sizeof(size_t));
+                in_channel_connectivity[i].elems = (size_t *) mcx_calloc(1, sizeof(size_t));
                 if (!in_channel_connectivity[i].elems) {
                     mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element allocation failed");
                     ret_val = RETURN_ERROR;

@@ -17,6 +17,9 @@
 #include "util/paths.h"
 
 
+#define LOCATION_PREFIX "file://"
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -58,6 +61,14 @@ char * mcx_path_file_name(const char * path) {
     strncpy(dir, &path[strlengthPathName], (strlengthPath - strlengthPathName + 1));
 
     return dir;
+}
+
+void mcx_path_strip_ext(char * path) {
+    char * dot = strrchr(path, '.');
+
+    if (dot) {
+        *dot = '\0';
+    }
 }
 
 char ** mcx_path_split(char * path) {
@@ -247,60 +258,6 @@ cleanup:
     return mergedPath;
 }
 
-char * mcx_path_from_uri(const char * uri) {
-    char * buffer = NULL;
-    size_t i = 0;
-    size_t j = 0;
-#if defined (OS_WINDOWS)
-    /* use of PathCreateFromUrl was considered, dismissed because of
-       needed effort */
-#define LOCATION_PREFIX          "file:///"
-#define LOCATION_PREFIX_2SLASHES "file://"
-    if (0 == strncmp(uri, LOCATION_PREFIX, strlen(LOCATION_PREFIX))) {
-        uri += strlen(LOCATION_PREFIX);
-    } else if (0 == strncmp(uri, LOCATION_PREFIX_2SLASHES, strlen(LOCATION_PREFIX_2SLASHES))) {
-        uri += strlen(LOCATION_PREFIX_2SLASHES);
-    }
-#else
-#define LOCATION_PREFIX "file://"
-    /* check if this is file uri */
-    if (strncmp(uri, LOCATION_PREFIX, strlen(LOCATION_PREFIX))) {
-        /* not a file uri */
-        return NULL;
-    }
-
-    /* check if uri has authority component */
-    if (uri[strlen(LOCATION_PREFIX)] == '/') {
-        /* no authority component */
-        uri += strlen(LOCATION_PREFIX);
-    } else {
-        /* skip over authority component */
-        uri += strlen(LOCATION_PREFIX);
-        while (*uri != '\0' && *uri != '/') {
-            uri++;
-        }
-    }
-#endif /* OS_WINDOWS */
-    buffer = (char *)mcx_calloc(strlen(uri) + 1, sizeof(char));
-    if (!buffer) { return NULL; }
-
-    /* convert escaped characters back */
-    while (uri[i]) {
-        if (uri[i] == '%') {
-            char str[3] = {uri[i+1], uri[i+2], 0};
-            buffer[j] = (char) strtol(str, NULL, 16);
-            i += 3;
-            j += 1;
-        } else {
-            buffer[j] = uri[i];
-            i += 1;
-            j += 1;
-        }
-    }
-    buffer[j] = '\0';
-
-    return buffer;
-}
 
 char * mcx_path_to_uri(const char * path) {
     char * uri = NULL;

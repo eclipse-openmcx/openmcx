@@ -65,7 +65,6 @@ struct Model {
     Task * task;
 
     Vector * connections;
-
     ObjectContainer * components;
 
     ComponentFactory * factory;

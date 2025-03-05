@@ -59,24 +59,24 @@ static ChannelInfo * GetSourceChannelInfo(ConnectionInfo * info) {
     return DatabusGetOutChannelInfo(srcDb, srcId);
 }
 
-static int ConnInfoWithSrc(void * elem, void * arg) {
+static int ConnInfoWithSrc(const void * elem, const void * arg) {
     /*
      * TRUE if obj (ConnectionInfo) has ctx as its source ChannelInfo
      */
-    ChannelInfo * chInfo = (ChannelInfo *) arg;
+    const ChannelInfo * chInfo = (const ChannelInfo *) arg;
     ConnectionInfo * info = *((ConnectionInfo **) elem);
     ChannelInfo * srcInfo = GetSourceChannelInfo(info);
 
     return srcInfo == chInfo;
 }
 
-static int IsBinaryConn(void * elem, void * args) {
+static int IsBinaryConn(const void * elem, const void * args) {
     /*
      * TRUE if both source and target channel infos of obj (ConnectionInfo) are binary
      */
     ConnectionInfo * info = (ConnectionInfo *) elem;
-    ChannelInfo * srcInfo = GetSourceChannelInfo(info);
-    ChannelInfo * trgInfo = GetTargetChannelInfo(info);
+    const ChannelInfo * srcInfo = GetSourceChannelInfo(info);
+    const ChannelInfo * trgInfo = GetTargetChannelInfo(info);
 
     return ChannelInfoIsBinary(srcInfo) && ChannelInfoIsBinary(trgInfo);
 }
@@ -295,9 +295,9 @@ cleanup:
     return RETURN_OK;
 }
 
-static int ConnInfoContained(void * elem, void * arg) {
-    ConnectionInfo * info = *(ConnectionInfo **) elem;
-    return info == (ConnectionInfo *) arg;
+static int ConnInfoContained(const void * elem, const void * arg) {
+    const ConnectionInfo * info = *(const ConnectionInfo **) elem;
+    return info == (const ConnectionInfo *) arg;
 }
 
 static McxStatus ModelPreprocessBinaryConnections(Model * model) {
@@ -313,7 +313,8 @@ static McxStatus ModelPreprocessBinaryConnections(Model * model) {
 
     McxStatus retVal = RETURN_OK;
 
-    if (task->stepTypeType != STEP_TYPE_SEQUENTIAL) {
+    if (task->stepTypeType != STEP_TYPE_SEQUENTIAL
+    ) {
         return RETURN_OK;
     }
 
@@ -733,13 +734,14 @@ static void DestroyOneComponent(Component * comp) {
 static void ModelDestructor(void * self) {
     Model * model = (Model *) self;
     ObjectContainer * comps = model->components;
-    size_t i = 0;
+    int i = 0;
 
     if (0 == model)
         return;
 
-    for (i = 0; i < comps->Size(comps); i++) {
-        Component * comp = (Component *) comps->At(comps, i);
+    // Delete components in the reverse order they were created.
+    for (i = (int) comps->Size(comps) - 1; i >= 0; i--) {
+        Component* comp = (Component*)comps->At(comps, i);
         DestroyOneComponent(comp);
     }
 
@@ -880,7 +882,8 @@ static McxStatus ModelMakeConnections(Model * model) {
 
     InterExtrapolatingType isInterExtrapolating = INTERPOLATING;
 
-    if (STEP_TYPE_SEQUENTIAL == type) {
+    if (STEP_TYPE_SEQUENTIAL == type
+    ) {
         isInterExtrapolating = INTERPOLATING;
     } else {
         isInterExtrapolating = EXTRAPOLATING;

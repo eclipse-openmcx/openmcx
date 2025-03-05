@@ -11,8 +11,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "common/memory.h"
+#include "common/logging.h"
 
 #include "util/string.h"
 
@@ -42,6 +44,37 @@ static int mcx_string_contains_char(const char * str, char c) {
         }
     }
     return 0;
+}
+
+char * mcx_string_decode(const char * str, char _escape_char) {
+    int i = 0;
+    int j = 0;
+    char * buffer = NULL;
+
+    buffer = (char *) mcx_calloc(strlen(str) + 1, sizeof(char));
+    if (!buffer) {
+        return NULL;
+    }
+
+    while (str[i]) {
+        if (str[i] == _escape_char) {
+            if (!str[i+1] || !str[i+2]) {
+                mcx_log(LOG_ERROR, "Invalid escape sequence encountered in string: %s", str);
+                return NULL;
+            }
+            char escape_sequence[3] = {str[i+1], str[i+2], 0};
+            buffer[j] = (char) strtol(escape_sequence, NULL, 16);
+            i += 3;
+            j += 1;
+        } else {
+            buffer[j] = str[i];
+            i += 1;
+            j += 1;
+        }
+    }
+    buffer[j] = '\0';
+
+    return buffer;
 }
 
 char * mcx_string_encode(const char * str, char _escape_char, const char _chars_to_escape[]) {
@@ -76,6 +109,17 @@ char * mcx_string_encode(const char * str, char _escape_char, const char _chars_
 
 char * mcx_string_encode_filename(const char * str) {
     return mcx_string_encode(str, '%', "\\\"<>|!#$&'()*+,/:;=?@[]%");
+}
+
+char* mcx_string_encode_special_characters_except_hash(const char* str) {
+    return mcx_string_encode(str, '%', "\\\"<>|!$&'()*+,/:;=?@[]%._`*{}");
+}
+
+char* mcx_string_encode_filename_result_files(const char* str) {
+    char* str_encoded = mcx_string_encode_special_characters_except_hash(str);
+    mcx_string_replace_char(str_encoded, ' ', '_');
+    mcx_string_replace_char(str_encoded, '#', '.');
+    return  str_encoded;
 }
 
 int mcx_string_ends_with(const char * str, const char * suffix) {
@@ -242,6 +286,18 @@ char* mcx_string_sep(char** stringp, const char* delim)
     }
     return start;
 }
+
+void mcx_string_replace_char(char* str, char searched_char, char replacement_char) {
+    size_t len = strlen(str);
+    size_t i = 0;
+
+    for (i = 0; i < len; i++) {
+        if (searched_char == str[i]) {
+            str[i] = replacement_char;
+        }
+    }
+}
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

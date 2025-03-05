@@ -273,8 +273,8 @@ cleanup_0:
     return info;
 }
 
-static int ChannelInfoSameNamePred(void * elem, const char * name) {
-    ChannelInfo * info = (ChannelInfo *) elem;
+static int ChannelInfoSameNamePred(const void * elem, const char * name) {
+    const ChannelInfo * info = (const ChannelInfo *) elem;
 
     return 0 == strcmp(ChannelInfoGetName(info), name);
 }
@@ -372,8 +372,8 @@ cleanup:
     return retVal;
 }
 
-static int IsWriteResults(void * elem, void * ignore) {
-    ChannelInfo * info = (ChannelInfo *) elem;
+static int IsWriteResults(const void * elem, const void * ignore) {
+    const ChannelInfo * info = (const ChannelInfo *) elem;
 
     return info->writeResult;
 }
@@ -1419,7 +1419,7 @@ OBJECT_CLASS(Databus, Object);
 
 
 char * CreateChannelID(const char * compName, const char * channelName) {
-    const char separator = '.';
+    const char separator = '#';
     size_t len = strlen(compName) + strlen(channelName) + 2;
     char * id = (char *) mcx_calloc(len, sizeof(char));
     if (id) {

@@ -50,7 +50,7 @@ Fmu2VariableInfo * Fmu2VariableInfoMake(fmi2_import_variable_t * var) {
         ChannelValueData max = { 0 };
         int maxDefined = FALSE;
 
-        char * xmlDesc = fmi2_import_get_variable_description(var);
+        char * xmlDesc = (char *) fmi2_import_get_variable_description(var);
         info->desc = mcx_string_copy(xmlDesc);
         if (xmlDesc && !info->desc) {
             goto cleanup;
@@ -501,7 +501,7 @@ Fmu2Value * Fmu2ReadFmu2ArrayValue(const char * logPrefix, ChannelType * type, c
     }
 
     for (i = startIdx; i <= endIdx; i++) {
-        char * indexedChannelName = CreateIndexedName(channelName, i);
+        char * indexedChannelName = CreateIndexedName(channelName, (unsigned int) i);
         fmi2_import_variable_t * var = fmi2_import_get_variable_by_name(fmiImport, indexedChannelName);
         if (!var) {
             mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix, indexedChannelName);

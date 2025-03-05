@@ -29,9 +29,9 @@ typedef void (*fVectorElemDestructor)(void * elem);
 typedef void (*fVectorSetup)(Vector * vector, size_t elemSize, fVectorElemInitializer elemInitializer,
                              fVectorElemSetter elemSetter, fVectorElemDestructor elemDestructor);
 typedef size_t (*fVectorSize)(const Vector * vector);
-typedef int (*fVectorElemPredicate)(void * elem, void * args);
-typedef void * (*fVectorFind)(const Vector * vector, fVectorElemPredicate pred, void * args);
-typedef size_t (*fVectorFindIdx)(const Vector * vector, fVectorElemPredicate pred, void * args);
+typedef int (*fVectorElemPredicate)(const void * elem, const void * args);
+typedef void * (*fVectorFind)(const Vector * vector, fVectorElemPredicate pred, const void * args);
+typedef size_t (*fVectorFindIdx)(const Vector * vector, fVectorElemPredicate pred, const void * args);
 typedef void * (*fVectorAt)(const Vector * vector, size_t idx);
 typedef McxStatus (*fVectorSetAt)(Vector * vector, size_t pos, void * elem);
 typedef McxStatus (*fVectorReserve)(Vector * vector, size_t newCapacity);

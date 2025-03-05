@@ -208,7 +208,6 @@ static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
         size_t j = 0;
 
         char * localName = mcx_string_encode_filename(comp->GetName(comp));
-
         size_t numberOfPorts[CHANNEL_STORE_NUM] = { 0 };  //avoid empty result files
         numberOfPorts[CHANNEL_STORE_IN] = comp->GetNumWriteInChannels(comp);
         numberOfPorts[CHANNEL_STORE_OUT] = comp->GetNumWriteOutChannels(comp);

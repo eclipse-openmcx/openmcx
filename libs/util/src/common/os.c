@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "common/memory.h"
+#include "common/logging.h"
 
 #include "util/os.h"
 #include "util/paths.h"
@@ -84,7 +85,7 @@ int mcx_os_fprintf(FILE *stream, const char *format, ...) {
     return ret;
 }
 
-int mcx_parse_win_env_var(char * path, char ** res) {
+int mcx_parse_win_env_var(const char * path, char ** res) {
     size_t i = 0;
 
     *res = NULL;
@@ -119,7 +120,7 @@ int mcx_parse_win_env_var(char * path, char ** res) {
     return (int)i;
 }
 
-static int input_parse_linux_env_var(char * path, char ** res, char open, char close) {
+static int input_parse_linux_env_var(const char * path, char ** res, char open, char close) {
     size_t i = 0;
 
     *res = NULL;
@@ -160,11 +161,11 @@ static int input_parse_linux_env_var(char * path, char ** res, char open, char c
     return (int)i;
 }
 
-int mcx_parse_linux_par_env_var(char * path, char ** res) {
+int mcx_parse_linux_par_env_var(const char * path, char ** res) {
     return input_parse_linux_env_var(path, res, '(', ')');
 }
 
-int mcx_parse_linux_bra_env_var(char * path, char ** res) {
+int mcx_parse_linux_bra_env_var(const char * path, char ** res) {
     return input_parse_linux_env_var(path, res, '{', '}');
 }
 
@@ -183,7 +184,7 @@ int mcx_parse_linux_bra_env_var(char * path, char ** res) {
  * If path does not start with an environment variable, *res is set to
  * NULL and 0 is returned.
  */
-static int mcx_parse_env_var(char * path, char ** res) {
+static int mcx_parse_env_var(const char * path, char ** res) {
     int num;
 
     if (num = mcx_parse_win_env_var(path, res)) {
@@ -200,7 +201,7 @@ static int mcx_parse_env_var(char * path, char ** res) {
     return 0;
 }
 
-static int mcx_parse_escaped_env_delimiter_win(char * path) {
+static int mcx_parse_escaped_env_delimiter_win(const char * path) {
     if (strlen(path) > 1 && path[0] == '%' && path[1] == '%') {
         return (int)'%';
     } else {
@@ -208,7 +209,7 @@ static int mcx_parse_escaped_env_delimiter_win(char * path) {
     }
 }
 
-static int mcx_parse_escaped_env_delimiter_linux(char * path) {
+static int mcx_parse_escaped_env_delimiter_linux(const char * path) {
     if (strlen(path) > 1 && path[0] == '$' && path[1] == '$') {
         return (int)'$';
     } else {
@@ -216,7 +217,7 @@ static int mcx_parse_escaped_env_delimiter_linux(char * path) {
     }
 }
 
-static int mcx_parse_escaped_env_delimiter(char * path) {
+static int mcx_parse_escaped_env_delimiter(const char * path) {
     int num;
 
     if (num = mcx_parse_escaped_env_delimiter_win(path)) {
@@ -229,7 +230,7 @@ static int mcx_parse_escaped_env_delimiter(char * path) {
     return 0;
 }
 
-char * mcx_resolve_env_var(char * path) {
+char * mcx_resolve_env_var(const char * path) {
     int i = 0;
 
     int resolved_len = 1; // for '\0'
@@ -239,9 +240,9 @@ char * mcx_resolve_env_var(char * path) {
     }
 
     while (path[i]) {
-        char * name;
-        char quote;
-        int num;
+        char * name = NULL;
+        char quote = 0;
+        int num = 0;
 
         // skip over chars until we find a variable or a quote
         while (path[i] &&
@@ -281,9 +282,7 @@ char * mcx_resolve_env_var(char * path) {
 
         // copy env-var value
         if (name) {
-            char * value;
-
-            value = mcx_os_get_env_var(name);
+            char * value = mcx_os_get_env_var(name);
             if (value) {
                 resolved_len += (int)strlen(value);
                 resolved = mcx_realloc(resolved, resolved_len);
@@ -296,6 +295,20 @@ char * mcx_resolve_env_var(char * path) {
 
                 strcat(resolved, value);
                 mcx_free(value);
+
+                if (path[i] == '%') {
+                    mcx_log(LOG_WARNING, "Defining environment variables via '%%env_var%%' (%s) is deprecated. Please switch to the '${env_var}' construct instead", path);
+                }
+            } else {
+                resolved_len += num;
+                resolved = mcx_realloc(resolved, resolved_len);
+                if (!resolved) {
+                    mcx_free(name);
+                    return NULL;
+                }
+
+                strncat(resolved, path + i, num);
+                resolved[resolved_len - 1] = '\0';
             }
 
             mcx_free(name);

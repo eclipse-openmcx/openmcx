@@ -272,6 +272,10 @@ void ChannelInfoDestroy(ChannelInfo * info) {
         object_destroy(info->dimension);
     }
 
+    if (info->connectionStatus) {
+        DestroyConnectionStatus(info->connectionStatus);
+    }
+
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
     info->type = ChannelTypeClone(&ChannelTypeUnknown);
@@ -304,6 +308,8 @@ McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->initialValueIsExact = FALSE;
 
     info->channel = NULL;
+
+    info->connectionStatus = NULL;
 
     return RETURN_OK;
 }

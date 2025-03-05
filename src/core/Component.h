@@ -48,6 +48,10 @@ typedef McxStatus (* fComponentExitInitializationMode)(Component * comp);
 typedef McxStatus (* fComponentUpdateInitialOutChannels)(Component * comp);
 typedef McxStatus (* fComponentUpdateOutChannels)(Component * comp);
 
+typedef McxStatus (*fComponentEnterEventMode)(Component * comp);
+typedef McxStatus (*fComponentExitEventMode)(Component * comp);
+typedef int (*fComponentInEventMode)(Component * comp);
+
 typedef McxStatus (* fComponentUpdateInChannels)(Component * comp);
 
 typedef int (* fComponentContainsComponent)(Component * comp, const Component * otherComp);
@@ -70,6 +74,9 @@ typedef void(* fComponentSetTime)(Component * comp, double time);
 typedef int (* fComponentHasOwnTime)(const Component * comp);
 typedef void(* fComponentSetHasOwnTime)(Component * comp);
 typedef void (* fComponentUpdateTime)(Component * comp);
+
+typedef int (* fComponentIsShadowComponent)(const Component * comp);
+typedef void (*fComponentSetIsShadowComponent)(Component * comp);
 
 typedef int (* fComponentOneOutputOneGroup)(Component * comp);
 
@@ -124,6 +131,10 @@ struct Component {
 
     fComponentInitialize Initialize;
     fComponentExitInitializationMode ExitInitializationMode;
+
+    fComponentEnterEventMode EnterEventMode;
+    fComponentExitEventMode ExitEventMode;
+    fComponentInEventMode InEventMode;
 
     /**
      * Updates the initial values of the output channels depending on the
@@ -184,6 +195,9 @@ struct Component {
     fComponentHasOwnTime HasOwnTime;
 
     fComponentSetHasOwnTime SetHasOwnTime;
+
+    fComponentIsShadowComponent IsShadowComponent;
+    fComponentSetIsShadowComponent SetIsShadowComponent;
 
     fComponentPredicate  IsPartOfInitCalculation;
     fComponentSetIsPartOfInitCalculation SetIsPartOfInitCalculation;

@@ -82,9 +82,10 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
     while (
         comp->GetFinishState(comp) != COMP_IS_FINISHED &&
-        comp->syncHints.stepSizesAreMultiples ?
+        (comp->syncHints.stepSizesAreMultiples ?
             double_cmp_eps_abs(comp->GetTime(comp), stepEndTime, comp->syncHints.eps) == CMP_LT :
             double_lt(comp->GetTime(comp), stepEndTime)
+        )
     ) {
         if (comp->HasOwnTime(comp)) {
             interval.startTime = comp->GetTime(comp);
@@ -154,7 +155,7 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
         }
 
         interval.startTime = comp->GetTime(comp);
-        interval.endTime = comp->GetTime(comp);
+        interval.endTime = interval.startTime;
         retVal = ComponentUpdateOutChannels(comp, &interval);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "%s: Updating outports failed", comp->GetName(comp));
@@ -316,7 +317,7 @@ int IsStepTypeMultiThreading(StepTypeType type) {
            );
 }
 
-static McxStatus StepTypeConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel) {
+static McxStatus StepTypeConfigure(StepType * stepType, StepTypeParams * params, SubModel * subModel, Model * model) {
     return RETURN_OK;
 }
 

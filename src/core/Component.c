@@ -458,6 +458,18 @@ McxStatus ComponentExitInitializationMode(Component * comp) {
     return RETURN_OK;
 }
 
+McxStatus ComponentEnterEventMode(Component * comp) {
+    return RETURN_OK;
+}
+
+McxStatus ComponentExitEventMode(Component * comp) {
+    return RETURN_OK;
+}
+
+int ComponentInEventMode(Component * comp) {
+    return FALSE;
+}
+
 static McxStatus ComponentUpdateInitialOutChannels(Component * comp) {
     return RETURN_OK;
 }
@@ -878,6 +890,14 @@ static int ComponentHasOwnTime(const Component * comp) {
     return comp->data->hasOwnTime;
 }
 
+static void ComponentSetIsShadowComponent(Component * comp) {
+    comp->data->isShadowComponent = 1;
+}
+
+static int ComponentIsShadowComponent(const Component * comp) {
+    return comp->data->isShadowComponent;
+}
+
 static void ComponentSetHasOwnTime(Component * comp) {
     comp->data->hasOwnTime = 1;
 }
@@ -1200,6 +1220,10 @@ static Component * ComponentCreate(Component * comp) {
     comp->UpdateOutChannels = NULL;
     comp->UpdateInChannels = NULL;
 
+    comp->EnterEventMode = ComponentEnterEventMode;
+    comp->InEventMode = ComponentInEventMode;
+    comp->ExitEventMode = ComponentExitEventMode;
+
     comp->RegisterStorage = ComponentRegisterStorage;
     comp->GetStorage = ComponentGetStorage;
     comp->Store = ComponentStore;
@@ -1231,6 +1255,9 @@ static Component * ComponentCreate(Component * comp) {
     comp->SetTime = ComponentSetTime;
     comp->HasOwnTime = ComponentHasOwnTime;
     comp->SetHasOwnTime = ComponentSetHasOwnTime;
+
+    comp->IsShadowComponent = ComponentIsShadowComponent;
+    comp->SetIsShadowComponent = ComponentSetIsShadowComponent;
 
     comp->GetFinishState = ComponentGetFinishState;
     comp->SetIsFinished = ComponentSetIsFinished;
@@ -1440,6 +1467,8 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
     data->finishState = COMP_IS_NOT_FINISHED;
 
     data->input = NULL;
+
+    data->isShadowComponent = 0;
 
     rtData = &data->rtData;
     rtData->defined = FALSE;

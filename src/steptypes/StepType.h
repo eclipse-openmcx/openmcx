@@ -20,6 +20,7 @@ extern "C" {
 typedef struct StepType StepType;
 typedef struct StepTypeParams StepTypeParams;
 typedef struct Component Component;
+typedef struct Model Model;
 typedef struct SubModel SubModel;
 typedef struct CompAndGroup CompAndGroup;
 
@@ -49,7 +50,7 @@ int IsStepTypeMultiThreading(StepTypeType type);
 
 typedef McxStatus (* fStepTypeDoStep)(StepType * stepType, StepTypeParams * params, SubModel * subModel);
 typedef McxStatus (* fStepTypeFinish)(StepType * stepType, StepTypeParams * params, SubModel * subModel, FinishState * finishState);
-typedef McxStatus (* fStepTypeConfigure)(StepType * stepType, StepTypeParams * params, SubModel * subModel);
+typedef McxStatus (* fStepTypeConfigure)(StepType * stepType, StepTypeParams * params, SubModel * subModel, Model * model);
 typedef StepTypeType (* fStepTypeGetType)(StepType * type);
 
 

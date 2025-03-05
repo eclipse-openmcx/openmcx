@@ -1167,6 +1167,9 @@ static void CompFMUDestructor(CompFMU * compFmu) {
     Fmu2CommonStruct * fmu2 = & compFmu->fmu2;
     FmuCommon * common = & compFmu->common;
 
+    Component * comp = (Component *) compFmu;
+    mcx_signal_handler_set_name(comp->GetName(comp));
+
     // TOOD: Move this to the common struct destructors
     if (fmu1->fmiImport) {
         if (fmi1_true == fmu1->runOk) {
@@ -1200,6 +1203,8 @@ static void CompFMUDestructor(CompFMU * compFmu) {
     Fmu2CommonStructDestructor(fmu2);
 
     FmuCommonDestructor(common);
+
+    mcx_signal_handler_unset_name();
 }
 
 static Component * CompFMUCreate(Component * comp) {

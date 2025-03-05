@@ -241,7 +241,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
             } else {
                 size_t i = 0;
                 size_t numFilters = FilteredConnectionGetNumFilters(filteredConnection);
-                ChannelType * type = info->type;
+                const ChannelType * type = info->type;
 
                 mcx_array * elements = (mcx_array *) ChannelValueDataPointer(&filteredConnection->data.updateBuffer);
                 char * dest = (char *) elements->data;
@@ -302,7 +302,9 @@ static McxStatus AddFilter(Connection * connection) {
                                                                      info->isInterExtrapolating,
                                                                      ConnectionInfoIsDecoupled(info),
                                                                      info->sourceComponent,
+                                                                     info->sourceChannel,
                                                                      info->targetComponent,
+                                                                     info->targetChannel,
                                                                      connString);
                 if (NULL == filteredConnection->data.filters[i]) {
                     mcx_log(LOG_DEBUG, "Connection: Array filter creation failed for index %zu", i);
@@ -319,7 +321,9 @@ static McxStatus AddFilter(Connection * connection) {
                                                              info->isInterExtrapolating,
                                                              ConnectionInfoIsDecoupled(info),
                                                              info->sourceComponent,
+                                                             info->sourceChannel,
                                                              info->targetComponent,
+                                                             info->targetChannel,
                                                              connString);
             if (NULL == filteredConnection->data._filter) {
                 mcx_log(LOG_DEBUG, "Connection: No Filter created");
@@ -330,7 +334,7 @@ static McxStatus AddFilter(Connection * connection) {
         }
 
 cleanup:
-        mcx_free(connString);
+        mcx_free((void *) connString);
         if (retVal != RETURN_OK) {
             return retVal;
         }
