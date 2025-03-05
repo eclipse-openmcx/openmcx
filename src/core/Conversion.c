@@ -10,6 +10,8 @@
 
 #include "CentralParts.h"
 #include "core/Conversion.h"
+#include "core/channels/ChannelValueReference.h"
+#include "core/channels/ChannelValue.h"
 #include "units/Units.h"
 
 #ifdef __cplusplus
@@ -34,15 +36,158 @@ OBJECT_CLASS(Conversion, Object);
 
 // ----------------------------------------------------------------------
 // Range Conversion
+static int RangeConversionElemwiseLeq(void * first, void * second, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) first <= *(double *) second;
+        case CHANNEL_INTEGER:
+            return *(int *) first <= *(int *) second;
+        default:
+            return 0;
+    }
+}
 
-McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value) {
+static int RangeConversionElemwiseGeq(void * first, void * second, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) first >= *(double *) second;
+        case CHANNEL_INTEGER:
+            return *(int *) first >= *(int *) second;
+        default:
+            return 0;
+    }
+}
+
+static McxStatus RangeConversionConvert(Conversion * conversion, ChannelValue * value) {
+    RangeConversion * rangeConversion = (RangeConversion *) conversion;
+    McxStatus retVal = RETURN_OK;
+
+    if (!ChannelTypeEq(ChannelValueType(value), rangeConversion->type)) {
+        mcx_log(LOG_ERROR,
+                "Range conversion: Value has wrong type %s, expected: %s",
+                ChannelTypeToString(ChannelValueType(value)),
+                ChannelTypeToString(rangeConversion->type));
+        return RETURN_ERROR;
+    }
+
+    if (rangeConversion->min) {
+        retVal = ChannelValueDataSetFromReferenceIfElemwisePred(&value->value,
+                                                                value->type,
+                                                                &rangeConversion->min->value,
+                                                                RangeConversionElemwiseLeq);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Range conversion: Set value to min failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (rangeConversion->max) {
+        retVal = ChannelValueDataSetFromReferenceIfElemwisePred(&value->value,
+                                                                value->type,
+                                                                &rangeConversion->max->value,
+                                                                RangeConversionElemwiseGeq);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Range conversion: Set value to max failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus RangeConversionMinValueRefConversion(void * element, size_t idx, ChannelType * type, void * ctx) {
+    ChannelValue * min = (ChannelValue *) ctx;
+    void * minElem = mcx_array_get_elem_reference(&min->value.a, idx);
+    if (RangeConversionElemwiseLeq(element, minElem, type)) {
+        switch (type->con)
+        {
+            case CHANNEL_DOUBLE:
+            {
+                double * elem = (double *) element;
+                *elem = *((double *)minElem);
+                break;
+            }
+        case CHANNEL_INTEGER:
+            {
+                int * elem = (int *) element;
+                *elem = *((int *)minElem);
+                break;
+            }
+        default:
+            mcx_log(LOG_ERROR, "RangeConversion: Unsupported type");
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus RangeConversionMaxValueRefConversion(void * element, size_t idx, ChannelType * type, void * ctx) {
+    ChannelValue * max = (ChannelValue *) ctx;
+    void * maxElem = mcx_array_get_elem_reference(&max->value.a, idx);
+    if (RangeConversionElemwiseGeq(element, maxElem, type)) {
+        switch (type->con)
+        {
+            case CHANNEL_DOUBLE:
+            {
+                double * elem = (double *) element;
+                *elem = *((double *)maxElem);
+                break;
+            }
+        case CHANNEL_INTEGER:
+            {
+                int * elem = (int *) element;
+                *elem = *((int *)maxElem);
+                break;
+            }
+        default:
+            mcx_log(LOG_ERROR, "RangeConversion: Unsupported type");
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus RangeConversionConvertValueRef(RangeConversion * conversion, ChannelValueReference * ref) {
+    RangeConversion * rangeConversion = (RangeConversion *) conversion;
+    McxStatus retVal = RETURN_OK;
+
+    if (!ChannelTypeEq(ChannelValueReferenceGetType(ref), rangeConversion->type)) {
+        mcx_log(LOG_ERROR,
+                "Range conversion: Value has wrong type %s, expected: %s",
+                ChannelTypeToString(ChannelValueReferenceGetType(ref)),
+                ChannelTypeToString(rangeConversion->type));
+        return RETURN_ERROR;
+    }
+
+    if (rangeConversion->min) {
+        retVal = ChannelValueReferenceElemMap(ref, RangeConversionMinValueRefConversion, rangeConversion->min);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Range conversion: Set value to min failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (rangeConversion->max) {
+        retVal = ChannelValueReferenceElemMap(ref, RangeConversionMaxValueRefConversion, rangeConversion->max);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Range conversion: Set value to max failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value, ChannelDimension * slice) {
     RangeConversion * rangeConv = NULL;
     ChannelValue * minToUse = NULL;
     ChannelValue * maxToUse = NULL;
 
     McxStatus retVal = RETURN_OK;
 
-    if (value->type != CHANNEL_DOUBLE && value->type != CHANNEL_INTEGER) {
+    if (!ChannelTypeEq(ChannelTypeBaseType(value->type), &ChannelTypeDouble) && !ChannelTypeEq(ChannelTypeBaseType(value->type), &ChannelTypeInteger)) {
         return RETURN_OK;
     }
 
@@ -80,9 +225,15 @@ McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * va
     }
 
     if (rangeConv) {
-        Conversion * conversion = (Conversion *) rangeConv;
-        retVal = conversion->convert(conversion, value);
-        if (RETURN_OK != retVal) {
+        if (slice) {
+            ChannelValueReference * ref = MakeChannelValueReference(value, slice);
+            retVal = RangeConversionConvertValueRef(rangeConv, ref);
+            DestroyChannelValueReference(ref);
+        } else {
+            retVal = RangeConversionConvert(rangeConv, value);
+        }
+
+        if (retVal == RETURN_ERROR) {
             mcx_log(LOG_ERROR, "ConvertRange: Conversion failed");
             goto cleanup;
         }
@@ -102,39 +253,12 @@ cleanup:
     return retVal;
 }
 
-static McxStatus RangeConversionConvert(Conversion * conversion, ChannelValue * value) {
-    RangeConversion * rangeConversion = (RangeConversion *) conversion;
-
-    McxStatus retVal = RETURN_OK;
-
-    if (ChannelValueType(value) != rangeConversion->type) {
-        mcx_log(LOG_ERROR, "Range conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(rangeConversion->type));
-        return RETURN_ERROR;
-    }
-
-    if (rangeConversion->min && ChannelValueLeq(value, rangeConversion->min)) {
-        retVal = ChannelValueSet(value, rangeConversion->min);
-        if (RETURN_OK != retVal) {
-            mcx_log(LOG_ERROR, "Range conversion: Set value to min failed");
-            return RETURN_ERROR;
-        }
-    } else if (rangeConversion->max && ChannelValueGeq(value, rangeConversion->max)) {
-        retVal = ChannelValueSet(value, rangeConversion->max);
-        if (RETURN_OK != retVal) {
-            mcx_log(LOG_ERROR, "Range conversion: Set value to max failed");
-            return RETURN_ERROR;
-        }
-    }
-
-    return RETURN_OK;
-}
-
 static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue * min, ChannelValue * max) {
     if (!min && !max) {
         return RETURN_OK;
     }
 
-    if (min && max && ChannelValueType(min) != ChannelValueType(max)) {
+    if (min && max && !ChannelTypeEq(ChannelValueType(min), ChannelValueType(max))) {
         mcx_log(LOG_ERROR, "Range conversion: Types of max value and min value do not match");
         return RETURN_ERROR;
     }
@@ -144,14 +268,11 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
         return RETURN_ERROR;
     }
 
-    if (min) {
-        conversion->type = ChannelValueType(min);
-    } else {
-        conversion->type = ChannelValueType(max);
-    }
+    conversion->type = ChannelTypeClone(ChannelValueType(min ? min : max));
 
-    if (!(conversion->type == CHANNEL_DOUBLE
-          || conversion->type == CHANNEL_INTEGER)) {
+    if (!(ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeDouble) ||
+          ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeInteger)))
+    {
         mcx_log(LOG_ERROR, "Range conversion is not defined for type %s", ChannelTypeToString(conversion->type));
         return RETURN_ERROR;
     }
@@ -162,22 +283,49 @@ static McxStatus RangeConversionSetup(RangeConversion * conversion, ChannelValue
     return RETURN_OK;
 }
 
+static int RangeConversionElementEqualsMin(void * element, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == (-DBL_MAX);
+        case CHANNEL_INTEGER:
+            return *(int *) element == INT_MIN;
+        default:
+            return 0;
+    }
+}
+
+static int RangeConversionElementEqualsMax(void * element, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == DBL_MAX;
+        case CHANNEL_INTEGER:
+            return *(int *) element == INT_MAX;
+        default:
+            return 0;
+    }
+}
+
 static int RangeConversionIsEmpty(RangeConversion * conversion) {
-    switch (conversion->type) {
-    case CHANNEL_DOUBLE:
-        return
-            (!conversion->min || * (double *) ChannelValueReference(conversion->min) == (-DBL_MAX)) &&
-            (!conversion->max || * (double *) ChannelValueReference(conversion->max) ==   DBL_MAX);
-    case CHANNEL_INTEGER:
-        return
-            (!conversion->min || * (int *) ChannelValueReference(conversion->min) == INT_MIN) &&
-            (!conversion->max || * (int *) ChannelValueReference(conversion->max) == INT_MAX);
-    default:
-        return 1;
+    switch (conversion->type->con) {
+        case CHANNEL_DOUBLE:
+            return (!conversion->min || *(double *) ChannelValueDataPointer(conversion->min) == (-DBL_MAX)) &&
+                   (!conversion->max || *(double *) ChannelValueDataPointer(conversion->max) == DBL_MAX);
+        case CHANNEL_INTEGER:
+            return (!conversion->min || *(int *) ChannelValueDataPointer(conversion->min) == INT_MIN) &&
+                   (!conversion->max || *(int *) ChannelValueDataPointer(conversion->max) == INT_MAX);
+        case CHANNEL_ARRAY:
+            return (!conversion->min || mcx_array_all(&conversion->min->value.a, RangeConversionElementEqualsMin)) &&
+                   (!conversion->max || mcx_array_all(&conversion->max->value.a, RangeConversionElementEqualsMax));
+        default:
+            return 1;
     }
 }
 
 static void RangeConversionDestructor(RangeConversion * rangeConversion) {
+    if (rangeConversion->type) {
+        ChannelTypeDestructor(rangeConversion->type);
+    }
+
     if (rangeConversion->min) {
         mcx_free(rangeConversion->min);
     }
@@ -194,7 +342,7 @@ static RangeConversion * RangeConversionCreate(RangeConversion * rangeConversion
     rangeConversion->Setup = RangeConversionSetup;
     rangeConversion->IsEmpty = RangeConversionIsEmpty;
 
-    rangeConversion->type = CHANNEL_UNKNOWN;
+    rangeConversion->type = &ChannelTypeUnknown;
 
     rangeConversion->min = NULL;
     rangeConversion->max = NULL;
@@ -207,53 +355,18 @@ OBJECT_CLASS(RangeConversion, Conversion);
 
 // ----------------------------------------------------------------------
 // Unit Conversion
+static double UnitConversionConvertValue(UnitConversion * conversion, double value) {
+    value = (value + conversion->source.offset) * conversion->source.factor;
+    value = (value / conversion->target.factor) - conversion->target.offset;
 
-McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value) {
-    UnitConversion * unitConv = NULL;
-
-    McxStatus retVal = RETURN_OK;
-
-    unitConv = (UnitConversion *) object_create(UnitConversion);
-    if (!unitConv) {
-        mcx_log(LOG_ERROR, "ConvertUnit: Not enough memory");
-        return RETURN_ERROR;
-    }
-
-    retVal = unitConv->Setup(unitConv, fromUnit, toUnit);
-    if (RETURN_ERROR == retVal) {
-        mcx_log(LOG_ERROR, "ConvertUnit: Conversion setup failed");
-        goto cleanup;
-    }
-
-    if (unitConv->IsEmpty(unitConv)) {
-        object_destroy(unitConv);
-    }
-
-    if (unitConv) {
-        Conversion * conv = (Conversion *) unitConv;
-        retVal = conv->convert(conv, value);
-        if (retVal == RETURN_ERROR) {
-            mcx_log(LOG_ERROR, "ConvertUnit: Conversion failed");
-            goto cleanup;
-        }
-    }
-
-cleanup:
-    object_destroy(unitConv);
-
-    return retVal;
+    return value;
 }
 
 static void UnitConversionConvertVector(UnitConversion * unitConversion, double * vector, size_t vectorLength) {
     size_t i;
     if (!unitConversion->IsEmpty(unitConversion)) {
         for (i = 0; i < vectorLength; i++) {
-            double val = vector[i];
-
-            val = (val + unitConversion->source.offset) * unitConversion->source.factor;
-            val = (val / unitConversion->target.factor) - unitConversion->target.offset;
-
-            vector[i] = val;
+            vector[i] = UnitConversionConvertValue(unitConversion, vector[i]);
         }
     }
 }
@@ -261,21 +374,51 @@ static void UnitConversionConvertVector(UnitConversion * unitConversion, double 
 static McxStatus UnitConversionConvert(Conversion * conversion, ChannelValue * value) {
     UnitConversion * unitConversion = (UnitConversion *) conversion;
 
-    double val = 0.0;
-
-    if (ChannelValueType(value) != CHANNEL_DOUBLE) {
-        mcx_log(LOG_ERROR, "Unit conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_DOUBLE));
+    if (!ChannelTypeEq(ChannelTypeBaseType(ChannelValueType(value)), &ChannelTypeDouble)) {
+        mcx_log(LOG_ERROR, "Unit conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(&ChannelTypeDouble));
         return RETURN_ERROR;
     }
 
-    val = * (double *) ChannelValueReference(value);
+    if (ChannelTypeIsArray(value->type)) {
+        size_t i = 0;
 
-    val = (val + unitConversion->source.offset) * unitConversion->source.factor;
-    val = (val / unitConversion->target.factor) - unitConversion->target.offset;
+        for (i = 0; i < mcx_array_num_elements(&value->value.a); i++) {
+            double * elem = (double *)mcx_array_get_elem_reference(&value->value.a, i);
+            if (!elem) {
+                return RETURN_ERROR;
+            }
 
-    ChannelValueSetFromReference(value, &val);
+            *elem = UnitConversionConvertValue(conversion, *elem);
+        }
+    } else {
+        double val = UnitConversionConvertValue(unitConversion, *(double *) ChannelValueDataPointer(value));
+        if (RETURN_OK != ChannelValueSetFromReference(value, &val)) {
+            return RETURN_ERROR;
+        }
+    }
 
     return RETURN_OK;
+}
+
+McxStatus UnitConversionValueRefConversion(void * element, size_t idx, ChannelType * type, void * ctx) {
+    double * elem = (double *) element;
+    UnitConversion * conversion = (UnitConversion *) ctx;
+
+    *elem = UnitConversionConvertValue(conversion, *elem);
+
+    return RETURN_OK;
+}
+
+static McxStatus UnitConversionConvertValueRef(UnitConversion * conversion, ChannelValueReference * ref) {
+    if (!ChannelTypeEq(ChannelTypeBaseType(ChannelValueReferenceGetType(ref)), &ChannelTypeDouble)) {
+        mcx_log(LOG_ERROR,
+                "Unit conversion: Value has wrong type %s, expected: %s",
+                ChannelTypeToString(ChannelTypeBaseType(ChannelValueReferenceGetType(ref))),
+                ChannelTypeToString(&ChannelTypeDouble));
+        return RETURN_ERROR;
+    }
+
+    return ChannelValueReferenceElemMap(ref, UnitConversionValueRefConversion, conversion);
 }
 
 static McxStatus UnitConversionSetup(UnitConversion * conversion,
@@ -316,6 +459,48 @@ static int UnitConversionIsEmpty(UnitConversion * conversion) {
         || (conversion->target.factor == 0.0 && conversion->target.offset == 0.0);
 }
 
+McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value, ChannelDimension * slice) {
+    UnitConversion * unitConv = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
+    unitConv = (UnitConversion *) object_create(UnitConversion);
+    if (!unitConv) {
+        mcx_log(LOG_ERROR, "ConvertUnit: Not enough memory");
+        return RETURN_ERROR;
+    }
+
+    retVal = unitConv->Setup(unitConv, fromUnit, toUnit);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ConvertUnit: Conversion setup failed");
+        goto cleanup;
+    }
+
+    if (unitConv->IsEmpty(unitConv)) {
+        object_destroy(unitConv);
+    }
+
+    if (unitConv) {
+        if (slice) {
+            ChannelValueReference * ref = MakeChannelValueReference(value, slice);
+            retVal = UnitConversionConvertValueRef(unitConv, ref);
+            DestroyChannelValueReference(ref);
+        } else {
+            retVal = UnitConversionConvert(unitConv, value);
+        }
+
+        if (retVal == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "ConvertUnit: Conversion failed");
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    object_destroy(unitConv);
+
+    return retVal;
+}
+
 static void UnitConversionDestructor(UnitConversion * conversion) {
 
 }
@@ -325,6 +510,7 @@ static UnitConversion * UnitConversionCreate(UnitConversion * unitConversion) {
 
     conversion->convert = UnitConversionConvert;
     unitConversion->convertVector = UnitConversionConvertVector;
+    unitConversion->ConvertValueReference = UnitConversionConvertValueRef;
 
     unitConversion->Setup   = UnitConversionSetup;
     unitConversion->IsEmpty = UnitConversionIsEmpty;
@@ -343,15 +529,190 @@ OBJECT_CLASS(UnitConversion, Conversion);
 
 // ----------------------------------------------------------------------
 // Linear Conversion
+static McxStatus LinearConversionConvert(Conversion * conversion, ChannelValue * value) {
+    LinearConversion * linearConversion = (LinearConversion *) conversion;
 
-McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value) {
+    McxStatus retVal = RETURN_OK;
+
+    if (linearConversion->factor) {
+        retVal = ChannelValueScale(value, linearConversion->factor);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Linear conversion: Port value scaling failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (linearConversion->offset) {
+        retVal = ChannelValueAddOffset(value, linearConversion->offset);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Linear conversion: Adding offset failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus LinearConversionScaleValueRefConversion(void * element, size_t idx, ChannelType * type, void * ctx) {
+    ChannelValue * factor = (ChannelValue *) ctx;
+    void * factorElem = mcx_array_get_elem_reference(&factor->value.a, idx);
+
+    if (!ChannelTypeEq(type, factor->type)) {
+        mcx_log(LOG_ERROR, "Port: Scale: Mismatching types. Value type: %s, factor type: %s",
+                ChannelTypeToString(type), ChannelTypeToString(ChannelValueType(factor)));
+        return RETURN_ERROR;
+    }
+
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+        {
+            double * elem = (double *) element;
+            *elem = *elem * *((double *)factorElem);
+            break;
+        }
+        case CHANNEL_INTEGER:
+        {
+            int * elem = (int *) element;
+            *elem = *elem * *((int *)factorElem);
+            break;
+        }
+        default:
+            mcx_log(LOG_ERROR, "Linear conversion: Unsupported type");
+            return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus LinearConversionOffsetValueRefConversion(void * element, size_t idx, ChannelType * type, void * ctx) {
+    ChannelValue * offset = (ChannelValue *) ctx;
+    void * offsetElem = mcx_array_get_elem_reference(&offset->value.a, idx);
+
+    if (!ChannelTypeEq(type, offset->type)) {
+        mcx_log(LOG_ERROR, "Port: Scale: Mismatching types. Value type: %s, factor type: %s",
+                ChannelTypeToString(type), ChannelTypeToString(ChannelValueType(offset)));
+        return RETURN_ERROR;
+    }
+
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+        {
+            double * elem = (double *) element;
+            *elem = *elem + *((double *)offsetElem);
+            break;
+        }
+        case CHANNEL_INTEGER:
+        {
+            int * elem = (int *) element;
+            *elem = *elem + *((int *)offsetElem);
+            break;
+        }
+        default:
+            mcx_log(LOG_ERROR, "Linear conversion: Unsupported type");
+            return RETURN_ERROR;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus LinearConversionConvertValueRef(LinearConversion * linearConversion, ChannelValueReference * ref) {
+    McxStatus retVal = RETURN_OK;
+
+    if (linearConversion->factor) {
+        retVal = ChannelValueReferenceElemMap(ref, LinearConversionScaleValueRefConversion, linearConversion->factor);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Linear conversion: Port value scaling failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (linearConversion->offset) {
+        retVal = ChannelValueReferenceElemMap(ref, LinearConversionOffsetValueRefConversion, linearConversion->offset);
+        if (RETURN_OK != retVal) {
+            mcx_log(LOG_ERROR, "Linear conversion: Adding offset failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelValue * factor, ChannelValue * offset) {
+    if (!factor && !offset) {
+        return RETURN_OK;
+    }
+
+    if (factor && offset && !ChannelTypeEq(ChannelValueType(factor), ChannelValueType(offset))) {
+        mcx_log(LOG_WARNING,
+                "Linear conversion: Types of factor value (%s) and offset value (%s) do not match",
+                ChannelTypeToString(ChannelValueType(factor)),
+                ChannelTypeToString(ChannelValueType(offset)));
+        return RETURN_ERROR;
+    }
+
+    conversion->type = ChannelTypeClone(ChannelValueType(factor ? factor : offset));
+
+    if (!(ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeDouble) ||
+          ChannelTypeEq(ChannelTypeBaseType(conversion->type), &ChannelTypeInteger)))
+    {
+        mcx_log(LOG_WARNING, "Linear conversion is not defined for type %s", ChannelTypeToString(conversion->type));
+        return RETURN_ERROR;
+    }
+
+    conversion->factor = factor ? ChannelValueClone(factor) : NULL;
+    conversion->offset = offset ? ChannelValueClone(offset) : NULL;
+
+    return RETURN_OK;
+}
+
+static int LinearConversionElementEqualsOne(void* element, ChannelType* type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == 1.0;
+        case CHANNEL_INTEGER:
+            return *(int *) element == 1;
+        default:
+            return 0;
+    }
+}
+
+static int LinearConversionElementEqualsZero(void * element, ChannelType * type) {
+    switch (type->con) {
+        case CHANNEL_DOUBLE:
+            return *(double *) element == 0.0;
+        case CHANNEL_INTEGER:
+            return *(int *) element == 0;
+        default:
+            return 0;
+    }
+}
+
+static int LinearConversionIsEmpty(LinearConversion * conversion) {
+    switch (conversion->type->con) {
+    case CHANNEL_DOUBLE:
+        return
+            (!conversion->factor || * (double *) ChannelValueDataPointer(conversion->factor) == 1.0) &&
+            (!conversion->offset || * (double *) ChannelValueDataPointer(conversion->offset) == 0.0);
+    case CHANNEL_INTEGER:
+        return
+            (!conversion->factor || * (int *) ChannelValueDataPointer(conversion->factor) == 1) &&
+            (!conversion->offset || * (int *) ChannelValueDataPointer(conversion->offset) == 0);
+    case CHANNEL_ARRAY:
+        return (!conversion->factor || mcx_array_all(&conversion->factor->value.a, LinearConversionElementEqualsOne)) &&
+               (!conversion->offset || mcx_array_all(&conversion->offset->value.a, LinearConversionElementEqualsZero));
+    default:
+        return 1;
+    }
+}
+
+McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value, ChannelDimension * slice) {
     LinearConversion * linearConv = NULL;
     ChannelValue * factorToUse = NULL;
     ChannelValue * offsetToUse = NULL;
 
     McxStatus retVal = RETURN_OK;
 
-    if (value->type != CHANNEL_DOUBLE && value->type != CHANNEL_INTEGER) {
+    if (!ChannelTypeEq(ChannelTypeBaseType(value->type), &ChannelTypeDouble) && !ChannelTypeEq(ChannelTypeBaseType(value->type), &ChannelTypeInteger)) {
         return RETURN_OK;
     }
 
@@ -389,8 +750,14 @@ McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelVal
     }
 
     if (linearConv) {
-        Conversion * conversion = (Conversion *) linearConv;
-        retVal = conversion->convert(conversion, value);
+        if (slice) {
+            ChannelValueReference * ref = MakeChannelValueReference(value, slice);
+            retVal = LinearConversionConvertValueRef(linearConv, ref);
+            DestroyChannelValueReference(ref);
+        } else {
+            retVal = LinearConversionConvert(linearConv, value);
+        }
+
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "ConvertLinear: Conversion failed");
             goto cleanup;
@@ -411,75 +778,11 @@ cleanup:
     return retVal;
 }
 
-static McxStatus LinearConversionConvert(Conversion * conversion, ChannelValue * value) {
-    LinearConversion * linearConversion = (LinearConversion *) conversion;
-
-    McxStatus retVal = RETURN_OK;
-
-    if (linearConversion->factor) {
-        retVal = ChannelValueScale(value, linearConversion->factor);
-        if (RETURN_OK != retVal) {
-            mcx_log(LOG_ERROR, "Linear conversion: Port value scaling failed");
-            return RETURN_ERROR;
-        }
-    }
-
-    if (linearConversion->offset) {
-        retVal = ChannelValueAddOffset(value, linearConversion->offset);
-        if (RETURN_OK != retVal) {
-            mcx_log(LOG_ERROR, "Linear conversion: Adding offset failed");
-            return RETURN_ERROR;
-        }
-    }
-
-    return RETURN_OK;
-}
-
-static McxStatus LinearConversionSetup(LinearConversion * conversion, ChannelValue * factor, ChannelValue * offset) {
-    if (!factor && !offset) {
-        return RETURN_OK;
-    }
-
-    if (factor && offset && ChannelValueType(factor) != ChannelValueType(offset)) {
-        mcx_log(LOG_WARNING, "Linear conversion: Types of factor value (%s) and offset value (%s) do not match",
-            ChannelTypeToString(ChannelValueType(factor)), ChannelTypeToString(ChannelValueType(offset)));
-        return RETURN_ERROR;
-    }
-
-    if (factor) {
-        conversion->type = ChannelValueType(factor);
-    } else {
-        conversion->type = ChannelValueType(offset);
-    }
-
-    if (!(conversion->type == CHANNEL_DOUBLE
-          || conversion->type == CHANNEL_INTEGER)) {
-        mcx_log(LOG_WARNING, "Linear conversion is not defined for type %s", ChannelTypeToString(conversion->type));
-        return RETURN_ERROR;
-    }
-
-    conversion->factor = factor ? ChannelValueClone(factor) : NULL;
-    conversion->offset = offset ? ChannelValueClone(offset) : NULL;
-
-    return RETURN_OK;
-}
-
-static int LinearConversionIsEmpty(LinearConversion * conversion) {
-    switch (conversion->type) {
-    case CHANNEL_DOUBLE:
-        return
-            (!conversion->factor || * (double *) ChannelValueReference(conversion->factor) == 1.0) &&
-            (!conversion->offset || * (double *) ChannelValueReference(conversion->offset) == 0.0);
-    case CHANNEL_INTEGER:
-        return
-            (!conversion->factor || * (int *) ChannelValueReference(conversion->factor) == 1) &&
-            (!conversion->offset || * (int *) ChannelValueReference(conversion->offset) == 0);
-    default:
-        return 1;
-    }
-}
-
 static void LinearConversionDestructor(LinearConversion * linearConversion) {
+    if (linearConversion->type) {
+        ChannelTypeDestructor(linearConversion->type);
+    }
+
     if (linearConversion->factor) {
         mcx_free(linearConversion->factor);
     }
@@ -495,7 +798,7 @@ static LinearConversion * LinearConversionCreate(LinearConversion * linearConver
     linearConversion->Setup = LinearConversionSetup;
     linearConversion->IsEmpty = LinearConversionIsEmpty;
 
-    linearConversion->type = CHANNEL_UNKNOWN;
+    linearConversion->type = &ChannelTypeUnknown;
 
     linearConversion->factor = NULL;
     linearConversion->offset = NULL;
@@ -508,134 +811,705 @@ OBJECT_CLASS(LinearConversion, Conversion);
 
 // ----------------------------------------------------------------------
 // Type Conversion
-
-McxStatus ConvertType(ChannelType fromType, ChannelType toType, ChannelValue * value) {
+McxStatus ConvertType(ChannelValue * dest, ChannelDimension * destSlice, ChannelValue * src, ChannelDimension * srcSlice) {
     TypeConversion * typeConv = NULL;
-    Conversion * conv = NULL;
+    ChannelValueReference * ref = NULL;
 
     McxStatus retVal = RETURN_OK;
 
     typeConv = (TypeConversion *) object_create(TypeConversion);
     if (!typeConv) {
-        mcx_log(LOG_ERROR, "ConvertType: Not enough memory");
+        mcx_log(LOG_ERROR, "ConvertType: Converter allocation failed");
         return RETURN_ERROR;
     }
 
-    conv = (Conversion *) typeConv;
-
-    retVal = typeConv->Setup(typeConv, fromType, toType);
+    retVal = typeConv->Setup(typeConv, src->type, srcSlice, dest->type, destSlice);
     if (retVal == RETURN_ERROR) {
-        mcx_log(LOG_ERROR, "ConvertType: Conversion setup failed");
+        mcx_log(LOG_ERROR, "ConvertType: Setup failed");
         goto cleanup;
     }
 
-    retVal = conv->convert(conv, value);
-    if (retVal == RETURN_ERROR) {
-        mcx_log(LOG_ERROR, "Type conversion failed");
+    ref = MakeChannelValueReference(dest, destSlice);
+    if (!ref) {
+        mcx_log(LOG_ERROR, "ConvertType: Value reference allocation failed");
         goto cleanup;
     }
+
+    ChannelValueReferenceSetFromPointer(ref, ChannelValueDataPointer(src), srcSlice, typeConv);
 
 cleanup:
     object_destroy(typeConv);
+    DestroyChannelValueReference(ref);
 
     return retVal;
 }
 
-static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValue * value) {
-    if (ChannelValueType(value) != CHANNEL_INTEGER) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_INTEGER));
+static McxStatus CheckTypesValidForConversion(ChannelType * destType,
+                                              ChannelType * expectedDestType)
+{
+    if (!ChannelTypeEq(destType, expectedDestType)) {
+        mcx_log(LOG_ERROR,
+                "Type conversion: Destination value has wrong type %s, expected: %s",
+                ChannelTypeToString(destType),
+                ChannelTypeToString(expectedDestType));
         return RETURN_ERROR;
     }
 
-    value->type = CHANNEL_DOUBLE;
-    value->value.d = (double)value->value.i;
-
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, ChannelValue * value) {
-    if (ChannelValueType(value) != CHANNEL_DOUBLE) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_DOUBLE));
+static McxStatus CheckArrayReferencingOnlyOneElement(ChannelValueReference * dest, ChannelType * expectedDestType) {
+    if (!ChannelTypeIsArray(ChannelValueReferenceGetType(dest))) {
+        mcx_log(LOG_ERROR, "Type conversion: Destination value is not an array");
         return RETURN_ERROR;
     }
 
-    value->type = CHANNEL_INTEGER;
-    value->value.i = (int)floor(value->value.d + 0.5);
-
-    return RETURN_OK;
-}
-
-static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, ChannelValue * value) {
-    if (ChannelValueType(value) != CHANNEL_BOOL) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_BOOL));
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelTypeBaseType(ChannelValueReferenceGetType(dest)), expectedDestType)) {
         return RETURN_ERROR;
     }
 
-    value->type = CHANNEL_DOUBLE;
-    value->value.d = (value->value.i != 0) ? 1. : 0.;
+    // check only one element referenced
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        if (ChannelTypeNumElements(dest->ref.value->type) != 1) {
+            mcx_log(LOG_ERROR, "Type conversion: Destination value is not an array of size 1");
+            return RETURN_ERROR;
+        }
+    } else {
+        if (ChannelDimensionNumElements(dest->ref.slice.dimension) != 1) {
+            mcx_log(LOG_ERROR, "Type conversion: Destination value is not an array of size 1");
+            return RETURN_ERROR;
+        }
+    }
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, ChannelValue * value) {
-    if (ChannelValueType(value) != CHANNEL_DOUBLE) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_DOUBLE));
+static McxStatus ArraysValidForConversion(ChannelValueReference * dest,
+                                          ChannelType * expectedDestType,
+                                          mcx_array * src,
+                                          ChannelDimension * srcDimension) {
+    if (!ChannelTypeIsArray(ChannelValueReferenceGetType(dest))) {
+        mcx_log(LOG_ERROR, "Type conversion: Destination value is not an array");
         return RETURN_ERROR;
     }
 
-    value->type = CHANNEL_BOOL;
-    value->value.i = (value->value.d > 0) ? 1 : 0;
-
-    return RETURN_OK;
-}
-
-static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, ChannelValue * value) {
-    if (ChannelValueType(value) != CHANNEL_BOOL) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_BOOL));
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelTypeBaseType(ChannelValueReferenceGetType(dest)), expectedDestType)) {
         return RETURN_ERROR;
     }
 
-    value->type = CHANNEL_INTEGER;
-    value->value.i = (value->value.i != 0) ? 1 : 0;
+    // check dimensions match
+    if (srcDimension) {
+        if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+            return ChannelDimensionConformsTo(srcDimension, dest->ref.value->type->ty.a.dims, dest->ref.value->type->ty.a.numDims) ? RETURN_OK : RETURN_ERROR;
+        } else {
+            return ChannelDimensionConformsToDimension(dest->ref.slice.dimension, srcDimension) ? RETURN_OK : RETURN_ERROR;
+        }
+    } else {
+        if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+            return mcx_array_dims_match(&dest->ref.value->value.a, src) ? RETURN_OK : RETURN_ERROR;
+        } else {
+            return ChannelDimensionConformsTo(dest->ref.slice.dimension, src->dims, src->numDims) ? RETURN_OK : RETURN_ERROR;
+        }
+    }
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, ChannelValue * value) {
-    if (ChannelValueType(value) != CHANNEL_INTEGER) {
-        mcx_log(LOG_ERROR, "Type conversion: Value has wrong type %s, expected: %s", ChannelTypeToString(ChannelValueType(value)), ChannelTypeToString(CHANNEL_INTEGER));
+static McxStatus TypeConversionConvertIntDouble(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
         return RETURN_ERROR;
     }
 
-    value->type = CHANNEL_BOOL;
-    value->value.i = (value->value.i != 0) ? 1 : 0;
+    dest->ref.value->value.d = (double) *((int *) src);
 
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionConvertId(Conversion * conversion, ChannelValue * value) {
+static McxStatus TypeConversionConvertDoubleInt(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    dest->ref.value->value.i = (int) floor(*((double *) src) + 0.5);
+
     return RETURN_OK;
 }
 
-static McxStatus TypeConversionSetup(TypeConversion * typeConversion,
-                                     ChannelType fromType,
-                                     ChannelType toType) {
-    Conversion * conversion = (Conversion *) typeConversion;
+static McxStatus TypeConversionConvertBoolDouble(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
 
-    if (fromType == toType) {
-        conversion->convert = TypeConversionConvertId;
-    } else if (fromType == CHANNEL_INTEGER && toType == CHANNEL_DOUBLE) {
-        conversion->convert = TypeConversionConvertIntDouble;
-    } else if (fromType == CHANNEL_DOUBLE && toType == CHANNEL_INTEGER) {
-        conversion->convert = TypeConversionConvertDoubleInt;
-    } else if (fromType == CHANNEL_BOOL && toType == CHANNEL_DOUBLE) {
-        conversion->convert = TypeConversionConvertBoolDouble;
-    } else if (fromType == CHANNEL_DOUBLE && toType == CHANNEL_BOOL) {
-        conversion->convert = TypeConversionConvertDoubleBool;
-    } else if (fromType == CHANNEL_BOOL && toType == CHANNEL_INTEGER) {
-        conversion->convert = TypeConversionConvertBoolInteger;
-    } else if (fromType == CHANNEL_INTEGER && toType == CHANNEL_BOOL) {
-        conversion->convert = TypeConversionConvertIntegerBool;
+    dest->ref.value->value.d = *((int *) src) != 0 ? 1. : 0.;
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertDoubleBool(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    dest->ref.value->value.i = *((double *) src) > 0 ? 1 : 0;
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertBoolInteger(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    dest->ref.value->value.i = *((int *) src) != 0 ? 1 : 0;
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertIntegerBool(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    dest->ref.value->value.i = *((int *) src) != 0 ? 1 : 0;
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayDoubleToDouble(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.d = *((double *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+    } else {
+        dest->ref.value->value.d = *(double *) ((mcx_array *) src)->data;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayIntegerToDouble(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.d = (double) *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+    } else {
+        dest->ref.value->value.d = (double)  *(int *) ((mcx_array *) src)->data;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayBoolToDouble(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.d = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1. : 0.;
+    } else {
+        dest->ref.value->value.d = *(int *) ((mcx_array *) src)->data != 0 ? 1. : 0.;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayDoubleToInteger(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.i = (int) floor(*((double *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) + 0.5);
+    } else {
+        dest->ref.value->value.i = (int) floor(*(double *) ((mcx_array *) src)->data + 0.5);
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayIntegerToInteger(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+    } else {
+        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayBoolToInteger(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1 : 0;
+    } else {
+        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data != 0 ? 1 : 0;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayDoubleToBool(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.i = *((double *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) > 0 ? 1 : 0;
+    } else {
+        dest->ref.value->value.i = *(double *) ((mcx_array *) src)->data > 0 ? 1 : 0;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayIntegerToBool(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]) != 0 ? 1 : 0;
+    } else {
+        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data != 0 ? 1 : 0;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayBoolToBool(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckTypesValidForConversion(ChannelValueReferenceGetType(dest), &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    if (conversion->sourceSlice) {
+        dest->ref.value->value.i = *((int *) ((mcx_array *) src)->data + conversion->sourceSlice->startIdxs[0]);
+    } else {
+        dest->ref.value->value.i = *(int *) ((mcx_array *) src)->data;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertDoubleToArrayDouble(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(double *) dest->ref.value->value.a.data = *(double *) src;
+    } else {
+        double * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(double *) src;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertIntegerToArrayDouble(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(double *) dest->ref.value->value.a.data = (double) *((int *) src);
+    } else {
+        double * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = (double) *((int *) src);
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertBoolToArrayDouble(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeDouble)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(double *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1. : 0.;
+    } else {
+        double * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1. : 0.;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertDoubleToArrayInteger(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(int *) dest->ref.value->value.a.data = (int) floor(*((double *) src) + 0.5);
+    } else {
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = (int) floor(*((double *) src) + 0.5);
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertIntegerToArrayInteger(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(int *) dest->ref.value->value.a.data = *(int *) src;
+    } else {
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int *) src;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertBoolToArrayInteger(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeInteger)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(int *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1 : 0;
+    } else {
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertDoubleToArrayBool(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(int *) dest->ref.value->value.a.data = *((double *) src) > 0 ? 1 : 0;
+    } else {
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((double *) src) > 0 ? 1 : 0;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertIntegerToArrayBool(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(int *) dest->ref.value->value.a.data = *((int *) src) != 0 ? 1 : 0;
+    } else {
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *((int *) src) != 0 ? 1 : 0;
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertBoolToArrayBool(Conversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_ERROR == CheckArrayReferencingOnlyOneElement(dest, &ChannelTypeBool)) {
+        return RETURN_ERROR;
+    }
+
+    if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+        *(int *) dest->ref.value->value.a.data = *(int *) src;
+    } else {
+        int * data = dest->ref.slice.ref->value.a.data;
+        *(data + dest->ref.slice.dimension->startIdxs[0]) = *(int *) src;
+    }
+
+    return RETURN_OK;
+}
+
+static size_t IndexOfElemInSrcArray(size_t dest_idx, mcx_array * src_array, ChannelDimension * src_dim, ChannelValueReference * dest) {
+    if (src_dim) {
+        if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+            return ChannelDimensionGetIndex(src_dim, dest_idx, src_array->dims);
+        } else {
+            size_t idx = ChannelDimensionGetSliceIndex(dest->ref.slice.dimension, dest_idx, dest->ref.slice.ref->type->ty.a.dims);
+            return ChannelDimensionGetIndex(src_dim, idx, src_array->dims);
+        }
+    } else {
+        if (dest->type == CHANNEL_VALUE_REF_VALUE) {
+            return dest_idx;
+        } else {
+            return ChannelDimensionGetSliceIndex(dest->ref.slice.dimension, dest_idx, dest->ref.slice.ref->type->ty.a.dims);
+        }
+    }
+}
+
+typedef struct Array2ArrayCtx {
+    mcx_array * src_array;
+    ChannelDimension * src_dim;
+    ChannelValueReference * dest;
+} Array2ArrayCtx;
+
+static McxStatus IntegerArrayToDouble(void * element, size_t idx, ChannelType * type, void * ctx) {
+    Array2ArrayCtx * context = (Array2ArrayCtx *) ctx;
+    size_t i = IndexOfElemInSrcArray(idx, context->src_array, context->src_dim, context->dest);
+    void * src_elem = mcx_array_get_elem_reference(context->src_array, i);
+
+    if (!src_elem) {
+        return RETURN_ERROR;
+    }
+
+    *(double *) element = (double) *((int *) src_elem);
+
+    return RETURN_OK;
+}
+
+static McxStatus BoolArrayToDouble(void * element, size_t idx, ChannelType * type, void * ctx) {
+    Array2ArrayCtx * context = (Array2ArrayCtx *) ctx;
+    size_t i = IndexOfElemInSrcArray(idx, context->src_array, context->src_dim, context->dest);
+    void * src_elem = mcx_array_get_elem_reference(context->src_array, i);
+
+    if (!src_elem) {
+        return RETURN_ERROR;
+    }
+
+    *(double *) element = *((int *) src_elem) != 0 ? 1. : 0.;
+
+    return RETURN_OK;
+}
+
+static McxStatus BoolArrayToInteger(void * element, size_t idx, ChannelType * type, void * ctx) {
+    Array2ArrayCtx * context = (Array2ArrayCtx *) ctx;
+    size_t i = IndexOfElemInSrcArray(idx, context->src_array, context->src_dim, context->dest);
+    void * src_elem = mcx_array_get_elem_reference(context->src_array, i);
+
+    if (!src_elem) {
+        return RETURN_ERROR;
+    }
+
+    *(int *) element = *((int *) src_elem) != 0 ? 1 : 0;
+
+    return RETURN_OK;
+}
+
+static McxStatus DoubleArrayToInteger(void * element, size_t idx, ChannelType * type, void * ctx) {
+    Array2ArrayCtx * context = (Array2ArrayCtx *) ctx;
+    size_t i = IndexOfElemInSrcArray(idx, context->src_array, context->src_dim, context->dest);
+    void * src_elem = mcx_array_get_elem_reference(context->src_array, i);
+
+    if (!src_elem) {
+        return RETURN_ERROR;
+    }
+
+    *(int *) element = (int) floor(*((double *) src_elem) + 0.5);
+
+    return RETURN_OK;
+}
+
+static McxStatus DoubleArrayToBool(void * element, size_t idx, ChannelType * type, void * ctx) {
+    Array2ArrayCtx * context = (Array2ArrayCtx *) ctx;
+    size_t i = IndexOfElemInSrcArray(idx, context->src_array, context->src_dim, context->dest);
+    void * src_elem = mcx_array_get_elem_reference(context->src_array, i);
+
+    if (!src_elem) {
+        return RETURN_ERROR;
+    }
+
+    *(int *) element = *((double *) src_elem) > 0 ? 1 : 0;
+
+    return RETURN_OK;
+}
+
+static McxStatus IntegerArrayToBool(void * element, size_t idx, ChannelType * type, void * ctx) {
+    Array2ArrayCtx * context = (Array2ArrayCtx *) ctx;
+    size_t i = IndexOfElemInSrcArray(idx, context->src_array, context->src_dim, context->dest);
+    void * src_elem = mcx_array_get_elem_reference(context->src_array, i);
+
+    if (!src_elem) {
+        return RETURN_ERROR;
+    }
+
+    *(int *) element = *((int *) src_elem) != 0 ? 1 : 0;
+
+    return RETURN_OK;
+}
+
+static McxStatus TypeConversionConvertArrayIntegerToArrayDouble(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_OK != ArraysValidForConversion(dest, &ChannelTypeDouble, (mcx_array *) src, conversion->sourceSlice)) {
+        return RETURN_ERROR;
+    }
+
+    Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
+    return ChannelValueReferenceElemMap(dest, IntegerArrayToDouble, &ctx);
+}
+
+static McxStatus TypeConversionConvertArrayBoolToArrayDouble(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_OK != ArraysValidForConversion(dest, &ChannelTypeDouble, (mcx_array *) src, conversion->sourceSlice)) {
+        return RETURN_ERROR;
+    }
+
+    Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
+    return ChannelValueReferenceElemMap(dest, BoolArrayToDouble, &ctx);
+}
+
+static McxStatus TypeConversionConvertArrayDoubleToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_OK != ArraysValidForConversion(dest, &ChannelTypeInteger, (mcx_array *) src, conversion->sourceSlice)) {
+        return RETURN_ERROR;
+    }
+
+    Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
+    return ChannelValueReferenceElemMap(dest, DoubleArrayToInteger, &ctx);
+}
+
+static McxStatus TypeConversionConvertArrayBoolToArrayInteger(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_OK != ArraysValidForConversion(dest, &ChannelTypeInteger, (mcx_array *) src, conversion->sourceSlice)) {
+        return RETURN_ERROR;
+    }
+
+    Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
+    return ChannelValueReferenceElemMap(dest, BoolArrayToInteger, &ctx);
+}
+
+static McxStatus TypeConversionConvertArrayDoubleToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_OK != ArraysValidForConversion(dest, &ChannelTypeBool, (mcx_array *) src, conversion->sourceSlice)) {
+        return RETURN_ERROR;
+    }
+
+    Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
+    return ChannelValueReferenceElemMap(dest, DoubleArrayToBool, &ctx);
+}
+
+static McxStatus TypeConversionConvertArrayIntegerToArrayBool(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    if (RETURN_OK != ArraysValidForConversion(dest, &ChannelTypeBool, (mcx_array *) src, conversion->sourceSlice)) {
+        return RETURN_ERROR;
+    }
+
+    Array2ArrayCtx ctx = {src, conversion->sourceSlice, dest};
+    return ChannelValueReferenceElemMap(dest, IntegerArrayToBool, &ctx);
+}
+
+static McxStatus TypeConversionConvertId(TypeConversion * conversion, ChannelValueReference * dest, void * src) {
+    return ChannelValueReferenceSetFromPointer(dest, src, conversion->sourceSlice, NULL);
+}
+
+static int DimensionsMatch(ChannelType * fromType, ChannelDimension * fromDimension, ChannelType * toType, ChannelDimension * toDimension) {
+    if (fromDimension) {
+        if (!toDimension) {
+            return ChannelDimensionConformsTo(fromDimension, toType->ty.a.dims, toType->ty.a.numDims);
+        } else {
+            return ChannelDimensionConformsToDimension(toDimension, fromDimension);
+        }
+    } else {
+        if (!toDimension) {
+            size_t i = 0;
+            if (fromType->ty.a.numDims != toType->ty.a.numDims) {
+                return 0;
+            }
+
+            for (i = 0; i < fromType->ty.a.numDims; i++) {
+                if (fromType->ty.a.dims[i] != toType->ty.a.dims[i]) {
+                    return 0;
+                }
+            }
+
+            return 1;
+        } else {
+            return ChannelDimensionConformsTo(toDimension, fromType->ty.a.dims, fromType->ty.a.numDims);
+        }
+    }
+}
+
+static McxStatus TypeConversionSetup(TypeConversion * conversion,
+                                     ChannelType * fromType,
+                                     ChannelDimension * fromDimension,
+                                     ChannelType * toType,
+                                     ChannelDimension * toDimension) {
+    conversion->sourceSlice = fromDimension;
+
+    if (ChannelTypeConformable(fromType, fromDimension, toType, toDimension)) {
+        conversion->Convert = TypeConversionConvertId;
+    /* scalar <-> scalar */
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertIntDouble;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertDoubleInt;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertBoolDouble;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertDoubleBool;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertBoolInteger;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertIntegerBool;
+    /* scalar <-> array */
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertArrayDoubleToDouble;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertArrayIntegerToDouble;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertArrayBoolToDouble;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertArrayDoubleToBool;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertArrayIntegerToBool;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertArrayBoolToBool;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeDouble) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertArrayDoubleToInteger;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeInteger) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertArrayIntegerToInteger;
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeEq(fromType->ty.a.inner, &ChannelTypeBool) && ChannelTypeEq(toType, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertArrayBoolToInteger;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertDoubleToArrayDouble;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertIntegerToArrayDouble;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeDouble)) {
+        conversion->Convert = TypeConversionConvertBoolToArrayDouble;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertDoubleToArrayInteger;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertIntegerToArrayInteger;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeInteger)) {
+        conversion->Convert = TypeConversionConvertBoolToArrayInteger;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeDouble) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertDoubleToArrayBool;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeInteger) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertIntegerToArrayBool;
+    } else if (ChannelTypeEq(fromType, &ChannelTypeBool) && ChannelTypeIsArray(toType) && ChannelTypeEq(toType->ty.a.inner, &ChannelTypeBool)) {
+        conversion->Convert = TypeConversionConvertBoolToArrayBool;
+    /* array <-> array */
+    } else if (ChannelTypeIsArray(fromType) && ChannelTypeIsArray(toType)) {
+        if (!DimensionsMatch(fromType, fromDimension, toType, toDimension)) {
+            mcx_log(LOG_ERROR, "Setup type conversion: Array dimensions do not match");
+            return RETURN_ERROR;
+        }
+
+        if (ChannelTypeEq(ChannelTypeBaseType(fromType), &ChannelTypeInteger) && ChannelTypeEq(ChannelTypeBaseType(toType), &ChannelTypeDouble)) {
+            conversion->Convert = TypeConversionConvertArrayIntegerToArrayDouble;
+        } else if (ChannelTypeEq(ChannelTypeBaseType(fromType), &ChannelTypeBool) && ChannelTypeEq(ChannelTypeBaseType(toType), &ChannelTypeDouble)) {
+            conversion->Convert = TypeConversionConvertArrayBoolToArrayDouble;
+        } else if (ChannelTypeEq(ChannelTypeBaseType(fromType), &ChannelTypeDouble) && ChannelTypeEq(ChannelTypeBaseType(toType), &ChannelTypeInteger)) {
+            conversion->Convert = TypeConversionConvertArrayDoubleToArrayInteger;
+        } else if (ChannelTypeEq(ChannelTypeBaseType(fromType), &ChannelTypeBool) && ChannelTypeEq(ChannelTypeBaseType(toType), &ChannelTypeInteger)) {
+            conversion->Convert = TypeConversionConvertArrayBoolToArrayInteger;
+        } else if (ChannelTypeEq(ChannelTypeBaseType(fromType), &ChannelTypeDouble) && ChannelTypeEq(ChannelTypeBaseType(toType), &ChannelTypeBool)) {
+            conversion->Convert = TypeConversionConvertArrayDoubleToArrayBool;
+        } else if (ChannelTypeEq(ChannelTypeBaseType(fromType), &ChannelTypeInteger) && ChannelTypeEq(ChannelTypeBaseType(toType), &ChannelTypeBool)) {
+            conversion->Convert = TypeConversionConvertArrayIntegerToArrayBool;
+        } else {
+            mcx_log(LOG_ERROR, "Setup type conversion: Illegal conversion between array types selected");
+            return RETURN_ERROR;
+        }
     } else {
         mcx_log(LOG_ERROR, "Setup type conversion: Illegal conversion selected");
         return RETURN_ERROR;
@@ -644,28 +1518,18 @@ static McxStatus TypeConversionSetup(TypeConversion * typeConversion,
     return RETURN_OK;
 }
 
-static int TypeConversionIsEmpty(TypeConversion * typeConversion) {
-    Conversion * conversion = (Conversion *) typeConversion;
-
-    return (conversion->convert == TypeConversionConvertId);
-}
-
 static void TypeConversionDestructor(TypeConversion * conversion) {
 
 }
 
-static TypeConversion * TypeConversionCreate(TypeConversion * typeConversion) {
-    Conversion * conversion = (Conversion *) typeConversion;
+static TypeConversion * TypeConversionCreate(TypeConversion * conversion) {
+    conversion->Setup = TypeConversionSetup;
+    conversion->Convert = NULL;
 
-    conversion->convert = TypeConversionConvertId;
-
-    typeConversion->Setup   = TypeConversionSetup;
-    typeConversion->IsEmpty = TypeConversionIsEmpty;
-
-    return typeConversion;
+    return conversion;
 }
 
-OBJECT_CLASS(TypeConversion, Conversion);
+OBJECT_CLASS(TypeConversion, Object);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

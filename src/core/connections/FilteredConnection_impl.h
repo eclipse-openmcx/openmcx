@@ -28,7 +28,11 @@ typedef struct FilteredConnectionData {
     // storage of the filtered value provided by the output channel
     ChannelValue store;
 
-    ChannelFilter * filter;
+    // storage for temporary results during out channel updates
+    ChannelValue updateBuffer;
+
+    ChannelFilter ** filters;
+    size_t numFilters;
 
 } FilteredConnectionData;
 

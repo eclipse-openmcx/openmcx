@@ -573,6 +573,10 @@ McxStatus RunMCX(int argc, char *argv[]) {
 
 
 cleanup:
+    if (reader) {
+        reader->Cleanup(reader);
+        object_destroy(reader);
+    }
     if (mcxInput) { object_destroy(mcxInput); }
 
     if (model) { object_destroy(model); }

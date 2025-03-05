@@ -216,7 +216,7 @@ static McxStatus DefineTimingChannel(Component * comp, const char * chName, cons
         return RETURN_ERROR;
     }
 
-    retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, unit, reference, CHANNEL_DOUBLE);
+    retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, unit, reference, &ChannelTypeDouble);
 
     mcx_free(id);
 
@@ -384,7 +384,7 @@ McxStatus ComponentRegisterStorage(Component * comp, ResultsStorage * storage) {
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *) DatabusGetInChannel(db, i);
 
-        if (channel->IsValid(channel)) {
+        if (channel->ProvidesValue(channel)) {
             retVal = compStore->RegisterChannel(compStore, CHANNEL_STORE_IN, channel);
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not register inport %d at storage", i);
@@ -507,9 +507,11 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
         retVal = comp->DoStep(comp, group, time, deltaTime, endTime, isNewStep);
         mcx_signal_handler_unset_function();
         mcx_signal_handler_unset_name();
-        if (RETURN_OK != retVal) {
-            ComponentLog(comp, LOG_DEBUG, "Component specific DoStep failed");
+        if (RETURN_ERROR == retVal) {
+            ComponentLog(comp, LOG_ERROR, "Component specific DoStep failed");
             return RETURN_ERROR;
+        } else if (RETURN_WARNING == retVal) {
+            ComponentLog(comp, LOG_DEBUG, "Component specific DoStep returned with a warning");
         }
     }
 
@@ -648,7 +650,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
     for (i = 0; i < numIn; i++) {
         Channel * channel = (Channel *) DatabusGetInChannel(db, i);
         char * id = channel->info.id;
-        int isValid = DatabusChannelInIsValid(db, i);
+        int isValid = channel->IsConnected(channel) || channel->info.defaultValue;
 
         if (NULL != id && isValid) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -659,7 +661,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
     for (i = 0; i < numLocal; i++) {
         Channel * channel = (Channel *) DatabusGetLocalChannel(db, i);
         char * id = channel->info.id;
-        int isValid = DatabusChannelLocalIsValid(db, i);
+        int isValid = channel->ProvidesValue(channel);
 
         if (NULL != id && isValid) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -670,7 +672,7 @@ static McxStatus AddObservableChannels(const Component * comp, StringContainer *
     for (i = 0; i < numRTFactor; i++) {
         Channel * channel = (Channel *) DatabusGetRTFactorChannel(db, i);
         char * id = channel->info.id;
-        int isValid = DatabusChannelRTFactorIsValid(db, i);
+        int isValid = channel->ProvidesValue(channel);
 
         if (NULL != id && isValid) {
             StringContainerSetKeyValue(container, *count, id, channel);
@@ -688,7 +690,7 @@ static size_t ComponentGetNumConnectedOutChannels(const Component * comp) {
 
     for (i = 0; (int) i < DatabusInfoGetChannelNum(DatabusGetOutInfo(comp->data->databus)); i++) {
         Channel * channel = (Channel *) DatabusGetOutChannel(comp->data->databus, i);
-        if (channel->IsValid(channel)) {
+        if (channel->IsConnected(channel)) {
             count++;
         }
     }
@@ -838,22 +840,22 @@ static void ComponentSetModel(Component * comp, Model * model) {
     comp->data->model = model;
 }
 
-ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID) {
+Vector * GetInConnectionInfos(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
 
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
-        return in->GetConnectionInfo(in);
+        return in->GetConnectionInfos(in);
     }
 
     return NULL;
 }
 
-Connection * GetInConnection(const Component * comp, size_t channelID) {
+ObjectContainer * GetInConnections(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
-        return in->GetConnection(in);
+        return in->GetConnections(in);
     }
 
     return NULL;
@@ -1290,6 +1292,7 @@ static Component * ComponentCreate(Component * comp) {
 
     comp->data->typeString = NULL;
 
+    StepTypeSynchronizationInit(&comp->syncHints);
 
     comp->GetNumObservableChannels = ComponentGetNumObservableChannels;
     comp->AddObservableChannels = AddObservableChannels;

@@ -38,368 +38,239 @@ extern "C" {
 
 static void DatabusInfoDataDestructor(DatabusInfoData * data) {
     object_destroy(data->infos);
-    data->origInfos->DestroyObjects(data->origInfos);
-    object_destroy(data->origInfos);
 }
 
 static DatabusInfoData * DatabusInfoDataCreate(DatabusInfoData * data) {
     data->infos = (Vector *) object_create(Vector);
     data->infos->Setup(data->infos, sizeof(ChannelInfo), ChannelInfoInit, ChannelInfoSetFrom, ChannelInfoDestroy);
-    data->origInfos = (ObjectContainer *) object_create(ObjectContainer);
     return data;
 }
 
 OBJECT_CLASS(DatabusInfoData, Object);
 
 
+static ChannelInfo * DatabusReadPortInput(PortInput * input) {
+    McxStatus retVal = RETURN_OK;
 
-char * CreateIndexedName(const char * name, unsigned i) {
-    size_t len = 0;
-    char * buffer = NULL;
-
-    len = strlen(name) + (mcx_digits10(i) + 1) + 2 + 1;
-
-    buffer = (char *) mcx_calloc(len, sizeof(char));
-    if (!buffer) {
+    ChannelInfo * info = (ChannelInfo *)mcx_calloc(1, sizeof(ChannelInfo));
+    if (!info) {
         return NULL;
     }
 
-    snprintf(buffer, len, "%s[%d]", name, i);
-
-    return buffer;
-}
-
-
-
-static Vector * DatabusReadPortInput(PortInput * input) {
-    McxStatus retVal = RETURN_OK;
-    Vector * list = NULL;
-    VectorChannelInfo * vector = NULL;
-
-    list = (Vector *) object_create(Vector);
-    if (!list) {
-        retVal = RETURN_ERROR;
-        goto cleanup_0;
-    }
-
-    list->Setup(list, sizeof(ChannelInfo), ChannelInfoInit, ChannelInfoSetFrom, ChannelInfoDestroy);
-
-    vector = (VectorChannelInfo *)object_create(VectorChannelInfo);
-    if (!vector) {
-        retVal = RETURN_ERROR;
+    retVal = ChannelInfoInit(info);
+    if (RETURN_ERROR == retVal) {
         goto cleanup_0;
     }
 
     if (input->type == PORT_VECTOR) {
-        /* vector of channels: Copy info and add "[i]" to name, nameInTool and id */
-        ChannelValue ** mins = NULL;
-        ChannelValue ** maxs = NULL;
-        ChannelValue ** scales = NULL;
-        ChannelValue ** offsets = NULL;
-        ChannelValue ** defaults = NULL;
-        ChannelValue ** initials = NULL;
-        int * writeResults = NULL;
-
-        int startIndex = 0;
-        int endIndex   = 0;
-
-        int i = 0;
-
         VectorPortInput * vectorPortInput = input->port.vectorPort;
         InputElement * vectorPortElement = (InputElement *) vectorPortInput;
 
-        ChannelType expectedType = vectorPortInput->type;
-        size_t expectedLen = 0;
+        int startIdx = 0;
+        int endIdx   = 0;
 
-        if (!vector) {
-            retVal = RETURN_ERROR;
-            goto cleanup_1;
-        }
-
-        startIndex = vectorPortInput->startIndex;
-        if (startIndex < 0) {
+        startIdx = vectorPortInput->startIndex;
+        if (startIdx < 0) {
             input_element_error(vectorPortElement, "start index must not be smaller than 0");
             retVal = RETURN_ERROR;
-            goto cleanup_1;
+            goto vector_cleanup_0;
         }
 
-        endIndex = vectorPortInput->endIndex;
-        if (endIndex < startIndex) {
+        endIdx = vectorPortInput->endIndex;
+        if (endIdx < startIdx) {
             input_element_error(vectorPortElement, "end index must not be smaller than start index");
             retVal = RETURN_ERROR;
-            goto cleanup_1;
+            goto vector_cleanup_0;
         }
 
-        expectedLen = endIndex - startIndex + 1;
-
-        retVal = vector->Setup(vector, vectorPortInput->name, vectorPortInput->nameInModel, FALSE, (size_t) startIndex, (size_t) endIndex);
-        if (RETURN_ERROR == retVal) {
-            goto cleanup_1;
-        }
-
-        mins = ArrayToChannelValueArray(vectorPortInput->min, expectedLen, expectedType);
-        if (vectorPortInput->min && !mins) {
+        info->dimension = MakeChannelDimension();
+        if (!info->dimension) {
             retVal = RETURN_ERROR;
-            goto cleanup_1;
+            goto vector_cleanup_0;
         }
 
-        maxs = ArrayToChannelValueArray(vectorPortInput->max, expectedLen, expectedType);
-        if (vectorPortInput->max && !maxs) {
+        if (RETURN_OK != ChannelDimensionSetup(info->dimension, 1)) {
+            mcx_log(LOG_ERROR, "Could not setup ChannelDimension");
             retVal = RETURN_ERROR;
-            goto cleanup_1;
+            goto vector_cleanup_0;
         }
 
-        scales = ArrayToChannelValueArray(vectorPortInput->scale, expectedLen, expectedType);
-        if (vectorPortInput->scale && !scales) {
+        if (RETURN_OK != ChannelDimensionSetDimension(info->dimension, 0, (size_t) startIdx, (size_t) endIdx)) {
+            mcx_log(LOG_ERROR, "Could not SetDimension");
             retVal = RETURN_ERROR;
-            goto cleanup_1;
+            goto vector_cleanup_0;
         }
 
-        offsets = ArrayToChannelValueArray(vectorPortInput->offset, expectedLen, expectedType);
-        if (vectorPortInput->offset && !offsets) {
+        size_t dims[1] = { endIdx - startIdx + 1 };
+
+        if (RETURN_OK != ChannelInfoSetup(info,
+                                          vectorPortInput->name,
+                                          vectorPortInput->nameInModel,
+                                          vectorPortInput->description,
+                                          vectorPortInput->unit,
+                                          ChannelTypeArray(vectorPortInput->type, 1, dims),
+                                          vectorPortInput->id)) {
+            mcx_log(LOG_ERROR, "Could not Init ChannelInfo");
             retVal = RETURN_ERROR;
-            goto cleanup_1;
+            goto vector_cleanup_0;
         }
 
-        defaults = ArrayToChannelValueArray(vectorPortInput->default_, expectedLen, expectedType);
-        if (vectorPortInput->default_ && !defaults) {
-            retVal = RETURN_ERROR;
-            goto cleanup_1;
-        }
-
-        initials = ArrayToChannelValueArray(vectorPortInput->initial, expectedLen, expectedType);
-        if (vectorPortInput->initial && !initials) {
-            retVal = RETURN_ERROR;
-            goto cleanup_1;
-        }
-
-        writeResults = vectorPortInput->writeResults;
-
-        for (i = startIndex; i <= endIndex; i++) {
-            char * name       = NULL;
-            char * nameInTool = NULL;
-            char * id         = NULL;
-
-            ChannelInfo copy = { 0 };
-
-            if (!(name = CreateIndexedName(vectorPortInput->name, i))) {
+        if (vectorPortInput->min) {
+            info->min = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->min);
+            if (!info->min) {
                 retVal = RETURN_ERROR;
-                goto cleanup_2;
-            }
-            if (vectorPortInput->nameInModel) {  // optional
-                if (!(nameInTool = CreateIndexedName(vectorPortInput->nameInModel, i))) {
-                    retVal = RETURN_ERROR;
-                    goto cleanup_2;
-                }
-            }
-            if (vectorPortInput->id) {  // optional
-                if (!(id = CreateIndexedName(vectorPortInput->id, i))) {
-                    retVal = RETURN_ERROR;
-                    goto cleanup_2;
-                }
-            }
-
-            retVal = ChannelInfoInit(&copy);
-            if (RETURN_ERROR == retVal) {
-                goto cleanup_2;
-            }
-
-            ChannelInfoSetName(&copy, name);
-            ChannelInfoSetNameInTool(&copy, nameInTool);
-            ChannelInfoSetID(&copy, id);
-
-            ChannelInfoSetDescription(&copy, vectorPortInput->description);
-            ChannelInfoSetType(&copy, vectorPortInput->type);
-
-            if (!ChannelInfoIsBinary(&copy)) {
-                ChannelInfoSetUnit(&copy, vectorPortInput->unit);
-            } else {
-                ChannelInfoSetUnit(&copy, "-");
-            }
-
-            ChannelInfoSetVector(&copy, (VectorChannelInfo *) object_strong_reference(vector));
-
-            if (mins) {
-                copy.min = mins[i - startIndex];
-            }
-            if (maxs) {
-                copy.max = maxs[i - startIndex];
-            }
-
-            if (scales)  {
-                copy.scale = scales[i - startIndex];
-            }
-            if (offsets) {
-                copy.offset = offsets[i - startIndex];
-            }
-
-            if (defaults) {
-                copy.defaultValue = defaults[i - startIndex];
-            }
-            if (initials) {
-                copy.initialValue = initials[i - startIndex];
-            }
-            if (writeResults) {
-                copy.writeResult = writeResults[i - startIndex];
-            }
-
-            list->PushBack(list, &copy);
-
-            retVal = vector->AddElement(vector, list->At(list, list->Size(list) - 1), i);
-            if (RETURN_ERROR == retVal) {
-                goto cleanup_2;
-            }
-
-        cleanup_2:
-            if (name) {
-                mcx_free(name);
-            }
-            if (nameInTool) {
-                mcx_free(nameInTool);
-            }
-            if (id) {
-                mcx_free(id);
-            }
-            if (RETURN_ERROR == retVal) {
-                goto cleanup_1;
+                goto vector_cleanup_0;
             }
         }
 
-    cleanup_1:
-
-        if (mins) {
-            mcx_free(mins);
-        }
-        if (maxs) {
-            mcx_free(maxs);
-        }
-
-        if (scales)  {
-            mcx_free(scales);
-        }
-        if (offsets) {
-            mcx_free(offsets);
+        if (vectorPortInput->max) {
+            info->max = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->max);
+            if (!info->max) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        if (defaults) {
-            mcx_free(defaults);
-        }
-        if (initials) {
-            mcx_free(initials);
-        }
-        if (writeResults) {
-            // writeResults was taken from vectorPortInput
+        if (vectorPortInput->scale) {
+            info->scale = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->scale);
+            if (!info->scale) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
         }
 
-        if (RETURN_ERROR == retVal) {
+        if (vectorPortInput->offset) {
+            info->offset = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->offset);
+            if (!info->offset) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
+        }
+
+        if (vectorPortInput->initial) {
+            info->initialValue = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->initial);
+            if (!info->initialValue) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
+        }
+
+        if (vectorPortInput->default_) {
+            info->defaultValue = ChannelValueNewArray(1, dims, vectorPortInput->type, vectorPortInput->default_);
+            if (!info->defaultValue) {
+                retVal = RETURN_ERROR;
+                goto vector_cleanup_0;
+            }
+        }
+
+        if (vectorPortInput->writeResults.defined) {
+            info->writeResult = vectorPortInput->writeResults.value;
+        }
+
+    vector_cleanup_0:
+        if (retVal == RETURN_ERROR) {
             goto cleanup_0;
         }
     } else {
         ScalarPortInput * scalarPortInput = input->port.scalarPort;
 
-        ChannelInfo info = { 0 };
-        retVal = ChannelInfoInit(&info);
+        retVal = ChannelInfoInit(info);
         if (RETURN_ERROR == retVal) {
             goto cleanup_else_1;
         }
 
-        ChannelInfoSetName(&info, scalarPortInput->name);
-        ChannelInfoSetNameInTool(&info, scalarPortInput->nameInModel);
-        ChannelInfoSetDescription(&info, scalarPortInput->description);
-        ChannelInfoSetID(&info, scalarPortInput->id);
-        ChannelInfoSetType(&info, scalarPortInput->type);
+        ChannelInfoSetName(info, scalarPortInput->name);
+        ChannelInfoSetNameInTool(info, scalarPortInput->nameInModel);
+        ChannelInfoSetDescription(info, scalarPortInput->description);
+        ChannelInfoSetID(info, scalarPortInput->id);
+        ChannelInfoSetType(info, scalarPortInput->type);
 
-        if (!ChannelInfoIsBinary(&info)) {
-            ChannelInfoSetUnit(&info, scalarPortInput->unit);
+        if (!ChannelInfoIsBinary(info)) {
+            ChannelInfoSetUnit(info, scalarPortInput->unit);
         } else {
-            ChannelInfoSetUnit(&info, "-");
+            ChannelInfoSetUnit(info, "-");
         }
 
-        ChannelType expectedType = info.type;
-
+        ChannelType * expectedType = info->type;
 
         ChannelValue value;
-        ChannelValueInit(&value, expectedType);
+        ChannelValueInit(&value, ChannelTypeClone(expectedType));
 
         if (scalarPortInput->min.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->min.value);
-            info.min = ChannelValueClone(&value);
-            if (!info.min) {
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->min.value)) {
+                goto cleanup_else_1;
+            }
+            info->min = ChannelValueClone(&value);
+            if (!info->min) {
                 goto cleanup_else_1;
             }
         }
 
         if (scalarPortInput->max.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->max.value);
-            info.max = ChannelValueClone(&value);
-            if (!info.max) {
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->max.value)) {
+                goto cleanup_else_1;
+            }
+            info->max = ChannelValueClone(&value);
+            if (!info->max) {
                 goto cleanup_else_1;
             }
         }
 
         if (scalarPortInput->scale.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->scale.value);
-            info.scale = ChannelValueClone(&value);
-            if (!info.scale) {
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->scale.value)) {
+                goto cleanup_else_1;
+            }
+            info->scale = ChannelValueClone(&value);
+            if (!info->scale) {
                 goto cleanup_else_1;
             }
         }
 
         if (scalarPortInput->offset.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->offset.value);
-            info.offset = ChannelValueClone(&value);
-            if (!info.offset) {
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->offset.value)) {
+                goto cleanup_else_1;
+            }
+            info->offset = ChannelValueClone(&value);
+            if (!info->offset) {
                 goto cleanup_else_1;
             }
         }
 
         if (scalarPortInput->default_.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->default_.value);
-            info.defaultValue = ChannelValueClone(&value);
-            if (!info.defaultValue) {
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->default_.value)) {
+                goto cleanup_else_1;
+            }
+            info->defaultValue = ChannelValueClone(&value);
+            if (!info->defaultValue) {
                 goto cleanup_else_1;
             }
         }
 
         if (scalarPortInput->initial.defined) {
-            ChannelValueSetFromReference(&value, &scalarPortInput->initial.value);
-            info.initialValue = ChannelValueClone(&value);
-            if (!info.initialValue) {
+            if (RETURN_OK != ChannelValueSetFromReference(&value, &scalarPortInput->initial.value)) {
+                goto cleanup_else_1;
+            }
+            info->initialValue = ChannelValueClone(&value);
+            if (!info->initialValue) {
                 goto cleanup_else_1;
             }
         }
 
         if (scalarPortInput->writeResults.defined) {
-            info.writeResult = scalarPortInput->writeResults.value;
-        }
-
-        retVal = vector->Setup(vector, ChannelInfoGetName(&info), info.nameInTool, TRUE, -1, -1);
-        if (RETURN_ERROR == retVal) {
-            goto cleanup_else_1;
-        }
-        ChannelInfoSetVector(&info, (VectorChannelInfo *) object_strong_reference(vector));
-
-        list->PushBack(list, &info);
-
-        retVal = vector->AddElement(vector, list->At(list, list->Size(list) - 1), 0);
-        if (RETURN_ERROR == retVal) {
-            goto cleanup_else_1;
+            info->writeResult = scalarPortInput->writeResults.value;
         }
 
     cleanup_else_1:
-        ChannelInfoDestroy(&info);
         ChannelValueDestructor(&value);
         goto cleanup_0;
     }
 
 cleanup_0:
     if (RETURN_ERROR == retVal) {
-        object_destroy(list);
+        object_destroy(info);
     }
 
-    object_destroy(vector);
-
-    return list;
+    return info;
 }
 
 static int ChannelInfoSameNamePred(void * elem, const char * name) {
@@ -432,10 +303,12 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
     Vector * dbInfos = dbInfo->data->infos;
     size_t requiredSize = 0;
-    ObjectContainer * allChannels = dbInfo->data->origInfos;
-    if (NULL == allChannels) {
-        mcx_log(LOG_ERROR, "Ports: Read port infos: Container of vector ports missing");
-        return RETURN_ERROR;
+    StringContainer * portNames = StringContainerCreate(numChildren);
+
+    if (!portNames) {
+        mcx_log(LOG_ERROR, "Ports: Port name container allocation failed");
+        retVal = RETURN_ERROR;
+        goto cleanup;
     }
 
     for (i = 0; i < numChildren; i++) {
@@ -445,77 +318,58 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
         } else {
             requiredSize += portInput->port.vectorPort->endIndex - portInput->port.vectorPort->startIndex + 1;
         }
-    }
 
-    if (requiredSize > 0) {
-        dbInfos->Reserve(dbInfos, requiredSize);
-    }
-
-    for (i = 0; i < numChildren; i++) {
-        PortInput * portInput = (PortInput *) input->ports->At(input->ports, i);
-        Vector * infos = NULL;
-
-        infos = DatabusReadPortInput(portInput);
-        if (!infos) {
+        ChannelInfo * info = DatabusReadPortInput(portInput);
+        if (!info) {
             mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read info of port %zu", i);
-            return RETURN_ERROR;
+            retVal = RETURN_ERROR;
+            goto cleanup;
         }
 
-        for (j = 0; j < infos->Size(infos); j++) {
-            ChannelInfo * info = (ChannelInfo *) infos->At(infos, j);
-            const char * name = ChannelInfoGetName(info);
-            int n = ChannelInfosGetNameIdx(dbInfos, name);
+        info->mode = mode;
 
-            if (n >= 0) { // key already exists
-                mcx_log(LOG_ERROR, "Ports: Duplicate port %s", name);
-                object_destroy(infos);
-                return RETURN_ERROR;
-            }
+        const char * name = ChannelInfoGetName(info);
+        if (info->dimension) {
+            mcx_log(LOG_DEBUG, "    Port: \"%s[%zu:%zu]\"", name, info->dimension->startIdxs[0], info->dimension->endIdxs[0]);
+        } else {
             mcx_log(LOG_DEBUG, "    Port: \"%s\"", name);
-
-            info->mode = mode;
-        }
-
-        for (j = 0; j < infos->Size(infos); ++j) {
-            ChannelInfo * info = (ChannelInfo *) infos->At(infos, j);
-            VectorChannelInfo * vInfo = info->vector;
-            size_t startIdx = vInfo->GetStartIndex(vInfo);
-            size_t idx = startIdx == -1 ? 0 : (startIdx + j);
-            ChannelInfo * infoCpy = NULL;
-
-            retVal = dbInfos->PushBack(dbInfos, info);
-            if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %zu", i);
-                object_destroy(infos);
-                return RETURN_ERROR;
-            }
-
-            infoCpy = dbInfos->At(dbInfos, dbInfos->Size(dbInfos) - 1);
-            retVal = infoCpy->vector->AddElement(infoCpy->vector, infoCpy, idx);
-            if (RETURN_ERROR == retVal) {
-                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not add vector info of port %zu", i);
-                object_destroy(infos);
-                return RETURN_ERROR;
-            }
-
-            if (infos->Size(infos) == 1 && SpecificRead) {
-                retVal = SpecificRead(comp, infoCpy, portInput, i);
-                if (RETURN_ERROR == retVal) {
-                    mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %zu", i);
-                    return RETURN_ERROR;
-                }
-            }
         }
 
         {
-            size_t dbInfosSize = dbInfos->Size(dbInfos);
-            ChannelInfo * chInfo = (ChannelInfo *)dbInfos->At(dbInfos, dbInfosSize - 1);
-            allChannels->PushBack(allChannels, (Object *) object_strong_reference(chInfo->vector));
+            // check for duplicates
+            int n = StringContainerGetIndex(portNames, name);
+            if (n >= 0) {  // key already exists
+                mcx_log(LOG_ERROR, "Ports: Duplicate port %s", name);
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
         }
 
-        object_destroy(infos);
+        if (SpecificRead) {
+            retVal = SpecificRead(comp, info, portInput, i);
+            if (RETURN_ERROR == retVal) {
+                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %zu", i);
+                goto cleanup;
+            }
+        }
+
+        if (RETURN_OK != dbInfos->PushBack(dbInfos, info)) {
+            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %zu", i);
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
+        retVal = StringContainerAddString(portNames, name);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Ports: Storing port name failed");
+            goto cleanup;
+        }
     }
-    return RETURN_OK;
+
+cleanup:
+    StringContainerDestroy(portNames);
+
+    return retVal;
 }
 
 static int IsWriteResults(void * elem, void * ignore) {
@@ -802,7 +656,7 @@ McxStatus DatabusTriggerInConnections(Databus * db, TimeInterval * consumerTime)
 
     for (i = 0; i < numIn; i++) {
         Channel * channel = (Channel *) db->data->in[i];
-        if (channel->IsValid(channel)) {
+        if (channel->IsConnected(channel) || channel->info.defaultValue) {
             retVal = channel->Update(channel, consumerTime);
             if (RETURN_OK != retVal) {
                 ChannelInfo * info = &channel->info;
@@ -935,14 +789,22 @@ size_t DatabusInfoGetChannelNum(DatabusInfo * info) {
     return info->data->infos->Size(info->data->infos);
 }
 
-// Only returns SIZE_T_ERROR if info was NULL
-size_t DatabusInfoGetVectorChannelNum(DatabusInfo * info) {
-    if (!info) {
-        mcx_log(LOG_ERROR, "Ports: Get vector port number: Invalid structure");
-        return SIZE_T_ERROR;
+size_t DatabusInfoGetChannelElemNum(DatabusInfo * info) {
+    size_t numInfos = info->data->infos->Size(info->data->infos);
+    size_t i = 0;
+    size_t numElems = 0;
+
+    for (i = 0; i < numInfos; i++) {
+        ChannelInfo * chInfo = (ChannelInfo*)info->data->infos->At(info->data->infos, i);
+        if (chInfo->dimension) {
+            // array
+            numElems += ChannelDimensionNumElements(chInfo->dimension);
+        } else {
+            numElems += 1;
+        }
     }
 
-    return info->data->origInfos->Size(info->data->origInfos);
+    return numElems;
 }
 
 ChannelInfo * DatabusInfoGetChannel(DatabusInfo * info, size_t i) {
@@ -957,20 +819,6 @@ ChannelInfo * DatabusInfoGetChannel(DatabusInfo * info, size_t i) {
     }
 
     return (ChannelInfo *) info->data->infos->At(info->data->infos, i);
-}
-
-static VectorChannelInfo * DatabusInfoGetVectorChannelInfo(DatabusInfo * info, size_t i) {
-    if (!info) {
-        mcx_log(LOG_ERROR, "Ports: Get vector port info: Invalid structure");
-        return NULL;
-    }
-
-    if (i >= info->data->origInfos->Size(info->data->origInfos)) {
-        mcx_log(LOG_ERROR, "Ports: Get vector port info: Unknown port %d", i);
-        return NULL;
-    }
-
-    return (VectorChannelInfo *) info->data->origInfos->At(info->data->origInfos, i);
 }
 
 int DatabusInChannelsDefined(Databus * db) {
@@ -1086,26 +934,6 @@ size_t DatabusGetInChannelsNum(Databus * db) {
 }
 
 // Only returns SIZE_T_ERROR if db was NULL
-size_t DatabusGetOutVectorChannelsNum(Databus * db) {
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get outport number: Invalid structure");
-        return SIZE_T_ERROR;
-    }
-
-    return DatabusInfoGetVectorChannelNum(DatabusGetOutInfo(db));
-}
-
-// Only returns SIZE_T_ERROR if db was NULL
-size_t DatabusGetInVectorChannelsNum(Databus * db) {
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get inport number: Invalid structure");
-        return SIZE_T_ERROR;
-    }
-
-    return DatabusInfoGetVectorChannelNum(DatabusGetInInfo(db));
-}
-
-// Only returns SIZE_T_ERROR if db was NULL
 size_t DatabusGetLocalChannelsNum(Databus * db) {
     if (!db) {
         mcx_log(LOG_ERROR, "Ports: Get local variable number: Invalid structure");
@@ -1125,8 +953,16 @@ size_t DatabusGetRTFactorChannelsNum(Databus * db) {
     return DatabusInfoGetChannelNum(DatabusGetRTFactorInfo(db));
 }
 
+size_t DatabusGetOutChannelsElemNum(Databus * db) {
+    return DatabusInfoGetChannelElemNum(DatabusGetOutInfo(db));
+}
 
-McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * reference, ChannelType type) {
+size_t DatabusGetInChannelsElemNum(Databus * db) {
+    return DatabusInfoGetChannelElemNum(DatabusGetInInfo(db));
+}
+
+
+McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * reference, ChannelType * type) {
     ChannelOut * out = NULL;
 
     if (!db) {
@@ -1144,10 +980,10 @@ McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * refe
         return RETURN_ERROR;
     }
 
-    if (CHANNEL_UNKNOWN != type) {
+    if (ChannelTypeIsValid(type)) {
         ChannelInfo * info = &((Channel *)out)->info;
-        if (info->type != type) {
-            if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
                 mcx_log(LOG_ERROR, "Ports: Set out reference: Port %s has mismatching type %s, given: %s",
@@ -1160,7 +996,7 @@ McxStatus DatabusSetOutReference(Databus * db, size_t channel, const void * refe
     return out->SetReference(out, reference, type);
 }
 
-McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const void * reference, ChannelType  type) {
+McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const void * reference, ChannelType *  type) {
     ChannelOut * out = NULL;
     ChannelInfo * info = NULL;
 
@@ -1180,7 +1016,7 @@ McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const voi
     }
 
     info = &((Channel *)out)->info;
-    if (info->type != type) {
+    if (!ChannelTypeEq(info->type, type)) {
         mcx_log(LOG_ERROR, "Ports: Set out reference function: Port %s has mismatching type %s, given: %s",
             ChannelInfoGetName(info), ChannelTypeToString(info->type), ChannelTypeToString(type));
         return RETURN_ERROR;
@@ -1193,123 +1029,7 @@ McxStatus DatabusSetOutReferenceFunction(Databus * db, size_t channel, const voi
     return out->SetReferenceFunction(out, (const proc *) reference, type);
 }
 
-McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, ChannelValue * value)
-{
-    VectorChannelInfo * vInfo = NULL;
-    size_t i = 0;
-    size_t ii = 0;
-    ChannelType type = ChannelValueType(value);
-
-    if (startIdx > endIdx) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
-        return RETURN_ERROR;
-    }
-    if (CHANNEL_UNKNOWN == type) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Type of vector needs to be specified");
-        return RETURN_ERROR;
-    }
-
-    if (channel > DatabusGetOutVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutVectorChannelsNum(db));
-        return RETURN_ERROR;
-    }
-
-    vInfo = DatabusGetOutVectorChannelInfo(db, channel);
-    for (i = startIdx; i <= endIdx; i++) {
-        McxStatus retVal = RETURN_OK;
-        const void * ref = NULL;
-        ChannelOut * chOut = NULL;
-        ChannelInfo * chInfo = vInfo->GetElement(vInfo, i);
-        if (!chInfo) {
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector Port does not exist");
-            return RETURN_ERROR;
-        }
-        chOut = (ChannelOut *) chInfo->channel;
-        if (!chOut) {
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector Port not initialized");
-            return RETURN_ERROR;
-        }
-        ii = i - startIdx;
-        ref = (const void *) ( &((ChannelValue*)value + ii)->value );
-
-        retVal = chOut->SetReference(chOut, ref, type);
-        if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Reference could not be set");
-            return RETURN_ERROR;
-        }
-    }
-
-    return RETURN_OK;
-}
-
-McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, const void * reference, ChannelType type)
-{
-    VectorChannelInfo * vInfo = NULL;
-    size_t i = 0;
-    size_t ii = 0;
-
-    if (startIdx > endIdx) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
-        return RETURN_ERROR;
-    }
-    if (CHANNEL_UNKNOWN == type) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Type of vector needs to be specified");
-        return RETURN_ERROR;
-    }
-
-    if (channel > DatabusGetOutVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutVectorChannelsNum(db));
-        return RETURN_ERROR;
-    }
-
-    vInfo = DatabusGetOutVectorChannelInfo(db, channel);
-    for (i = startIdx; i <= endIdx; i++) {
-        McxStatus retVal = RETURN_OK;
-        const void * ref = NULL;
-        ChannelOut * chOut = NULL;
-        ChannelInfo * chInfo = vInfo->GetElement(vInfo, i);
-        if (!chInfo) {
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector Port does not exist");
-            return RETURN_ERROR;
-        }
-        chOut = (ChannelOut *) chInfo->channel;
-        if (!chOut) {
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Vector Port not initialized");
-            return RETURN_ERROR;
-        }
-        ii = i - startIdx;
-        switch (type) {
-        case CHANNEL_DOUBLE:
-            ref = (const void *) (((double *) reference) + ii);
-            break;
-        case CHANNEL_INTEGER:
-            ref = (const void *) (((int *) reference) + ii);
-            break;
-        case CHANNEL_BOOL:
-            ref = (const void *) (((int *) reference) + ii);
-            break;
-        case CHANNEL_BINARY:
-        case CHANNEL_BINARY_REFERENCE:
-            ref = (const void *) (((binary_string *) reference) + ii);
-            break;
-        default:
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Type of vector not allowed");
-            return RETURN_ERROR;
-        }
-
-        retVal = chOut->SetReference(chOut, ref, type);
-        if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Ports: Set out reference vector: Reference could not be set");
-            return RETURN_ERROR;
-        }
-    }
-
-    return RETURN_OK;
-}
-
-McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, ChannelType  type) {
+McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, ChannelType *  type) {
     ChannelIn * in = NULL;
     ChannelInfo * info = NULL;
 
@@ -1328,10 +1048,11 @@ McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, 
         return RETURN_ERROR;
     }
 
-    if (CHANNEL_UNKNOWN != type) {
+    if (ChannelTypeIsValid(type)) {
         info = &((Channel *)in)->info;
-        if (info->type != type) {
-            if (ChannelInfoIsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            // TODO: Remove ChannelInfoIsBinary, use ChannelTypeIsBinary instead?
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
                 mcx_log(LOG_ERROR, "Ports: Set in-reference: Port %s has mismatching type %s, given: %s",
@@ -1342,109 +1063,6 @@ McxStatus DatabusSetInReference(Databus * db, size_t channel, void * reference, 
     }
 
     return in->SetReference(in, reference, type);
-}
-
-McxStatus DatabusSetInRefVector(Databus * db, size_t channel, size_t startIdx, size_t endIdx, void * reference, ChannelType type)
-{
-    VectorChannelInfo * vInfo = NULL;
-    size_t i = 0;
-    size_t ii = 0;
-    if (startIdx > endIdx) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
-        return RETURN_ERROR;
-    }
-    if (CHANNEL_UNKNOWN == type) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector needs to be specified");
-        return RETURN_ERROR;
-    }
-    if (channel > DatabusGetInVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetOutVectorChannelsNum(db));
-        return RETURN_ERROR;
-    }
-
-    vInfo = DatabusGetInVectorChannelInfo(db, channel);
-    for (i = startIdx; i <= endIdx; i++) {
-        McxStatus retVal = RETURN_OK;
-        void * ref = NULL;
-        ChannelIn * chIn = NULL;
-        ChannelInfo * chInfo = vInfo->GetElement(vInfo, i);
-        if (!chInfo) {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector Port does not exist");
-            return RETURN_ERROR;
-        }
-        chIn = (ChannelIn *) chInfo->channel;
-        if (!chIn) {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector Port not initialized");
-            return RETURN_ERROR;
-        }
-        ii = i - startIdx;
-        if (CHANNEL_DOUBLE == type) {
-            ref = (void *) (((double *) reference) + ii);
-        } else if (CHANNEL_INTEGER == type) {
-            ref = (void *) (((int *) reference) + ii);
-        } else if (CHANNEL_BOOL == type) {
-            ref = (void *) (((int *) reference) + ii);
-        } else {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector not allowed");
-            return RETURN_ERROR;
-        }
-        retVal = chIn->SetReference(chIn, ref, type);
-        if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Reference could not be set");
-            return RETURN_ERROR;
-        }
-    }
-
-    return RETURN_OK;
-}
-
-McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, ChannelValue * value)
-{
-    VectorChannelInfo * vInfo = NULL;
-    size_t i = 0;
-    size_t ii = 0;
-    ChannelType type = ChannelValueType(value);
-
-    if (startIdx > endIdx) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Start index %d bigger than end index %d", startIdx, endIdx);
-        return RETURN_ERROR;
-    }
-    if (CHANNEL_UNKNOWN == type) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Type of vector needs to be specified");
-        return RETURN_ERROR;
-    }
-    if (channel > DatabusGetInVectorChannelsNum(db)) {
-        mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector port %d does not exist (numer of vector ports=%d)", channel, DatabusGetInVectorChannelsNum(db));
-        return RETURN_ERROR;
-    }
-
-    vInfo = DatabusGetInVectorChannelInfo(db, channel);
-    for (i = startIdx; i <= endIdx; i++) {
-        McxStatus retVal = RETURN_OK;
-        void * ref = NULL;
-        ChannelIn * chIn = NULL;
-        ChannelInfo * chInfo = vInfo->GetElement(vInfo, i);
-        if (!chInfo) {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector Port does not exist");
-            return RETURN_ERROR;
-        }
-        chIn = (ChannelIn *) chInfo->channel;
-        if (!chIn) {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Vector Port not initialized");
-            return RETURN_ERROR;
-        }
-        ii = i - startIdx;
-        ref = (void *) ( &((ChannelValue*)value + ii)->value );
-
-        retVal = chIn->SetReference(chIn, ref, type);
-        if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Ports: Set in reference vector: Reference could not be set");
-            return RETURN_ERROR;
-        }
-    }
-
-    return RETURN_OK;
 }
 
 
@@ -1483,7 +1101,7 @@ static McxStatus DatabusAddLocalChannelInternal(Databus * db,
                                                 const char * id,
                                                 const char * unit,
                                                 const void * reference,
-                                                ChannelType type) {
+                                                ChannelType * type) {
     ChannelInfo chInfo = { 0 };
     ChannelLocal * local = NULL;
     Channel * channel = NULL;
@@ -1501,7 +1119,7 @@ static McxStatus DatabusAddLocalChannelInternal(Databus * db,
     }
 
     uniqueName = DatabusGetUniqueChannelName(db, name);
-    retVal = ChannelInfoSetup(&chInfo, uniqueName, NULL, unit, type, id);
+    retVal = ChannelInfoSetup(&chInfo, uniqueName, uniqueName, NULL, unit, type, id);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Ports: Set local-reference: Setting up ChannelInfo for %s failed", ChannelInfoGetName(&chInfo));
         goto cleanup;
@@ -1555,7 +1173,7 @@ McxStatus DatabusAddLocalChannel(Databus * db,
                                  const char * id,
                                  const char * unit,
                                  const void * reference,
-                                 ChannelType type) {
+                                 ChannelType * type) {
     DatabusData * dbData = db->data;
     DatabusInfoData * infoData = dbData->localInfo->data;
 
@@ -1584,7 +1202,7 @@ McxStatus DatabusAddRTFactorChannel(Databus * db,
                                     const char * id,
                                     const char * unit,
                                     const void * reference,
-                                    ChannelType type) {
+                                    ChannelType * type) {
     DatabusData * dbData = db->data;
     DatabusInfoData * infoData = dbData->rtfactorInfo->data;
 
@@ -1674,116 +1292,6 @@ ChannelInfo * DatabusGetLocalChannelInfo(Databus * db, size_t channel) {
     }
 
     return (ChannelInfo *) data->infos->At(data->infos, channel);
-}
-
-ChannelInfo * DatabusGetRTFactorChannelInfo(Databus * db, size_t channel) {
-    DatabusInfoData * data = db->data->rtfactorInfo->data;
-
-    if (channel >= data->infos->Size(data->infos)) {
-        mcx_log(LOG_ERROR, "Ports: Get rtfactor-info: Unknown port %d", channel);
-        return NULL;
-    }
-
-    return (ChannelInfo *) data->infos->At(data->infos, channel);
-}
-
-VectorChannelInfo * DatabusGetInVectorChannelInfo(Databus * db, size_t channel) {
-    DatabusInfo * inInfo = NULL;
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get in-info: Invalid structure");
-        return NULL;
-    }
-
-    inInfo = DatabusGetInInfo(db);
-
-    return DatabusInfoGetVectorChannelInfo(inInfo, channel);
-}
-
-VectorChannelInfo * DatabusGetOutVectorChannelInfo(Databus * db, size_t channel) {
-    DatabusInfo * outInfo = NULL;
-    if (!db) {
-        mcx_log(LOG_ERROR, "Ports: Get out-info: Invalid structure");
-        return NULL;
-    }
-
-    outInfo = DatabusGetOutInfo(db);
-
-    return DatabusInfoGetVectorChannelInfo(outInfo, channel);
-}
-
-int DatabusChannelInIsValid(Databus * db, size_t channel) {
-    Channel * in = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    in = (Channel *) DatabusGetInChannel(db, channel);
-    if (!in) {
-        return FALSE;
-    }
-
-    return in->IsValid(in);
-}
-
-int DatabusChannelInIsConnected(struct Databus * db, size_t channel) {
-    Channel * in = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    in = (Channel *) DatabusGetInChannel(db, channel);
-    if (!in) {
-        return FALSE;
-    }
-
-    return in->IsConnected(in);
-}
-
-int DatabusChannelOutIsValid(Databus * db, size_t channel) {
-    Channel * out = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    out = (Channel *) DatabusGetOutChannel(db, channel);
-    if (!out) {
-        return FALSE;
-    }
-
-    return out->IsValid(out);
-}
-
-int DatabusChannelLocalIsValid(Databus * db, size_t channel) {
-    Channel * local = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    local = (Channel *) DatabusGetLocalChannel(db, channel);
-    if (!local) {
-        return FALSE;
-    }
-
-    return local->IsValid(local);
-}
-
-int DatabusChannelRTFactorIsValid(Databus * db, size_t channel) {
-    Channel * rtfactor = NULL;
-
-    if (!db) {
-        return FALSE;
-    }
-
-    rtfactor = (Channel *) DatabusGetRTFactorChannel(db, channel);
-    if (!rtfactor) {
-        return FALSE;
-    }
-
-    return rtfactor->IsValid(rtfactor);
 }
 
 McxStatus DatabusCollectModeSwitchData(Databus * db) {

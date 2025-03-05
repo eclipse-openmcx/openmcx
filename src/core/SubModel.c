@@ -689,76 +689,101 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
                 // initial inputs are always exact
                 if (info->initialValue) {
                     //check if connection exists (cosim init values are not deoupling connections, they only have lower priority than connection values)
-                    ConnectionInfo * info = GetInConnectionInfo(targetComp, targetInChannelID);
-                    if (NULL != info) {
-                        if (ConnectionInfoIsDecoupled(info)) {//decoupled connection
+                    Vector * infos = GetInConnectionInfos(targetComp, targetInChannelID);
+                    size_t numInfos = infos->Size(infos);
+                    size_t i = 0;
+
+                    if (numInfos == 0) {        // no connections
+                        dependency = DEP_INDEPENDENT;
+                    } else {
+                        int allDecoupled = TRUE;
+                        for (i = 0; i < numInfos; i++) {
+                            ConnectionInfo * info = *(ConnectionInfo**) infos->At(infos, i);
+                            if (!ConnectionInfoIsDecoupled(info)) {
+                                object_destroy(infos);
+                                allDecoupled = FALSE;
+                                break;
+                            }
+                        }
+
+                        if (allDecoupled) {     // decoupled connections
                             dependency = DEP_INDEPENDENT;
                         }
-                    } else {//no connection
-                        dependency = DEP_INDEPENDENT;
                     }
+                    object_destroy(infos);
                 }
             }
 
             if (DEP_INDEPENDENT != dependency) {
-                ConnectionInfo * info = GetInConnectionInfo(targetComp, targetInChannelID);
-                Connection * conn = GetInConnection(targetComp, targetInChannelID);
+                Vector * infos = GetInConnectionInfos(targetComp, targetInChannelID);
+                ObjectContainer * conns = GetInConnections(targetComp, targetInChannelID);
+                size_t i = 0;
 
-                if (info
-                    && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED))
-                    && (!ConnectionInfoIsDecoupled(info))
-                    && conn
-                    && conn->IsActiveDependency(conn))
-                {
-                    Component * sourceComp = info->sourceComponent;
-                    size_t sourceOutGroup, sourceNode;
-                    Databus * db = targetComp->GetDatabus(targetComp);
-                    DatabusInfo * dbInfo = DatabusGetOutInfo(db);
-                    size_t numOutChannels = DatabusInfoGetChannelNum(dbInfo);
+                for (i = 0; i < infos->Size(infos); i++) {
+                    ConnectionInfo * info = *(ConnectionInfo**) infos->At(infos, i);
+                    Connection * conn = conns->At(conns, i);
 
-                    if (INITIAL_DEPENDENCIES == depType) {
-                        sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->sourceChannel);
-                    } else {
-                        sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->sourceChannel);
-                    }
+                    if (info && (info->decoupleType & (DECOUPLE_NEVER | DECOUPLE_IFNEEDED)) && (!ConnectionInfoIsDecoupled(info)) &&
+                        conn && conn->IsActiveDependency(conn))
+                    {
+                        Component * sourceComp = info->sourceComponent;
+                        size_t sourceOutGroup, sourceNode;
+                        Databus * db = targetComp->GetDatabus(targetComp);
+                        DatabusInfo * dbInfo = DatabusGetOutInfo(db);
+                        size_t numOutChannels = DatabusInfoGetChannelNum(dbInfo);
 
-                    sourceNode = SubModelGeneratorGetNodeID(subModelGenerator, sourceComp, sourceOutGroup);
+                        if (INITIAL_DEPENDENCIES == depType) {
+                            sourceOutGroup = sourceComp->GetInitialOutGroup(sourceComp, info->sourceChannel);
+                        } else {
+                            sourceOutGroup = sourceComp->GetOutGroup(sourceComp, info->sourceChannel);
+                        }
 
-                    if (SIZE_T_ERROR == sourceNode) {
-                        // source is not part of this submodel
-                        //   -> no dependency -> do nothing
-                        continue;
-                    }
+                        sourceNode = SubModelGeneratorGetNodeID(subModelGenerator, sourceComp, sourceOutGroup);
 
-                    if (INITIAL_DEPENDENCIES == depType) {
-                        // check if the target output has an exact initial value
-                        ChannelInfo * info = NULL;
-                        // check if target outputs even exits
-                        if (0 < numOutChannels) {
-                            info = DatabusGetOutChannelInfo(db, targetGroup);
-                            // initial outputs are exact only if specified
-                            if (info->initialValueIsExact && info->initialValue) {
-                                continue;
+                        if (SIZE_T_ERROR == sourceNode) {
+                            // source is not part of this submodel
+                            //   -> no dependency -> do nothing
+                            continue;
+                        }
+
+                        if (INITIAL_DEPENDENCIES == depType) {
+                            // check if the target output has an exact initial value
+                            ChannelInfo * info = NULL;
+                            // check if target outputs even exits
+                            if (0 < numOutChannels) {
+                                info = DatabusGetOutChannelInfo(db, targetGroup);
+                                // initial outputs are exact only if specified
+                                if (info->initialValueIsExact && info->initialValue) {
+                                    continue;
+                                }
                             }
                         }
-                    }
-                    retVal = SetDependency(A, sourceNode, targetNode, DEP_DEPENDENT);
-                    if (RETURN_ERROR == retVal) {
-                        mcx_log(LOG_ERROR, "SetDependency failed in SubModelGeneratorCreateDependencyMatrix");
-                        mcx_free(A);
-                        return NULL;
-                    }
+                        retVal = SetDependency(A, sourceNode, targetNode, DEP_DEPENDENT);
+                        if (RETURN_ERROR == retVal) {
+                            mcx_log(LOG_ERROR, "SetDependency failed in SubModelGeneratorCreateDependencyMatrix");
+                            mcx_free(A);
+                            object_destroy(infos);
+                            return NULL;
+                        }
 
-                    if (0 == numOutChannels && (INITIAL_DEPENDENCIES == depType) ) {
-                        mcx_log(LOG_DEBUG, "(%s,%d) -> (%s,-)",
-                            sourceComp->GetName(sourceComp), sourceOutGroup,
-                            targetComp->GetName(targetComp) );
-                    } else {
-                        mcx_log(LOG_DEBUG, "(%s,%d) -> (%s,%d)",
-                            sourceComp->GetName(sourceComp), sourceOutGroup,
-                            targetComp->GetName(targetComp), targetGroup);
+                        if (0 == numOutChannels && (INITIAL_DEPENDENCIES == depType)) {
+                            mcx_log(LOG_DEBUG,
+                                    "(%s,%zu) -> (%s,-)",
+                                    sourceComp->GetName(sourceComp),
+                                    sourceOutGroup,
+                                    targetComp->GetName(targetComp));
+                        } else {
+                            mcx_log(LOG_DEBUG,
+                                    "(%s,%zu) -> (%s,%zu)",
+                                    sourceComp->GetName(sourceComp),
+                                    sourceOutGroup,
+                                    targetComp->GetName(targetComp),
+                                    targetGroup);
+                        }
                     }
                 }
+
+                object_destroy(infos);
             }
         }
         if (targetCompDependency) {

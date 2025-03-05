@@ -28,13 +28,15 @@ extern "C" {
 typedef struct ChannelInData {
     Object _; // base class
 
-    struct Connection * connection;
+    ObjectContainer * connections;      // connections (non-overlapping) going into the channel
+    Vector * valueReferences;           // references to non-overlapping parts of ChannelData::value, where
+                                        // values gotten from connections are going to be stored
 
     // ----------------------------------------------------------------------
     // Conversions
 
-    struct TypeConversion * typeConversion;
-    struct UnitConversion * unitConversion;
+    ObjectContainer * typeConversions;  // conversion objects (or NULL) for each connection in `connections`
+    ObjectContainer * unitConversions;  // conversion objects (or NULL) for each connection in `connections`
     struct LinearConversion * linearConversion;
     struct RangeConversion * rangeConversion;
 
@@ -44,6 +46,7 @@ typedef struct ChannelInData {
     int isDiscrete;
 
     void * reference;
+    ChannelType * type;
 } ChannelInData;
 
 // ----------------------------------------------------------------------
@@ -55,6 +58,9 @@ typedef struct ChannelOutData {
 
     // Function pointer that provides the value of the channel when called
     const proc * valueFunction;
+
+    // Used to store results of channel-internal valueFunction calls
+    ChannelValue valueFunctionRes;
 
     // ----------------------------------------------------------------------
     // Conversion

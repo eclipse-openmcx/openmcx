@@ -10,23 +10,25 @@
 
 #include "core/connections/ConnectionInfoFactory.h"
 #include "core/connections/ConnectionInfo.h"
+#include "core/channels/ChannelDimension.h"
 #include "core/Databus.h"
 #include "objects/Vector.h"
 
+#include "util/stdlib.h"
 #include "util/string.h"
+
+#include "core/channels/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 
-static McxStatus ConnectionInfoFactoryInitConnectionInfo(
-    ConnectionInfo * info,
-    ObjectContainer * components,
-    ConnectionInput * connInput,
-    Component * sourceCompOverride,
-    Component * targetCompOverride)
-{
+static McxStatus ConnectionInfoFactoryInitConnectionInfo(ConnectionInfo * info,
+                                                         ObjectContainer * components,
+                                                         ConnectionInput * connInput,
+                                                         Component * sourceCompOverride,
+                                                         Component * targetCompOverride) {
     McxStatus retVal = RETURN_OK;
 
     int id = 0;
@@ -102,22 +104,40 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(
     {
         Databus * databus = info->sourceComponent->GetDatabus(info->sourceComponent);
         DatabusInfo * databusInfo = DatabusGetOutInfo(databus);
+        ChannelInfo * sourceInfo = NULL;
 
         char * inputFromChannel = connInput->fromType == ENDPOINT_SCALAR ? connInput->from.scalarEndpoint->channel :
                                                                            connInput->from.vectorEndpoint->channel;
+
         strFromChannel = mcx_string_copy(inputFromChannel);
         if (0 == strlen(strFromChannel)) {
             retVal = input_element_error((InputElement*)connInput, "Source port name is empty");
             goto cleanup;
         }
 
+        // arrays/multiplexing: source slice dimensions
         if (connInput->fromType == ENDPOINT_VECTOR) {
-            mcx_free(strFromChannel);
-            strFromChannel = CreateIndexedName(inputFromChannel, connInput->from.vectorEndpoint->startIndex);
-            if (!strFromChannel) {
+            ChannelDimension * sourceDimension = MakeChannelDimension();
+            if (!sourceDimension) {
                 retVal = RETURN_ERROR;
                 goto cleanup;
             }
+
+            if (RETURN_OK != ChannelDimensionSetup(sourceDimension, 1)) {
+                mcx_log(LOG_ERROR, "Source port %s: Could not set number of dimensions", strFromChannel);
+                retVal = RETURN_ERROR;
+                DestroyChannelDimension(sourceDimension);
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetDimension(sourceDimension, 0, connInput->from.vectorEndpoint->startIndex, connInput->from.vectorEndpoint->endIndex)) {
+                mcx_log(LOG_ERROR, "Source port %s: Could not set dimension boundaries", strFromChannel);
+                retVal = RETURN_ERROR;
+                DestroyChannelDimension(sourceDimension);
+                goto cleanup;
+            }
+
+            info->sourceDimension = sourceDimension;
         }
 
         info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
@@ -136,12 +156,36 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(
                 connectionInverted = 1;
             }
         }
+
+        // check that the source endpoint "fits" into the channel
+        sourceInfo = DatabusInfoGetChannel(databusInfo, info->sourceChannel);
+        if (!ChannelDimensionIncludedIn(info->sourceDimension, sourceInfo->dimension)) {
+            char* channelDimString = ChannelDimensionString(sourceInfo->dimension);
+            char* connDimString = ChannelDimensionString(info->sourceDimension);
+            mcx_log(LOG_ERROR,
+                    "Connection: Dimension index mismatch between source port %s of element %s and the connection endpoint: %s vs %s",
+                    strFromChannel,
+                    info->sourceComponent->GetName(info->sourceComponent),
+                    channelDimString,
+                    connDimString);
+            retVal = RETURN_ERROR;
+
+            if (channelDimString) {
+                mcx_free(channelDimString);
+            }
+            if (connDimString) {
+                mcx_free(connDimString);
+            }
+
+            goto cleanup;
+        }
     }
 
     // target channel
     {
         Databus * databus = info->targetComponent->GetDatabus(info->targetComponent);
         DatabusInfo * databusInfo = NULL;
+        ChannelInfo * targetInfo = NULL;
 
         char * inputToChannel = connInput->toType == ENDPOINT_SCALAR ? connInput->to.scalarEndpoint->channel :
                                                                        connInput->to.vectorEndpoint->channel;
@@ -151,19 +195,39 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(
             goto cleanup;
         }
 
-        if (connInput->toType == ENDPOINT_VECTOR) {
-            mcx_free(strToChannel);
-            strToChannel = CreateIndexedName(inputToChannel, connInput->to.vectorEndpoint->startIndex);
-            if (!strToChannel) {
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-        }
-
         if (0 == connectionInverted) {
             databusInfo = DatabusGetInInfo(databus);
         } else {
             databusInfo = DatabusGetOutInfo(databus);
+        }
+
+        // arrays/multiplexing: target slice dimensions
+        if (connInput->toType == ENDPOINT_VECTOR) {
+            ChannelDimension * targetDimension = MakeChannelDimension();
+            if (!targetDimension) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetup(targetDimension, 1)) {
+                mcx_log(LOG_ERROR, "Target port %s: Could not set number of dimensions", strToChannel);
+                retVal = RETURN_ERROR;
+                DestroyChannelDimension(targetDimension);
+                goto cleanup;
+            }
+
+            if (RETURN_OK != ChannelDimensionSetDimension(targetDimension,
+                                                          0,
+                                                          (size_t) connInput->to.vectorEndpoint->startIndex,
+                                                          (size_t) connInput->to.vectorEndpoint->endIndex))
+            {
+                mcx_log(LOG_ERROR, "Target port %s: Could not set dimension boundaries", strToChannel);
+                retVal = RETURN_ERROR;
+                DestroyChannelDimension(targetDimension);
+                goto cleanup;
+            }
+
+            info->targetDimension = targetDimension;
         }
 
         info->targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
@@ -178,12 +242,36 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(
             retVal = RETURN_ERROR;
             goto cleanup;
         }
+
+        // check that the target endpoint "fits" into the channel
+        targetInfo = DatabusInfoGetChannel(databusInfo, info->targetChannel);
+        if (!ChannelDimensionIncludedIn(info->targetDimension, targetInfo->dimension)) {
+            char * channelDimString = ChannelDimensionString(targetInfo->dimension);
+            char * connDimString = ChannelDimensionString(info->targetDimension);
+            mcx_log(LOG_ERROR,
+                    "Connection: Dimension index mismatch between connection endpoint and the target port %s of element %s: %s vs %s",
+                    strToChannel,
+                    info->targetComponent->GetName(info->targetComponent),
+                    connDimString,
+                    channelDimString);
+            retVal = RETURN_ERROR;
+
+            if (channelDimString) {
+                mcx_free(channelDimString);
+            }
+            if (connDimString) {
+                mcx_free(connDimString);
+            }
+
+            goto cleanup;
+        }
     }
 
     // swap endpoints if connection is inverted
     if (connectionInverted) {
         int tmp = info->sourceChannel;
         Component * tmpCmp = info->sourceComponent;
+        ChannelDimension * tmpDim = info->sourceDimension;
 
         info->sourceChannel = info->targetChannel;
         info->targetChannel = tmp;
@@ -191,8 +279,26 @@ static McxStatus ConnectionInfoFactoryInitConnectionInfo(
         info->sourceComponent = info->targetComponent;
         info->targetComponent = tmpCmp;
 
+        info->sourceDimension = info->targetDimension;
+        info->targetDimension = tmpDim;
+
         mcx_log(LOG_DEBUG, "Connection: Inverted connection (%s, %s) -- (%s, %s)",
             info->targetComponent->GetName(info->targetComponent), strFromChannel, info->sourceComponent->GetName(info->sourceComponent), strToChannel);
+    }
+
+    {
+        // check that connection endpoint dimensions match
+        ChannelDimension * sourceDim = info->sourceDimension;
+        ChannelDimension * targetDim = info->targetDimension;
+
+        size_t numSourceElems = sourceDim ? ChannelDimensionNumElements(sourceDim) : 1;
+        size_t numTargetElems = targetDim ? ChannelDimensionNumElements(targetDim) : 1;
+
+        if (numSourceElems != numTargetElems) {
+            mcx_log(LOG_ERROR, "Connection: Lengths of vectors do not match");
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
     }
 
     // extrapolation
@@ -252,43 +358,15 @@ Vector * ConnectionInfoFactoryCreateConnectionInfos(
         goto cleanup;
     }
 
-    list->Setup(list, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+    list->Setup(list, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
 
     retVal = ConnectionInfoFactoryInitConnectionInfo(&info, components, connInput, sourceCompOverride, targetCompOverride);
     if (RETURN_ERROR == retVal) {
         goto cleanup;
     }
 
-    if (connInput->fromType == ENDPOINT_VECTOR || connInput->toType == ENDPOINT_VECTOR) {
-        /* vector of connections */
-        int fromStartIndex = connInput->fromType == ENDPOINT_VECTOR ? connInput->from.vectorEndpoint->startIndex : 0;
-        int fromEndIndex = connInput->fromType == ENDPOINT_VECTOR ? connInput->from.vectorEndpoint->endIndex : 0;
-
-        int toStartIndex = connInput->toType == ENDPOINT_VECTOR ? connInput->to.vectorEndpoint->startIndex : 0;
-        int toEndIndex = connInput->toType == ENDPOINT_VECTOR ? connInput->to.vectorEndpoint->endIndex : 0;
-
-        int i = 0;
-        int fromStart = info.sourceChannel;
-        int toStart = info.targetChannel;
-
-        if (fromEndIndex - fromStartIndex != toEndIndex - toStartIndex) {
-            /* the lenghts of both sides do not match */
-            mcx_log(LOG_ERROR, "Connection: Lengths of vectors do not match");
-            goto cleanup;
-        }
-
-        for (i = 0; fromStartIndex + i <= fromEndIndex; i++) {
-            ConnectionInfo * copy = NULL;
-
-            list->PushBack(list, &info);
-            copy = (ConnectionInfo *) list->At(list, list->Size(list) - 1);
-            copy->sourceChannel = fromStart + i;
-            copy->targetChannel = toStart + i;
-        }
-    } else {
-        /* info is the only connection: leave as is */
-        list->PushBack(list, &info);
-    }
+    /* info is the only connection: leave as is */
+    list->PushBack(list, &info);
 
     return list;
 

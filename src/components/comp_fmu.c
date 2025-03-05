@@ -15,6 +15,7 @@
 #include "core/Databus.h"
 #include "core/Component_impl.h"
 #include "core/channels/ChannelInfo.h"
+#include "core/connections/ConnectionInfoFactory.h"
 #include "fmilib.h"
 #include "fmu/Fmu1Value.h"
 #include "fmu/Fmu2Value.h"
@@ -49,9 +50,12 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
     numChannels = DatabusInfoGetChannelNum(dbInfo);
     vals = fmu1->in;
     for (i = 0; i < numChannels; i++) {
+        Channel * ch = (Channel *) DatabusGetInChannel(db, i);
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
+        ChannelDimension * dimension = info->dimension;
+        ChannelType * type = info->type;
 
-        if (DatabusChannelInIsValid(db, i)) {
+        if (ch->IsConnected(ch) || ch->info.defaultValue) {
             Fmu1Value * val = NULL;
             fmi1_import_variable_t * var = NULL;
 
@@ -62,33 +66,24 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
                 channelName = ChannelInfoGetName(info);
             }
 
-            var = fmi1_import_get_variable_by_name(fmu1->fmiImport, channelName);
-            if (!var) {
-                ComponentLog(comp, LOG_ERROR, "Could not get variable %s", channelName);
-                return RETURN_ERROR;
+            if (dimension) {  // arrays
+                val = Fmu1ValueReadArray(comp->GetName(comp), type, info->channel, channelName, dimension, fmu1->fmiImport);
+            } else {  // scalars
+                val = Fmu1ValueReadScalar(comp->GetName(comp), type, info->channel, channelName, fmu1->fmiImport);
             }
 
-            if (info->type != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
-                ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
-                ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
-                return RETURN_ERROR;
-            }
-
-            val = Fmu1ValueMake(channelName, var, info->channel);
             if (!val) {
-                ComponentLog(comp, LOG_ERROR, "Could not set value for channel %s", channelName);
+                ComponentLog(comp, LOG_ERROR, "Could not create value for channel %s", channelName);
                 return RETURN_ERROR;
             }
 
-            retVal = vals->PushBackNamed(vals, (Object *)val, channelName);
+            retVal = vals->PushBackNamed(vals, (Object *) val, channelName);
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not store value for %s", channelName);
                 return RETURN_ERROR;
             }
 
-            retVal = DatabusSetInReference(comp->GetDatabus(comp), i, ChannelValueReference(&val->val),
-                ChannelValueType(&val->val));
+            retVal = DatabusSetInReference(db, i, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not set reference for channel %s", channelName);
                 return RETURN_ERROR;
@@ -101,6 +96,8 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
     vals = fmu1->out;
     for (i = 0; i < numChannels; i++) {
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
+        ChannelDimension * dimension = info->dimension;
+        ChannelType * type = info->type;
 
         Fmu1Value * val = NULL;
         fmi1_import_variable_t * var = NULL;
@@ -111,33 +108,24 @@ static McxStatus Fmu1SetupDatabus(Component * comp) {
             channelName = ChannelInfoGetName(info);
         }
 
-        var = fmi1_import_get_variable_by_name(fmu1->fmiImport, channelName);
-        if (!var) {
-            ComponentLog(comp, LOG_ERROR, "Could not get variable %s", channelName);
-            return RETURN_ERROR;
+        if (dimension) {    // arrays
+            val = Fmu1ValueReadArray(comp->GetName(comp), type, info->channel, channelName, dimension, fmu1->fmiImport);
+        } else {    // scalars
+            val = Fmu1ValueReadScalar(comp->GetName(comp), type, info->channel, channelName, fmu1->fmiImport);
         }
 
-        if (info->type != Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))) {
-            ComponentLog(comp, LOG_ERROR, "Variable types of %s do not match", channelName);
-            ComponentLog(comp, LOG_ERROR, "Expected: %s, Imported from FMU: %s",
-                ChannelTypeToString(info->type), ChannelTypeToString(Fmi1TypeToChannelType(fmi1_import_get_variable_base_type(var))));
-            return RETURN_ERROR;
-        }
-
-        val = Fmu1ValueMake(channelName, var, NULL);
         if (!val) {
-            ComponentLog(comp, LOG_ERROR, "Could not set value for channel %s", channelName);
+            ComponentLog(comp, LOG_ERROR, "Could not create value for channel %s", channelName);
             return RETURN_ERROR;
         }
 
-        retVal = vals->PushBack(vals, (Object *)val);
+        retVal = vals->PushBackNamed(vals, (Object *) val, channelName);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not store value for %s", channelName);
             return RETURN_ERROR;
         }
 
-        retVal = DatabusSetOutReference(comp->GetDatabus(comp), i, ChannelValueReference(&val->val),
-            ChannelValueType(&val->val));
+        retVal = DatabusSetOutReference(db, i, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not set reference for channel %s", channelName);
             return RETURN_ERROR;
@@ -388,25 +376,21 @@ static McxStatus Fmu2SetupChannelIn(ObjectContainer /* Fmu2Values */ * vals, Dat
     numChannels = DatabusInfoGetChannelNum(dbInfo);
 
     for (i = 0; i < numChannels; i++) {
+        Channel * ch = (Channel *)DatabusGetInChannel(db, i);
         ChannelInfo * info = DatabusInfoGetChannel(dbInfo, i);
         Fmu2Value * val = (Fmu2Value *) vals->At(vals, i);
 
-        if (DatabusChannelInIsValid(db, i)) {
-            const char * channelName = info->nameInTool;
-            if (NULL == channelName) {
-                channelName = ChannelInfoGetName(info);
-            }
-
+        if (ch->IsConnected(ch) || ch->info.defaultValue) {
             val->SetChannel(val, info->channel);
 
-            if (val->val.type != info->type) {
-                ChannelValueInit(&val->val, info->type);
+            if (!ChannelTypeIsValid(val->val.type)) {
+                ChannelValueInit(&val->val, ChannelTypeClone(info->type));
             }
             retVal = DatabusSetInReference(db, i,
-                           ChannelValueReference(&val->val),
+                           ChannelValueDataPointer(&val->val),
                            ChannelValueType(&val->val));
             if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "%s: Could not set reference for channel %s", logPrefix, channelName);
+                mcx_log(LOG_ERROR, "%s: Could not set reference for channel %s", logPrefix, val->name);
                 return RETURN_ERROR;
             }
         }
@@ -435,11 +419,13 @@ static McxStatus Fmu2SetupChannelOut(ObjectContainer /* Fmu2Values */ * vals, Da
             channelName = ChannelInfoGetName(info);
         }
 
-        if (val->val.type != info->type) {
-            ChannelValueInit(&val->val, info->type);
+        val->SetChannel(val, info->channel);
+
+        if (!ChannelTypeEq(val->val.type, info->type)) {
+            ChannelValueInit(&val->val, ChannelTypeClone(info->type));
         }
         retVal = DatabusSetOutReference(db, i,
-                                        ChannelValueReference(&val->val),
+                                        ChannelValueDataPointer(&val->val),
                                         ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "%s: Could not set reference for channel %s", logPrefix, channelName);
@@ -550,24 +536,24 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))) {
+            if (!ChannelTypeEq(&ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelNameLo);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
+                        ChannelTypeToString(&ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))) {
+            if (!ChannelTypeEq(&ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelNameHi);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
+                        ChannelTypeToString(&ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))) {
+            if (!ChannelTypeEq(&ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelNameSize);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
+                        ChannelTypeToString(&ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
                 return RETURN_ERROR;
             }
 
@@ -580,32 +566,40 @@ static McxStatus Fmu2ReadChannelIn(ObjectContainer /* Fmu2Value */ * vals, Datab
             mcx_free(channelNameLo);
             mcx_free(channelNameHi);
             mcx_free(channelNameSize);
-        } else { // scalar
-            var = fmi2_import_get_variable_by_name(fmiImport, channelName);
-            if (!var) {
-                mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix, channelName);
+
+            retVal = vals->PushBack(vals, (Object *)val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix, channelName);
                 return RETURN_ERROR;
             }
-
-            if (info->type != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
-                mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix, channelName);
-                mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s", logPrefix,
-                             ChannelTypeToString(info->type),
-                             ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
-                return RETURN_ERROR;
-            }
-
-            val = Fmu2ValueScalarMake(channelName, var, info->unitString, NULL);
+        } else if (info->dimension) {
+            val = Fmu2ReadFmu2ArrayValue(logPrefix, info->type, channelName, info->dimension, info->unitString, fmiImport);
             if (!val) {
-                mcx_log(LOG_ERROR, "%s: Could not set value for channel %s", logPrefix, channelName);
+                mcx_log(LOG_ERROR, "%s: Could not create value for %s", logPrefix, channelName);
                 return RETURN_ERROR;
             }
-        }
 
-        retVal = vals->PushBack(vals, (Object *)val);
-        if (RETURN_OK != retVal) {
-            mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix, channelName);
-            return RETURN_ERROR;
+            val->SetChannel(val, info->channel);
+
+            retVal = vals->PushBack(vals, (Object *)val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix, channelName);
+                return RETURN_ERROR;
+            }
+        } else { // scalar
+            val = Fmu2ReadFmu2ScalarValue(logPrefix, info->type, channelName, info->unitString, fmiImport);
+            if (!val) {
+                mcx_log(LOG_ERROR, "%s: Could not create value for %s", logPrefix, channelName);
+                return RETURN_ERROR;
+            }
+
+            val->SetChannel(val, info->channel);
+
+            retVal = vals->PushBack(vals, (Object *)val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix, channelName);
+                return RETURN_ERROR;
+            }
         }
     }
 
@@ -659,24 +653,24 @@ static McxStatus Fmu2ReadChannelOut(ObjectContainer /* Fmu2Value */ * vals, Data
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))) {
+            if (!ChannelTypeEq(&ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelNameLo);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
+                        ChannelTypeToString(&ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varLo))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))) {
+            if (!ChannelTypeEq(&ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelNameHi);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
+                        ChannelTypeToString(&ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varHi))));
                 return RETURN_ERROR;
             }
 
-            if (CHANNEL_INTEGER != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))) {
+            if (!ChannelTypeEq(&ChannelTypeInteger, Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize)))) {
                 mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelNameSize);
                 mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(CHANNEL_INTEGER), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
+                    ChannelTypeToString(&ChannelTypeInteger), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(varSize))));
                 return RETURN_ERROR;
             }
 
@@ -689,31 +683,28 @@ static McxStatus Fmu2ReadChannelOut(ObjectContainer /* Fmu2Value */ * vals, Data
             mcx_free(channelNameLo);
             mcx_free(channelNameHi);
             mcx_free(channelNameSize);
+
+            retVal = vals->PushBack(vals, (Object *)val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix , channelName);
+                return RETURN_ERROR;
+            }
+        } else if (info->dimension) {
+            val = Fmu2ReadFmu2ArrayValue(logPrefix, info->type, channelName, info->dimension, info->unitString, fmiImport);
+
+            retVal = vals->PushBack(vals, (Object *)val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix, channelName);
+                return RETURN_ERROR;
+            }
         } else { // scalar
-            var = fmi2_import_get_variable_by_name(fmiImport, channelName);
-            if (!var) {
-                mcx_log(LOG_ERROR, "%s: Could not get variable %s", logPrefix , channelName);
+            val = Fmu2ReadFmu2ScalarValue(logPrefix, info->type, channelName, info->unitString, fmiImport);
+
+            retVal = vals->PushBack(vals, (Object *)val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix, channelName);
                 return RETURN_ERROR;
             }
-
-            if (info->type != Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))) {
-                mcx_log(LOG_ERROR, "%s: Variable types of %s do not match", logPrefix , channelName);
-                mcx_log(LOG_ERROR, "%s: Expected: %s, Imported from FMU: %s",
-                    ChannelTypeToString(info->type), ChannelTypeToString(Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var))));
-                return RETURN_ERROR;
-            }
-
-            val = Fmu2ValueScalarMake(channelName, var, info->unitString, NULL);
-            if (!val) {
-                mcx_log(LOG_ERROR, "%s: Could not set value for channel %s", logPrefix , channelName);
-                return RETURN_ERROR;
-            }
-        }
-
-        retVal = vals->PushBack(vals, (Object *)val);
-        if (RETURN_OK != retVal) {
-            mcx_log(LOG_ERROR, "%s: Could not store value for %s", logPrefix , channelName);
-            return RETURN_ERROR;
         }
     }
 
@@ -802,20 +793,17 @@ static McxStatus Fmu2Read(Component * comp, ComponentInput * input, const struct
         ParametersInput * parametersInput = input->parameters;
 
         if (parametersInput) {
-            vals = Fmu2ReadParams(parametersInput,
-                                  compFmu->fmu2.fmiImport,
-                                  NULL
+            retVal = Fmu2ReadParams(
+                fmu2->params,
+                fmu2->arrayParams,
+                parametersInput,
+                compFmu->fmu2.fmiImport,
+                NULL
             );
-            if (!vals) {
+            if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not read parameters");
                 return RETURN_ERROR;
             }
-            retVal = fmu2->params->Append(fmu2->params, vals);
-            if (RETURN_OK != retVal) {
-                ComponentLog(comp, LOG_ERROR, "Could not add parameters");
-                return RETURN_ERROR;
-            }
-            object_destroy(vals);
 
         }
     }
@@ -824,17 +812,11 @@ static McxStatus Fmu2Read(Component * comp, ComponentInput * input, const struct
         ParametersInput * parametersInput = input->initialValues;
 
         if (parametersInput) {
-            vals = Fmu2ReadParams(parametersInput, compFmu->fmu2.fmiImport, NULL);
-            if (!vals) {
+            retVal = Fmu2ReadParams(fmu2->initialValues, NULL, parametersInput, compFmu->fmu2.fmiImport, NULL);
+            if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not read initial values");
                 return RETURN_ERROR;
             }
-            retVal = fmu2->initialValues->Append(fmu2->initialValues, vals);
-            if (RETURN_OK != retVal) {
-                ComponentLog(comp, LOG_ERROR, "Could not add initial values");
-                return RETURN_ERROR;
-            }
-            object_destroy(vals);
         }
     }
 
@@ -1108,164 +1090,6 @@ static ChannelMode GetInChannelDefaultMode(struct Component * comp) {
     return CHANNEL_OPTIONAL;
 }
 
-static McxStatus SetDependenciesFMU2(CompFMU *compFmu, struct Dependencies *deps) {
-    Component * comp = (Component *) compFmu;
-    McxStatus ret_val = RETURN_OK;
-
-    size_t *start_index = NULL;
-    size_t *dependency = NULL;
-    char   *factor_kind = NULL;
-
-    size_t i = 0, j = 0, k = 0;
-    size_t num_dependencies = 0;
-    size_t dep_idx = 0;
-
-    SizeTSizeTMap *dependencies_to_in_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
-    // dictionary used to store input connection information
-    SizeTSizeTMap *in_channel_connectivity = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
-    SizeTSizeTMap *unknowns_to_out_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
-    // dictionary used to later find ommitted <Unknown> elements
-    SizeTSizeTMap *processed_out_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
-
-    // get dependency information via the fmi library
-    fmi2_import_variable_list_t * init_unknowns = fmi2_import_get_initial_unknowns_list(compFmu->fmu2.fmiImport);
-    size_t num_init_unknowns = fmi2_import_get_variable_list_size(init_unknowns);
-
-    fmi2_import_get_initial_unknowns_dependencies(compFmu->fmu2.fmiImport, &start_index, &dependency, &factor_kind);
-
-    // the dependency information in <InitialUnknowns> is encoded via variable indices in modelDescription.xml
-    // our dependency matrix uses channel indices
-    // to align those 2 index types we use helper dictionaries which store the mapping between them
-
-    // map each dependency index to an input channel index
-    ObjectContainer *in_vars = compFmu->fmu2.in;
-    size_t num_in_vars = in_vars->Size(in_vars);
-
-    Databus * db = comp->GetDatabus(comp);
-    DatabusInfo * db_info = DatabusGetInInfo(db);
-    size_t num_in_channels = DatabusInfoGetChannelNum(db_info);
-
-    for (i = 0; i < num_in_vars; ++i) {
-        Fmu2Value *val = (Fmu2Value *)in_vars->At(in_vars, i);
-        ChannelInfo * info = DatabusInfoGetChannel(db_info, i);
-        if (DatabusChannelInIsValid(db, k) && info->connected) {
-            // key i in the map means channel i is connected
-            in_channel_connectivity->Add(in_channel_connectivity, i, 1 /* true */);
-        }
-
-        if (val->data->type == FMU2_VALUE_SCALAR) {
-            fmi2_import_variable_t *var = val->data->data.scalar;
-            size_t idx = fmi2_import_get_variable_original_order(var) + 1;
-            dependencies_to_in_channels->Add(dependencies_to_in_channels, idx, i);
-        }
-    }
-
-    // <InitialUnknowns> element is not present in modelDescription.xml
-    // The dependency matrix consists of only 1 (if input is connected)
-    if (start_index == NULL) {
-        for (i = 0; i < GetDependencyNumOut(deps); ++i) {
-            for (j = 0; j < GetDependencyNumIn(deps); ++j) {
-                SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, j);
-                if (elem) {
-                    ret_val = SetDependency(deps, j, i, DEP_DEPENDENT);
-                    if (RETURN_OK != ret_val) {
-                        goto cleanup;
-                    }
-                }
-            }
-        }
-
-        goto cleanup;
-    }
-
-    // map each initial_unkown index to an output channel index
-    ObjectContainer *out_vars = compFmu->fmu2.out;
-    size_t num_out_vars = out_vars->Size(out_vars);
-
-    for (i = 0; i < num_out_vars; ++i) {
-        Fmu2Value *val = (Fmu2Value *)out_vars->At(out_vars, i);
-
-        if (val->data->type == FMU2_VALUE_SCALAR) {
-            fmi2_import_variable_t *var = val->data->data.scalar;
-            size_t idx = fmi2_import_get_variable_original_order(var) + 1;
-            unknowns_to_out_channels->Add(unknowns_to_out_channels, idx, i);
-        }
-    }
-
-    // fill up the dependency matrix
-    for (i = 0; i < num_init_unknowns; ++i) {
-        fmi2_import_variable_t *init_unknown = fmi2_import_get_variable(init_unknowns, i);
-        size_t init_unknown_idx = fmi2_import_get_variable_original_order(init_unknown) + 1;
-
-        SizeTSizeTElem * out_pair = unknowns_to_out_channels->Get(unknowns_to_out_channels, init_unknown_idx);
-        if (out_pair == NULL) {
-            continue;      // in case some variables are ommitted from the input file
-        }
-
-        processed_out_channels->Add(processed_out_channels, out_pair->value, 1);
-
-        num_dependencies = start_index[i + 1] - start_index[i];
-        for (j = 0; j < num_dependencies; ++j) {
-            dep_idx = dependency[start_index[i] + j];
-            if (dep_idx == 0) {
-                // The <Unknown> element does not explicitly define a `dependencies` attribute
-                // In this case it depends on all inputs
-                for (k = 0; k < num_in_channels; ++k) {
-                    SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
-                    if (elem) {
-                        ret_val = SetDependency(deps, k, out_pair->value, DEP_DEPENDENT);
-                        if (RETURN_OK != ret_val) {
-                            goto cleanup;
-                        }
-                    }
-                }
-            } else {
-                // The <Unknown> element explicitly defines its dependencies
-                SizeTSizeTElem * in_pair = dependencies_to_in_channels->Get(dependencies_to_in_channels, dep_idx);
-
-                if (in_pair) {
-                    SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, in_pair->value);
-                    if (elem) {
-                        ret_val = SetDependency(deps, in_pair->value, out_pair->value, DEP_DEPENDENT);
-                        if (RETURN_OK != ret_val) {
-                            goto cleanup;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Initial unknowns which are ommitted from the <InitialUnknowns> element in
-    // modelDescription.xml file depend on all inputs
-    for (i = 0; i < num_out_vars; ++i) {
-        if (processed_out_channels->Get(processed_out_channels, i) == NULL) {
-            Fmu2Value *val = (Fmu2Value *)out_vars->At(out_vars, i);
-
-            if (fmi2_import_get_initial(val->data->data.scalar) != fmi2_initial_enu_exact) {
-                for (k = 0; k < num_in_channels; ++k) {
-                    SizeTSizeTElem * elem = in_channel_connectivity->Get(in_channel_connectivity, k);
-                    if (elem) {
-                        ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
-                        if (RETURN_OK != ret_val) {
-                            goto cleanup;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-cleanup:    // free dynamically allocated objects
-    object_destroy(dependencies_to_in_channels);
-    object_destroy(in_channel_connectivity);
-    object_destroy(unknowns_to_out_channels);
-    object_destroy(processed_out_channels);
-    fmi2_import_free_variable_list(init_unknowns);
-
-    return ret_val;
-}
-
 static struct Dependencies* Fmu2GetInOutGroupsInitialDependency(const Component * comp) {
     CompFMU *comp_fmu = (CompFMU *)comp;
     struct Dependencies *dependencies = NULL;
@@ -1282,7 +1106,8 @@ static struct Dependencies* Fmu2GetInOutGroupsInitialDependency(const Component 
             size_t dummy_num_out = 1;
             dependencies = DependenciesCreate(num_in, dummy_num_out);
             for (j = 0; j < num_in; ++j) {
-                if (DatabusChannelInIsValid(db, j)) {
+                Channel * ch = (Channel *) DatabusGetInChannel(db, j);
+                if (ch->IsConnected(ch) || ch->info.defaultValue) {
                     retVal = SetDependency(dependencies, j, 0, DEP_DEPENDENT);
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Initial dependency matrix for %s could not be created", comp->GetName(comp));
@@ -1292,7 +1117,7 @@ static struct Dependencies* Fmu2GetInOutGroupsInitialDependency(const Component 
             }
         } else {
             dependencies = DependenciesCreate(num_in, num_out);
-            if (SetDependenciesFMU2(comp_fmu, dependencies) != RETURN_OK) {
+            if (Fmu2SetDependencies(&comp_fmu->fmu2, db, dependencies, TRUE) != RETURN_OK) {
                 mcx_log(LOG_ERROR, "Initial dependency matrix for %s could not be created", comp->GetName(comp));
                 return NULL;
             }

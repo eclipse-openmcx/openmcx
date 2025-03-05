@@ -83,7 +83,7 @@ static McxStatus ChannelStorageSetup(ChannelStorage * channelStore, int fullStor
         goto cleanup;
     }
 
-    retVal = ChannelInfoSetup(&timeInfo, "Time", "", GetTimeUnitString(), CHANNEL_DOUBLE, "");
+    retVal = ChannelInfoSetup(&timeInfo, "Time", "Time", "", GetTimeUnitString(), &ChannelTypeDouble, "");
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Results: Setup port storage: Could not set up time port data");
         goto cleanup;
@@ -153,10 +153,12 @@ static McxStatus ChannelStorageSetValueFromReferenceAt(ChannelStorage * channelS
 
     if (row >= channelStore->numValues) {
         ChannelInfo * info = &channel->info;
-        ChannelValueInit(&channelStore->values[row * colNum + col], info->type);
+        ChannelValueInit(&channelStore->values[row * colNum + col], ChannelTypeClone(info->type));
     }
 
-    ChannelValueSetFromReference(&channelStore->values[row * colNum + col], reference);
+    if (RETURN_OK != ChannelValueSetFromReference(&channelStore->values[row * colNum + col], reference)) {
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }
@@ -304,15 +306,12 @@ static void ChannelStorageDestructor(ChannelStorage * channelStore) {
 
         if (channels) {
             size_t i = 0;
-            if (channels->Size(channels) > 0) {
-                Channel * channel = (Channel *) channels->At(channels, 0);
-                ChannelInfo * timeInfo = &channel->info;
-                object_destroy(timeInfo);
-            }
+
             for (i = 0; i < channels->Size(channels); i++) {
                 Channel * channel = (Channel *) channels->At(channels, i);
                 object_destroy(channel);
             }
+
             object_destroy(channels);
         }
     }
@@ -347,6 +346,32 @@ static ChannelStorage * ChannelStorageCreate(ChannelStorage * channelStore) {
     channelStore->storeCallNum = 0;
 
     return channelStore;
+}
+
+char ** ExpandedChannelNames(const char * name, size_t start, size_t end) {
+    char ** names = NULL;
+    size_t i = 0;
+
+    names = (char **) mcx_malloc(sizeof(char *) * (end - start + 1 + 1));
+    if (!names) {
+        return NULL;
+    }
+
+    for (i = start; i <= end; i++) {
+        names[i-start] = CreateIndexedName(name, i);
+    }
+    names[i-start] = NULL;
+
+    return names;
+}
+
+void FreeExpandedChannelNames(char ** names) {
+    size_t i = 0;
+    while (names[i]) {
+        mcx_free(names[i]);
+        ++i;
+    }
+    mcx_free(names);
 }
 
 OBJECT_CLASS(ChannelStorage, Object);

@@ -93,6 +93,7 @@ struct ResultsStorage {
     fResultsStorageStoreModel StoreModel;
     fResultsStorageStoreModel StoreModelOut;
     fResultsStorageStoreModel StoreModelLocal;
+    fResultsStorageStoreModel StoreModelRTFactor;
     fResultsStorageFinishModel FinishModel;
 
     fResultsStorageRegisterComponent  RegisterComponent;

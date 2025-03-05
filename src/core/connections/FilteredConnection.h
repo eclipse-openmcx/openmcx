@@ -20,9 +20,9 @@ extern "C" {
 
 typedef struct FilteredConnection FilteredConnection;
 
-typedef struct ChannelFilter * (* fConnectionGetFilter)(FilteredConnection * connection);
+typedef struct ChannelFilter * (* fConnectionGetFilter)(FilteredConnection * connection, size_t idx);
 
-typedef void (* fFilteredConnectionSetResult)(FilteredConnection * connection, const void * value);
+typedef McxStatus (* fFilteredConnectionSetResult)(FilteredConnection * connection, const void * value);
 
 extern const struct ObjectClass _FilteredConnection;
 

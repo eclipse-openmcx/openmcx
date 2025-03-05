@@ -12,6 +12,7 @@
 #include "core/connections/Connection.h"
 #include "core/channels/Channel.h"
 #include "core/channels/ChannelInfo.h"
+#include "core/channels/ChannelValueReference.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/Conversion.h"
 
@@ -127,9 +128,7 @@ McxStatus MakeOneConnection(ConnectionInfo * info, InterExtrapolatingType isInte
     return RETURN_OK;
 }
 
-static void LogStepRatios(double sourceStep, double targetStep, double synchStep, ConnectionInfo * info) {
-    char * connString = ConnectionInfoConnectionString(info);
-
+static void LogStepRatios(double sourceStep, double targetStep, double synchStep, const char * connString) {
     if (sourceStep <= synchStep && targetStep <= synchStep) {
         MCX_DEBUG_LOG("CONN %s: source <= synch && target <= synch", connString);
     } else if (sourceStep <= synchStep && targetStep > synchStep) {
@@ -139,18 +138,13 @@ static void LogStepRatios(double sourceStep, double targetStep, double synchStep
     } else {
         MCX_DEBUG_LOG("CONN %s: source > synch && target > synch", connString);
     }
-
-    mcx_free(connString);
 }
 
 static int ComponentMightNotRespectStepSize(Component * comp) {
     return FALSE;
 }
 
-static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
-    Component * source = info->sourceComponent;
-    Component * target = info->targetComponent;
-
+static size_t DetermineFilterBufferSize(Component * source, Component * target, const char * connString) {
     Model * model = source->GetModel(source);
     Task * task = model->GetTask(model);
 
@@ -173,10 +167,8 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     buffSize += model->config->interpolationBuffSizeSafetyExt;
 
     if (buffSize > model->config->interpolationBuffSizeLimit) {
-        char * connString = ConnectionInfoConnectionString(info);
         mcx_log(LOG_WARNING, "%s: buffer limit exceeded (%zu > &zu). Limit can be changed via MC_INTERPOLATION_BUFFER_SIZE_LIMIT.",
                 connString, buffSize, model->config->interpolationBuffSizeLimit);
-        mcx_free(connString);
 
         buffSize = model->config->interpolationBuffSizeLimit;
     }
@@ -184,11 +176,8 @@ static size_t DetermineFilterBufferSize(ConnectionInfo * info) {
     return buffSize;
 }
 
-static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
+static size_t MemoryFilterHistorySize(Component * sourceComp, Component * targetComp, int extDegree, const char * connString) {
     size_t size = 0;
-
-    Component * sourceComp = info->sourceComponent;
-    Component * targetComp = info->targetComponent;
 
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
@@ -929,11 +918,9 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     }
 
     if (size + model->config->memFilterHistoryExtra > limit) {
-        char * connString = ConnectionInfoConnectionString(info);
         mcx_log(LOG_WARNING, "%s: history size limit exceeded (%zu > &zu). Limit can be changed via MC_MEM_FILTER_HISTORY_LIMIT. "
                              "Disabling memory filter",
                 connString, size + model->config->memFilterHistoryExtra, limit);
-        mcx_free(connString);
 
         return 0;
     }
@@ -941,7 +928,7 @@ static size_t MemoryFilterHistorySize(ConnectionInfo * info, int extDegree) {
     return size + model->config->memFilterHistoryExtra;
 }
 
-static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType sourceType, size_t historySize) {
+static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType * sourceType, size_t historySize) {
     McxStatus retVal = RETURN_OK;
 
     MemoryFilter * filter = (MemoryFilter *)object_create(MemoryFilter);
@@ -963,46 +950,51 @@ static MemoryFilter * SetMemoryFilter(int reverseSearch, ChannelType sourceType,
     return filter;
 }
 
-ChannelFilter * FilterFactory(Connection * connection) {
+ChannelFilter * FilterFactory(ConnectionState * state,
+                              InterExtrapolationType extrapolation_type,
+                              InterExtrapolationParams * extrapolation_params,
+                              ChannelType * channel_type,
+                              InterExtrapolatingType inter_extrapolating_type,
+                              int is_decoupled,
+                              Component * sourceComp,
+                              Component * targetComp,
+                              const char * connString) {
     ChannelFilter * filter = NULL;
     McxStatus retVal;
-    ConnectionInfo * info = connection->GetInfo(connection);
 
-    InterExtrapolationType extrapolType = info->interExtrapolationType;
-    InterExtrapolationParams * params = &info->interExtrapolationParams;
-
-    Component * sourceComp = info->sourceComponent;
     Model * model = sourceComp->GetModel(sourceComp);
     Task * task = model->GetTask(model);
     int useInputsAtEndTime = task->useInputsAtEndTime;
 
-    if (ConnectionInfoGetType(info) == CHANNEL_DOUBLE) {
-        if (!(INTERVAL_COUPLING == params->interpolationInterval && INTERVAL_SYNCHRONIZATION == params->extrapolationInterval)) {
+    if (ChannelTypeEq(channel_type, &ChannelTypeDouble)) {
+        if (!(INTERVAL_COUPLING == extrapolation_params->interpolationInterval &&
+              INTERVAL_SYNCHRONIZATION == extrapolation_params->extrapolationInterval))
+        {
             mcx_log(LOG_WARNING, "The use of inter/extrapolation interval settings for double is not supported");
         }
-        if (extrapolType == INTEREXTRAPOLATION_POLYNOMIAL) {
+        if (extrapolation_type == INTEREXTRAPOLATION_POLYNOMIAL) {
 
-            InterExtrapolatingType isInterExtrapol = info->isInterExtrapolating;
-            if (INTERPOLATING == isInterExtrapol && ConnectionInfoIsDecoupled(info)) {
-                isInterExtrapol = INTEREXTRAPOLATING;
+            if (INTERPOLATING == inter_extrapolating_type && is_decoupled) {
+                inter_extrapolating_type = INTEREXTRAPOLATING;
             }
 
-            int degree = (INTERPOLATING == isInterExtrapol) ? params->interpolationOrder : params->extrapolationOrder;
+            int degree = (INTERPOLATING == inter_extrapolating_type) ? extrapolation_params->interpolationOrder :
+                                                                       extrapolation_params->extrapolationOrder;
 
-            if (EXTRAPOLATING == isInterExtrapol || INTEREXTRAPOLATING == isInterExtrapol) {
-                    size_t memFilterHist = MemoryFilterHistorySize(info, params->extrapolationOrder);
+            if (EXTRAPOLATING == inter_extrapolating_type || INTEREXTRAPOLATING == inter_extrapolating_type) {
+                    size_t memFilterHist = MemoryFilterHistorySize(sourceComp, targetComp, extrapolation_params->extrapolationOrder, connString);
                     if (0 != memFilterHist) {
-                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
+                        filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, channel_type, memFilterHist);
                         if (!filter) {
                             return NULL;
                         }
-                    } else if (INTEREXTRAPOLATING == isInterExtrapol) {
+                    } else if (INTEREXTRAPOLATING == inter_extrapolating_type) {
                         IntExtFilter * intExtFilter = (IntExtFilter *)object_create(IntExtFilter);
                         filter = (ChannelFilter *)intExtFilter;
                         mcx_log(LOG_DEBUG, "    Setting up dynamic filter. (%p)", filter);
-                        mcx_log(LOG_DEBUG, "    Interpolation order: %d, extrapolation order: %d", params->interpolationOrder, params->extrapolationOrder);
-                        size_t buffSize = DetermineFilterBufferSize(info);
-                        retVal = intExtFilter->Setup(intExtFilter, params->extrapolationOrder, params->interpolationOrder, buffSize);
+                        mcx_log(LOG_DEBUG, "    Interpolation order: %d, extrapolation order: %d", extrapolation_params->interpolationOrder, extrapolation_params->extrapolationOrder);
+                        size_t buffSize = DetermineFilterBufferSize(sourceComp, targetComp, connString);
+                        retVal = intExtFilter->Setup(intExtFilter, extrapolation_params->extrapolationOrder, extrapolation_params->interpolationOrder, buffSize);
                         if (RETURN_OK != retVal) {
                             return NULL;
                         }
@@ -1017,9 +1009,9 @@ ChannelFilter * FilterFactory(Connection * connection) {
                         }
                     }
             } else {
-                size_t memFilterHist = MemoryFilterHistorySize(info, degree);
+                size_t memFilterHist = MemoryFilterHistorySize(sourceComp, targetComp, degree, connString);
                 if (0 != memFilterHist) {
-                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
+                    filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, channel_type, memFilterHist);
                     if (!filter) {
                         return NULL;
                     }
@@ -1028,7 +1020,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
                     filter = (ChannelFilter*)intFilter;
                     mcx_log(LOG_DEBUG, "    Setting up coupling step interpolation filter. (%p)", filter);
                     mcx_log(LOG_DEBUG, "    Interpolation order: %d", degree);
-                    size_t buffSize = DetermineFilterBufferSize(info);
+                    size_t buffSize = DetermineFilterBufferSize(sourceComp, targetComp, connString);
                     retVal = intFilter->Setup(intFilter, degree, buffSize);
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Connection: Filter: Could not setup");
@@ -1045,28 +1037,28 @@ ChannelFilter * FilterFactory(Connection * connection) {
     } else {
         DiscreteFilter * discreteFilter = NULL;
 
-        if (!(0 == params->extrapolationOrder &&
-              0 == params->interpolationOrder &&
-              INTERVAL_COUPLING == params->interpolationInterval &&
-              INTERVAL_SYNCHRONIZATION == params->extrapolationInterval
+        if (!(0 == extrapolation_params->extrapolationOrder &&
+              0 == extrapolation_params->interpolationOrder &&
+              INTERVAL_COUPLING == extrapolation_params->interpolationInterval &&
+              INTERVAL_SYNCHRONIZATION == extrapolation_params->extrapolationInterval
         )) {
             mcx_log(LOG_WARNING, "Invalid inter/extrapolation settings for non-double connection detected");
         }
         mcx_log(LOG_DEBUG, "Using constant synchronization step extrapolation for non-double connection");
 
         discreteFilter = (DiscreteFilter *) object_create(DiscreteFilter);
-        discreteFilter->Setup(discreteFilter, ConnectionInfoGetType(info));
+        discreteFilter->Setup(discreteFilter, channel_type);
 
 
         filter = (ChannelFilter *) discreteFilter;
     }
 
-    if (NULL == filter && ConnectionInfoGetType(info) == CHANNEL_DOUBLE) {
+    if (NULL == filter && ChannelTypeEq(channel_type, &ChannelTypeDouble)) {
         // TODO: add a check to avoid filters for non-multirate cases
 
-        size_t memFilterHist = MemoryFilterHistorySize(info, 0);
+        size_t memFilterHist = MemoryFilterHistorySize(sourceComp, targetComp, 0, connString);
         if (0 != memFilterHist) {
-            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, ConnectionInfoGetType(info), memFilterHist);
+            filter = (ChannelFilter *) SetMemoryFilter(useInputsAtEndTime, channel_type, memFilterHist);
             if (!filter) {
                 return NULL;
             }
@@ -1077,7 +1069,7 @@ ChannelFilter * FilterFactory(Connection * connection) {
         }
     }
 
-    filter->AssignState(filter, &connection->state_);
+    filter->AssignState(filter, state);
 
     return filter;
 }
@@ -1090,8 +1082,22 @@ static void ConnectionSetValueReference(Connection * connection, void * referenc
     connection->value_ = reference;
 }
 
+static ChannelDimension * ConnectionGetValueDimension(Connection * connection) {
+    return NULL;
+}
+
+static ChannelType * ConnectionGetValueType(Connection * connection) {
+    ChannelOut * out = connection->out_;
+    Channel * channel = (Channel *) out;
+    ChannelInfo * channelInfo = &channel->info;
+
+    return channelInfo->type;
+}
+
+
 static void ConnectionDestructor(Connection * connection) {
     ChannelValueDestructor(&connection->store_);
+    DestroyConnectionInfo(&connection->info);
 }
 
 static ChannelOut * ConnectionGetSource(Connection * connection) {
@@ -1141,6 +1147,10 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
     ChannelInfo * inInfo = &in->info;
     ChannelInfo * outInfo = &out->info;
 
+    ChannelValueReference * storeRef = NULL;
+
+    McxStatus retVal = RETURN_OK;
+
     if (connection->state_ != InInitializationMode) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Update initial value: Cannot update initial value outside of initialization mode", buffer);
@@ -1155,52 +1165,74 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
         return RETURN_ERROR;
     }
 
-    if (inInfo->initialValue) {
-        McxStatus retVal = RETURN_OK;
-        ChannelValue * store = &connection->store_;
-        ChannelValue * inChannelValue = inInfo->initialValue;
-        ChannelValue * inValue = ChannelValueClone(inChannelValue);
+    storeRef = MakeChannelValueReference(&connection->store_, NULL);
+    if (!storeRef) {
+        mcx_log(LOG_ERROR, "Could not create store reference for initial connection");
+        return RETURN_ERROR;
+    }
 
-        if (NULL == inValue) {
-            mcx_log(LOG_ERROR, "Could not clone initial value for initial connection");
-            return RETURN_ERROR;
+    if (inInfo->initialValue) {
+        TypeConversion * typeConv = NULL;
+        ChannelValue * inChannelValue = inInfo->initialValue;
+        ChannelDimension * srcDim = NULL;
+
+        srcDim = CloneChannelDimension(info->targetDimension);
+        if (info->targetDimension && !srcDim) {
+            mcx_log(LOG_ERROR, "Could not clone source dimension");
+            retVal = RETURN_ERROR;
+            goto cleanup_1;
+        }
+        retVal = ChannelDimensionAlignIndicesWithZero(srcDim, inInfo->dimension);
+        if (retVal == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "Dimension normalization failed");
+            goto cleanup_1;
         }
 
         // The type of the stored value of a connection is the type of the out channel.
         // If the value is taken from the in channel, the value must be converted.
         // TODO: It might be a better idea to use the type of the in channel as type of the connection.
         // Such a change might be more complex to implement.
-        if (inValue->type != store->type) {
-            TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
-            Conversion * conv = (Conversion *) typeConv;
-            retVal = typeConv->Setup(typeConv, inValue->type, store->type);
+        if (!ChannelTypeConformable(storeRef->ref.value->type, NULL, inChannelValue->type, srcDim)) {
+            typeConv = (TypeConversion *) object_create(TypeConversion);
+            retVal = typeConv->Setup(typeConv, inChannelValue->type, info->targetDimension, storeRef->ref.value->type, NULL);
             if (RETURN_ERROR == retVal) {
                 mcx_log(LOG_ERROR, "Could not set up initial type conversion");
-                object_destroy(typeConv);
-                mcx_free(inValue);
-                return RETURN_ERROR;
-            }
-            retVal = conv->convert(conv, inValue);
-            object_destroy(typeConv);
-
-            if (RETURN_ERROR == retVal) {
-                mcx_log(LOG_ERROR, "Could not convert type of initial value");
-                mcx_free(inValue);
-                return RETURN_ERROR;
+                retVal = RETURN_ERROR;
+                goto cleanup_1;
             }
         }
 
-        retVal = ChannelValueSet(store, inValue);
+        retVal = ChannelValueReferenceSetFromPointer(storeRef, ChannelValueDataPointer(inChannelValue), srcDim, typeConv);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Could not set up initial value in connection");
-            mcx_free(inValue);
-            return RETURN_ERROR;
+            goto cleanup_1;
         }
-        mcx_free(inValue);
 
         connection->useInitialValue_ = TRUE;
+
+cleanup_1:
+        object_destroy(typeConv);
+        object_destroy(srcDim);
+
+        if (retVal == RETURN_ERROR) {
+            goto cleanup;
+        }
     } else if (outInfo->initialValue) {
-        ChannelValueSet(&connection->store_, outInfo->initialValue);
+        ChannelDimension * targetDim = CloneChannelDimension(info->sourceDimension);
+        if (info->sourceDimension && !targetDim) {
+            mcx_log(LOG_ERROR, "Could not clone target dimension");
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
+        retVal = ChannelDimensionAlignIndicesWithZero(targetDim, outInfo->dimension);
+        if (retVal == RETURN_ERROR) {
+            mcx_log(LOG_ERROR, "Dimension normalization failed");
+            object_destroy(targetDim);
+            goto cleanup;
+        }
+
+        ChannelValueReferenceSetFromPointer(storeRef, ChannelValueDataPointer(outInfo->initialValue), targetDim, NULL);
         connection->useInitialValue_ = TRUE;
     } else {
         {
@@ -1208,10 +1240,21 @@ static McxStatus ConnectionUpdateInitialValue(Connection * connection) {
             mcx_log(LOG_WARNING, "Connection %s: No initial values are specified for the ports of the connection", buffer);
             mcx_free(buffer);
         }
-        ChannelValueInit(&connection->store_, ConnectionInfoGetType(info));
+
+        ChannelType * storeType = ChannelTypeFromDimension(ConnectionInfoGetType(info), info->sourceDimension);
+        if (!storeType) {
+            mcx_log(LOG_ERROR, "Creating type from the dimension failed");
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
+
+        ChannelValueInit(&connection->store_, storeType);
     }
 
-    return RETURN_OK;
+cleanup:
+    DestroyChannelValueReference(storeRef);
+
+    return retVal;
 }
 
 static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * time) {
@@ -1225,8 +1268,34 @@ static void ConnectionInitUpdateFrom(Connection * connection, TimeInterval * tim
     // Do nothing
 }
 
-static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
+static McxStatus ConnectionInitSetToStore(Connection * connection) {
+    Channel* channel = (Channel*)connection->out_;
+    ChannelInfo* info = &channel->info;
+    ChannelValueReference * storeRef = MakeChannelValueReference(&connection->store_, NULL);
+    McxStatus retVal = RETURN_OK;
+
+    if (!storeRef) {
+        mcx_log(LOG_ERROR, "Could not create store reference for initial connection");
+        return RETURN_ERROR;
+    }
+
+    ConnectionInfo * connInfo = connection->GetInfo(connection);
+    ChannelDimension * clone = CloneChannelDimension(connInfo->sourceDimension);
+    ChannelDimensionAlignIndicesWithZero(clone, info->dimension);
+    retVal = ChannelValueReferenceSetFromPointer(storeRef, channel->GetValueReference(channel), clone, NULL);
+    if (RETURN_ERROR == retVal) {
+        goto cleanup;
+    }
+
+cleanup:
+    DestroyChannelValueReference(storeRef);
+
+    return retVal;
+}
+
+static McxStatus ConnectionInitUpdateTo(Connection * connection, TimeInterval * time) {
     Channel * channel = (Channel *) connection->out_;
+    ChannelInfo * info = &channel->info;
 
 #ifdef MCX_DEBUG
     if (time->startTime < MCX_DEBUG_LOG_TIME) {
@@ -1236,13 +1305,17 @@ static void ConnectionInitUpdateTo(Connection * connection, TimeInterval * time)
 #endif
 
     if (!connection->useInitialValue_) {
-        ChannelValueSetFromReference(&connection->store_, channel->GetValueReference(channel));
+        if (RETURN_OK != connection->InitSetToStore(connection)) {
+            return RETURN_ERROR;
+        }
         if (channel->IsDefinedDuringInit(channel)) {
             connection->SetDefinedDuringInit(connection);
         }
     } else {
         connection->SetDefinedDuringInit(connection);
     }
+
+    return RETURN_OK;
 }
 
 static McxStatus ConnectionEnterInitializationMode(Connection * connection) {
@@ -1267,7 +1340,7 @@ static McxStatus ConnectionEnterInitializationMode(Connection * connection) {
     // set functions for initialization mode
     connection->UpdateFromInput = ConnectionInitUpdateFrom;
     connection->UpdateToOutput = ConnectionInitUpdateTo;
-    connection->value_ = ChannelValueReference(&connection->store_);
+    connection->value_ = ChannelValueDataPointer(&connection->store_);
     connection->IsDefinedDuringInit = ConnectionIsDefinedDuringInit;
     connection->SetDefinedDuringInit = ConnectionSetDefinedDuringInit;
 
@@ -1337,9 +1410,18 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
         info->hasDiscreteTarget = TRUE;
     }
 
-    connection->info = *info;
+    retVal = ConnectionInfoSetFrom(&connection->info, info);
+    if (RETURN_ERROR == retVal) {
+        return RETURN_ERROR;
+    }
 
-    ChannelValueInit(&connection->store_, outInfo->type);
+    retVal = connection->SetupStore(connection, out, in, info);
+    if (RETURN_ERROR == retVal) {
+        char * buffer = ConnectionInfoConnectionString(info);
+        mcx_log(LOG_ERROR, "Connection %s: Store setup failed", buffer);
+        mcx_free(buffer);
+        return RETURN_ERROR;
+    }
 
     // Add connection to channel out
     retVal = out->RegisterConnection(out, connection);
@@ -1350,7 +1432,7 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
         return RETURN_ERROR;
     }
 
-    retVal = in->SetConnection(in, connection, outInfo->unitString, outInfo->type);
+    retVal = in->RegisterConnection(in, connection, outInfo->unitString, outInfo->type);
     if (RETURN_OK != retVal) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_ERROR, "Connection %s: Setup connection: Could not register with inport", buffer);
@@ -1361,16 +1443,33 @@ McxStatus ConnectionSetup(Connection * connection, ChannelOut * out, ChannelIn *
     return RETURN_OK;
 }
 
+McxStatus ConnectionSetupStore(Connection * connection, ChannelOut * out, ChannelIn * in, ConnectionInfo * info) {
+    Channel * chOut = (Channel *) out;
+    ChannelInfo * outInfo = &chOut->info;
+    ChannelType * storeType = ChannelTypeFromDimension(outInfo->type, info->sourceDimension);
+
+    if (!storeType) {
+        return RETURN_ERROR;
+    }
+
+    ChannelValueInit(&connection->store_, storeType);
+
+    return RETURN_OK;
+}
+
 static Connection * ConnectionCreate(Connection * connection) {
     McxStatus retVal = RETURN_OK;
 
     connection->Setup = NULL;
+    connection->SetupStore = ConnectionSetupStore;
 
     connection->GetSource = ConnectionGetSource;
     connection->GetTarget = ConnectionGetTarget;
 
     connection->GetValueReference = ConnectionGetValueReference;
     connection->SetValueReference = ConnectionSetValueReference;
+    connection->GetValueDimension = ConnectionGetValueDimension;
+    connection->GetValueType = ConnectionGetValueType;
 
     connection->GetInfo   = ConnectionGetInfo;
 
@@ -1406,13 +1505,15 @@ static Connection * ConnectionCreate(Connection * connection) {
 
     connection->isActiveDependency_ = TRUE;
 
-    ChannelValueInit(&connection->store_, CHANNEL_UNKNOWN);
+    ChannelValueInit(&connection->store_, &ChannelTypeUnknown);
 
     connection->state_ = InCommunicationMode;
 
     connection->NormalUpdateFrom_ = NULL;
     connection->NormalUpdateTo_ = NULL;
     connection->normalValue_ = NULL;
+
+    connection->InitSetToStore = ConnectionInitSetToStore;
 
     return connection;
 }

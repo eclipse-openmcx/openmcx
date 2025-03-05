@@ -26,6 +26,39 @@ extern "C" {
 // ----------------------------------------------------------------------
 // Step Type: Common
 
+void StepTypeSynchronizationSetup(StepTypeSynchronization * stepTypes, Component * comp, double syncStepSize) {
+    double syncToCoupl = 0.0;
+    double couplToSync = 0.0;
+
+    if (!comp->HasOwnTime(comp)) {
+        return;
+    }
+
+    if (comp->GetTimeStep(comp) <= 0.0) {
+        return;
+    }
+
+    // If the coupling and synchronization step sizes are multiples of one another
+    // it is enough to use half the size of the smaller step for absolute time comparisons.
+    syncToCoupl = syncStepSize / comp->GetTimeStep(comp);
+    couplToSync = comp->GetTimeStep(comp) / syncStepSize;
+
+    if (double_eq(syncToCoupl, round(syncToCoupl))) {
+        stepTypes->stepSizesAreMultiples = TRUE;
+        stepTypes->eps = comp->GetTimeStep(comp) / 2.0;
+    }
+
+    if (double_eq(couplToSync, round(couplToSync))) {
+        stepTypes->stepSizesAreMultiples = TRUE;
+        stepTypes->eps = syncStepSize / 2.0;
+    }
+}
+
+void StepTypeSynchronizationInit(StepTypeSynchronization * stepTypes) {
+    stepTypes->stepSizesAreMultiples = FALSE;
+    stepTypes->eps = -1.0;
+}
+
 McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeParams * params) {
     McxStatus retVal = RETURN_OK;
     double time = params->time;
@@ -49,7 +82,9 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeP
 
     while (
         comp->GetFinishState(comp) != COMP_IS_FINISHED &&
-        double_lt(comp->GetTime(comp), stepEndTime)
+        comp->syncHints.stepSizesAreMultiples ?
+            double_cmp_eps_abs(comp->GetTime(comp), stepEndTime, comp->syncHints.eps) == CMP_LT :
+            double_lt(comp->GetTime(comp), stepEndTime)
     ) {
         if (comp->HasOwnTime(comp)) {
             interval.startTime = comp->GetTime(comp);

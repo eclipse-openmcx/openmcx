@@ -36,7 +36,7 @@ typedef enum enum_VAR_TYPE {
     VAR_STRING
 } FMI_VAR_TYPE;
 
-ChannelType Fmi1TypeToChannelType(fmi1_base_type_enu_t type);
+ChannelType * Fmi1TypeToChannelType(fmi1_base_type_enu_t type);
 
 
 typedef struct Fmu1CommonStruct {

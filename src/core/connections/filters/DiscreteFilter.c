@@ -18,7 +18,9 @@ static McxStatus DiscreteFilterSetValue(ChannelFilter * filter, double time, Cha
     DiscreteFilter * discreteFilter = (DiscreteFilter *) filter;
 
     if (InCommunicationMode != * filter->state) {
-        ChannelValueSetFromReference(&discreteFilter->lastCouplingStepValue, &value);
+        if (RETURN_OK != ChannelValueSetFromReference(&discreteFilter->lastCouplingStepValue, &value)) {
+            return RETURN_ERROR;
+        }
     }
 
     return RETURN_OK;
@@ -27,7 +29,7 @@ static McxStatus DiscreteFilterSetValue(ChannelFilter * filter, double time, Cha
 static ChannelValueData DiscreteFilterGetValue(ChannelFilter * filter, double time) {
     DiscreteFilter * discreteFilter = (DiscreteFilter *) filter;
 
-    return * (ChannelValueData *) ChannelValueReference(&discreteFilter->lastSynchronizationStepValue);
+    return * (ChannelValueData *) ChannelValueDataPointer(&discreteFilter->lastSynchronizationStepValue);
 }
 
 static McxStatus DiscreteFilterEnterCouplingStepMode(ChannelFilter * filter
@@ -44,9 +46,9 @@ static McxStatus DiscreteFilterEnterCommunicationMode(ChannelFilter * filter, do
     return RETURN_OK;
 }
 
-static McxStatus DiscreteFilterSetup(DiscreteFilter * filter, ChannelType type) {
-    ChannelValueInit(&filter->lastSynchronizationStepValue, type);
-    ChannelValueInit(&filter->lastCouplingStepValue, type);
+static McxStatus DiscreteFilterSetup(DiscreteFilter * filter, ChannelType * type) {
+    ChannelValueInit(&filter->lastSynchronizationStepValue, ChannelTypeClone(type));
+    ChannelValueInit(&filter->lastCouplingStepValue, ChannelTypeClone(type));
 
     return RETURN_OK;
 }
@@ -67,8 +69,8 @@ static DiscreteFilter * DiscreteFilterCreate(DiscreteFilter * discreteFilter) {
 
     discreteFilter->Setup = DiscreteFilterSetup;
 
-    ChannelValueInit(&discreteFilter->lastSynchronizationStepValue, CHANNEL_UNKNOWN);
-    ChannelValueInit(&discreteFilter->lastCouplingStepValue, CHANNEL_UNKNOWN);
+    ChannelValueInit(&discreteFilter->lastSynchronizationStepValue, ChannelTypeClone(&ChannelTypeUnknown));
+    ChannelValueInit(&discreteFilter->lastCouplingStepValue, ChannelTypeClone(&ChannelTypeUnknown));
 
     return discreteFilter;
 }

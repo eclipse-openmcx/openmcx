@@ -12,10 +12,15 @@
 #define MCX_CORE_CONVERSION_H
 
 #include "units/Units.h"
+#include "core/channels/ChannelDimension.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+
+typedef struct ChannelValueReference ChannelValueReference;
 
 typedef struct Conversion Conversion;
 
@@ -47,14 +52,14 @@ typedef struct RangeConversion {
     fRangeConversionSetup Setup;
     fRangeConversionIsEmpty IsEmpty;
 
-    ChannelType type;
+    ChannelType * type;
 
     ChannelValue * min;
     ChannelValue * max;
 
 } RangeConversion;
 
-McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value);
+McxStatus ConvertRange(ChannelValue * min, ChannelValue * max, ChannelValue * value, ChannelDimension * slice);
 
 
 // ----------------------------------------------------------------------
@@ -65,6 +70,7 @@ typedef void(*fUnitConversionVector)(UnitConversion * conversion, double * value
 
 typedef McxStatus (* fUnitConversionSetup)(UnitConversion * conversion, const char * fromUnit, const char * toUnit);
 typedef int (* fUnitConversionIsEmpty)(UnitConversion * conversion);
+typedef McxStatus (*fUnitConversionConvertValueRef)(UnitConversion * conversion, ChannelValueReference * ref);
 
 extern const struct ObjectClass _UnitConversion;
 
@@ -73,6 +79,7 @@ struct UnitConversion {
 
     fUnitConversionSetup Setup;
     fUnitConversionIsEmpty IsEmpty;
+    fUnitConversionConvertValueRef ConvertValueReference;
 
     si_def source;
     si_def target;
@@ -80,7 +87,7 @@ struct UnitConversion {
     fUnitConversionVector convertVector;
 };
 
-McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value);
+McxStatus ConvertUnit(const char * fromUnit, const char * toUnit, ChannelValue * value, ChannelDimension * slice);
 
 
 // ----------------------------------------------------------------------
@@ -99,34 +106,42 @@ typedef struct LinearConversion {
     fLinearConversionSetup Setup;
     fLinearConversionIsEmpty IsEmpty;
 
-    ChannelType type;
+    ChannelType * type;
 
     ChannelValue * factor;
     ChannelValue * offset;
 
 } LinearConversion;
 
-McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value);
+McxStatus ConvertLinear(ChannelValue * factor, ChannelValue * offset, ChannelValue * value, ChannelDimension * slice);
 
 
 // ----------------------------------------------------------------------
 // Type Conversion
-
 typedef struct TypeConversion TypeConversion;
 
-typedef McxStatus (* fTypeConversionSetup)(TypeConversion * conversion, ChannelType fromType, ChannelType toType);
-typedef int (* fTypeConversionIsEmpty)(TypeConversion * conversion);
+typedef McxStatus (*fTypeConversionSetup)(TypeConversion * conversion,
+                                          const ChannelType * fromType,
+                                          ChannelDimension * fromDimension,
+                                          const ChannelType * toType,
+                                          ChannelDimension * toDimension);
+
+// TODO: Ideally the `src` argument would also be ChannelValueReference, but that requires quite of lot of changes
+//       in the API of databus definition (i.e. DatabusSetIn(Out)Reference)
+typedef McxStatus (*fTypeConversionConvert)(TypeConversion * conversion, ChannelValueReference * dest, void * src);
 
 extern const struct ObjectClass _TypeConversion;
 
 struct TypeConversion {
-    Conversion _;
+    Object _;
 
     fTypeConversionSetup Setup;
-    fTypeConversionIsEmpty IsEmpty;
+    fTypeConversionConvert Convert;
+
+    ChannelDimension * sourceSlice;
 };
 
-McxStatus ConvertType(ChannelType fromType, ChannelType toType, ChannelValue * value);
+McxStatus ConvertType(ChannelValue * dest, ChannelDimension * destSlice, ChannelValue * src, ChannelDimension * srcSlice);
 
 
 #ifdef __cplusplus

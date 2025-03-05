@@ -72,6 +72,7 @@ struct Config {
     size_t memFilterHistoryExtra;
 
     int cosimInitEnabled;
+    int patchWrongInitBehavior;
 
     int profilingMode;
 

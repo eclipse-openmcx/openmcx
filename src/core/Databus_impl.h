@@ -30,7 +30,6 @@ typedef struct DatabusInfoData {
     Object _; // base class
 
     Vector * infos;
-    ObjectContainer * origInfos;
 } DatabusInfoData;
 
 

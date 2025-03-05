@@ -45,12 +45,18 @@ typedef McxStatus (* fConnectionSetup)(Connection * channel,
                                        struct ChannelOut        * out,
                                        struct ChannelIn         * in,
                                        struct ConnectionInfo    * info);
+typedef McxStatus (* fConnectionSetupStore)(Connection * conn,
+                                            struct ChannelOut * out,
+                                            struct ChannelIn * in,
+                                            struct ConnectionInfo * info);
 
 typedef struct ChannelOut * (* fConnectionGetSource)(Connection * connection);
 typedef struct ChannelIn  * (* fConnectionGetTarget)(Connection * connection);
 
 typedef void * (* fConnectionGetValueReference)(Connection * connection);
 typedef void (* fConnectionSetValueReference)(Connection * connection, void * reference);
+typedef ChannelDimension * (*fConnectionGetValueDimension)(Connection * connection);
+typedef ChannelType * (*fConnectionGetValueType)(Connection * connection);
 
 typedef ConnectionInfo * (* fConnectionGetInfo)(Connection * connection);
 
@@ -62,9 +68,10 @@ typedef void (* fConnectionSetVoid)(Connection * connection);
 
 typedef void (* fConnectionUpdateFromInput)(Connection * connection, TimeInterval * time);
 
-typedef void (* fConnectionUpdateToOutput)(Connection * connection, TimeInterval * time);
+typedef McxStatus (* fConnectionUpdateToOutput)(Connection * connection, TimeInterval * time);
 
 typedef McxStatus (* fConnectionUpdateInitialValue)(Connection * connection);
+typedef McxStatus (* fConnectionInitSetToStore)(Connection * connection);
 
 typedef McxStatus (* fConnectionEnterInitializationMode)(Connection * connection);
 typedef McxStatus (* fConnectionExitInitializationMode)(Connection * connection, double time);
@@ -116,6 +123,8 @@ struct Connection {
      */
     fConnectionSetup Setup;
 
+    fConnectionSetupStore SetupStore;
+
     /**
      * Returns the source out channel.
      */
@@ -131,6 +140,12 @@ struct Connection {
      * updated on each call to UpdateToOutput().
      */
     fConnectionGetValueReference GetValueReference;
+
+    fConnectionGetValueDimension GetValueDimension;
+
+    fConnectionGetValueType GetValueType;
+
+    fConnectionInitSetToStore InitSetToStore;
 
     /**
      * Set the reference to the value of the connection. This value will be
@@ -211,7 +226,16 @@ struct Connection {
 // Common Functionality for Subclasses
 McxStatus ConnectionSetup(Connection * connection, struct ChannelOut * out, struct ChannelIn * in, ConnectionInfo * info);
 
-struct ChannelFilter * FilterFactory(Connection * connection);
+struct ChannelFilter *FilterFactory(ConnectionState *state,
+                                    InterExtrapolationType extrapolation_type,
+                                    InterExtrapolationParams *extrapolation_params,
+                                    ChannelType *channel_type,
+                                    InterExtrapolatingType inter_extrapolating_type,
+                                    int is_decoupled,
+                                    Component * sourceComp,
+                                    Component * targetComp,
+                                    const char * connString);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

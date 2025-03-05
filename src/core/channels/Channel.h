@@ -37,6 +37,8 @@ typedef int (* fChannelIsValid)(Channel * channel);
 
 typedef int (* fChannelIsConnected)(Channel * channel);
 
+typedef int (* fChannelIsFullyConnected)(Channel * channel);
+
 typedef int (* fChannelIsDefinedDuringInit)(Channel * channel);
 
 typedef void (* fChannelSetDefinedDuringInit)(Channel * channel);
@@ -82,12 +84,17 @@ struct Channel {
      *
      * Returns true if a channel provides a value (connected or default value)
      */
-    fChannelIsValid IsValid;
+    fChannelIsValid ProvidesValue;
 
     /**
-     * Returns true if a channel is connected
+     * Returns true if a channel is connected (i.e., atleast one element of the channel)
      */
     fChannelIsConnected IsConnected;
+
+    /**
+     * Returns true if all elements of the channel are connected
+     */
+    fChannelIsFullyConnected IsFullyConnected;
 
     /**
      * Getter for the flag data->isDefinedDuringInit
@@ -113,16 +120,13 @@ typedef McxStatus (* fChannelInSetup)(ChannelIn * in, struct ChannelInfo * info)
 
 typedef McxStatus  (* fChannelInSetReference) (ChannelIn   * in,
                                                void        * reference,
-                                               ChannelType   type);
+                                               ChannelType * type);
 
-typedef struct ConnectionInfo * (* fChannelInGetConnectionInfo)(ChannelIn * in);
+typedef struct Vector * (* fChannelInGetConnectionInfos)(ChannelIn * in);
 
-typedef struct Connection * (* fChannelInGetConnection)(ChannelIn * in);
+typedef struct ObjectContainer * (* fChannelInGetConnections)(ChannelIn * in);
 
-typedef McxStatus (* fChannelInSetConnection)(ChannelIn * in,
-                                              struct Connection * connection,
-                                              const char * unit,
-                                              ChannelType type);
+typedef McxStatus (*fChannelInRegisterConnection)(ChannelIn * in, struct Connection * connection, const char * unit, ChannelType * type);
 
 typedef int (*fChannelInIsDiscrete)(ChannelIn * in);
 typedef void (*fChannelInSetDiscrete)(ChannelIn * in);
@@ -150,15 +154,15 @@ struct ChannelIn {
     /**
      * Returns the ConnectionInfo of the incoming connection.
      */
-    fChannelInGetConnectionInfo GetConnectionInfo;
+    fChannelInGetConnectionInfos GetConnectionInfos;
 
-    fChannelInGetConnection GetConnection;
+    fChannelInGetConnections GetConnections;
 
     /**
      * Set the connection from which the channel retrieves the values in the
      * specified unit.
      */
-    fChannelInSetConnection SetConnection;
+    fChannelInRegisterConnection RegisterConnection;
 
     /**
     * Returns true if a channel value is discrete
@@ -184,10 +188,10 @@ typedef McxStatus (* fChannelOutSetup)(ChannelOut * out,
 
 typedef McxStatus (* fChannelOutSetReference) (ChannelOut * out,
                                                const void * reference,
-                                               ChannelType  type);
+                                               ChannelType * type);
 typedef McxStatus (* fChannelOutSetReferenceFunction) (ChannelOut * out,
                                                        const proc * reference,
-                                                       ChannelType  type);
+                                                       ChannelType * type);
 
 typedef McxStatus (* fChannelOutRegisterConnection)(struct ChannelOut * out,
                                                     struct Connection * connection);
@@ -252,7 +256,7 @@ typedef McxStatus (* fChannelLocalSetup)(ChannelLocal * local, struct ChannelInf
 
 typedef McxStatus (* fChannelLocalSetReference) (ChannelLocal * local,
                                                  const void * reference,
-                                                 ChannelType  type);
+                                                 ChannelType * type);
 
 extern const struct ObjectClass _ChannelLocal;
 

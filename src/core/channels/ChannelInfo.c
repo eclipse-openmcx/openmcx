@@ -12,6 +12,8 @@
 
 #include "core/channels/ChannelInfo.h"
 
+#include "core/channels/ChannelValue.h"
+#include "objects/Object.h"
 #include "util/string.h"
 
 #ifdef __cplusplus
@@ -36,7 +38,7 @@ const char * ChannelInfoGetName(const ChannelInfo * info) {
 }
 
 int ChannelInfoIsBinary(const ChannelInfo * info) {
-    return info->type == CHANNEL_BINARY || info->type == CHANNEL_BINARY_REFERENCE;
+    return ChannelTypeIsBinary(info->type);
 }
 
 static McxStatus ChannelInfoSetString(char ** dst, const char * src) {
@@ -74,13 +76,13 @@ McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name) {
     return ChannelInfoSetString(&info->unitString, name);
 }
 
-McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type) {
-    if (info->type != CHANNEL_UNKNOWN) {
+McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType * type) {
+    if (ChannelTypeIsValid(info->type)) {
         mcx_log(LOG_ERROR, "Port %s: Type already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
-    info->type = type;
+    info->type = ChannelTypeClone(type);
 
     if (ChannelInfoIsBinary(info)) {
         // the default for binary is off
@@ -90,24 +92,19 @@ McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type) {
     return RETURN_OK;
 }
 
-McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector) {
-    if (info->vector) {
-        object_destroy(info->vector);
-    }
-
-    info->vector = vector;
-
-    return RETURN_OK;
-}
-
 McxStatus ChannelInfoSetup(ChannelInfo * info,
                            const char * name,
+                           const char * nameInModel,
                            const char * descr,
                            const char * unit,
-                           ChannelType  type,
+                           ChannelType * type,
                            const char * id) {
     if (name && RETURN_OK != ChannelInfoSetName(info, name)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set name", name);
+        return RETURN_ERROR;
+    }
+    if (nameInModel && RETURN_OK != ChannelInfoSetNameInTool(info, nameInModel)) {
+        mcx_log(LOG_DEBUG, "Port %s: Could not set name in tool", name);
         return RETURN_ERROR;
     }
     if (descr && RETURN_OK != ChannelInfoSetDescription(info, descr)) {
@@ -171,7 +168,7 @@ McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other) {
         return RETURN_ERROR;
     }
 
-    info->type = other->type;
+    info->type = ChannelTypeClone(other->type);
     info->mode = other->mode;
     info->writeResult = other->writeResult;
     info->connected = other->connected;
@@ -234,12 +231,13 @@ McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other) {
         }
     }
 
-    if (info->vector) {
-        object_destroy(info->vector);
-    }
-
-    if (other->vector) {
-        info->vector = (VectorChannelInfo *) object_strong_reference(other->vector);
+    object_destroy(info->dimension);
+    if (other->dimension) {
+        info->dimension = CloneChannelDimension(other->dimension);
+        if (!info->dimension) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set dimension");
+            return RETURN_ERROR;
+        }
     }
 
     return RETURN_OK;
@@ -266,19 +264,23 @@ void ChannelInfoDestroy(ChannelInfo * info) {
     FreeChannelValue(&info->defaultValue);
     FreeChannelValue(&info->initialValue);
 
-    if (info->vector) {
-        object_destroy(info->vector);
+    if (info->type) {
+        ChannelTypeDestructor(info->type);
+    }
+
+    if (info->dimension) {
+        object_destroy(info->dimension);
     }
 
     info->channel = NULL;
     info->initialValueIsExact = FALSE;
-    info->type = CHANNEL_UNKNOWN;
+    info->type = ChannelTypeClone(&ChannelTypeUnknown);
     info->connected = FALSE;
     info->writeResult = TRUE;
 }
 
 McxStatus ChannelInfoInit(ChannelInfo * info) {
-    info->vector = NULL;
+    info->dimension = NULL;
 
     info->name        = NULL;
     info->nameInTool  = NULL;
@@ -295,7 +297,7 @@ McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->scale = NULL;
     info->offset = NULL;
 
-    info->type = CHANNEL_UNKNOWN;
+    info->type = ChannelTypeClone(&ChannelTypeUnknown);
     info->defaultValue = NULL;
     info->initialValue = NULL;
 

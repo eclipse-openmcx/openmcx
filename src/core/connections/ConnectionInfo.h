@@ -13,6 +13,7 @@
 
 #include "CentralParts.h"
 #include "core/Component_interface.h"
+#include "core/channels/ChannelDimension.h"
 
 #define DECOUPLE_DEFAULT DECOUPLE_IFNEEDED
 
@@ -38,7 +39,7 @@ typedef struct ConnectionInfo {
 
     int hasDiscreteTarget;
 
-    ChannelType connType_;
+    ChannelType * connType_;
 
     InterExtrapolatingType isInterExtrapolating;
 
@@ -48,13 +49,17 @@ typedef struct ConnectionInfo {
     DecoupleType decoupleType;
     int decouplePriority;
 
+    ChannelDimension * sourceDimension;
+    ChannelDimension * targetDimension;
 } ConnectionInfo;
 
 
 McxStatus ConnectionInfoInit(ConnectionInfo * info);
+McxStatus ConnectionInfoSetFrom(ConnectionInfo * info, const ConnectionInfo * other);
+void DestroyConnectionInfo(ConnectionInfo * info);
 
 
-ChannelType ConnectionInfoGetType(ConnectionInfo * info);
+ChannelType * ConnectionInfoGetType(ConnectionInfo * info);
 
 int ConnectionInfoIsDecoupled(ConnectionInfo * info);
 void ConnectionInfoSetDecoupled(ConnectionInfo * info);

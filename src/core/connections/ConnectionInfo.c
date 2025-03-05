@@ -28,40 +28,40 @@ void ConnectionInfoSetDecoupled(ConnectionInfo * info) {
     info->isDecoupled_ = TRUE;
 }
 
-ChannelType ConnectionInfoGetType(ConnectionInfo * info) {
+ChannelType * ConnectionInfoGetType(ConnectionInfo * info) {
     //Return the data type of the corresponding outport of the source component
     Component * source = NULL;
     Databus * db = NULL;
     ChannelInfo * outInfo = NULL;
 
-    if (CHANNEL_UNKNOWN != info->connType_) {
+    if (ChannelTypeIsValid(info->connType_)) {
         return info->connType_;
     }
 
     if (NULL == info) {
         mcx_log(LOG_DEBUG, "ConnectionInfo: GetType: no info available");
-        return CHANNEL_UNKNOWN;
+        return &ChannelTypeUnknown;
     }
     source = info->sourceComponent;
     if (NULL == source) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_DEBUG, "ConnectionInfo '%s': GetType: no source available", buffer);
         mcx_free(buffer);
-        return CHANNEL_UNKNOWN;
+        return &ChannelTypeUnknown;
     }
     db = source->GetDatabus(source);
     if (NULL == db) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_DEBUG, "ConnectionInfo '%s': GetType: no databus available", buffer);
         mcx_free(buffer);
-        return CHANNEL_UNKNOWN;
+        return &ChannelTypeUnknown;
     }
     outInfo = DatabusInfoGetChannel(DatabusGetOutInfo(db), info->sourceChannel);
     if (!outInfo) {
         char * buffer = ConnectionInfoConnectionString(info);
         mcx_log(LOG_DEBUG, "ConnectionInfo '%s': GetType: no outinfo available", buffer);
         mcx_free(buffer);
-        return CHANNEL_UNKNOWN;
+        return &ChannelTypeUnknown;
     }
 
     info->connType_ = outInfo->type;
@@ -137,6 +137,22 @@ char * ConnectionInfoConnectionString(ConnectionInfo * info) {
     return buffer;
 }
 
+void DestroyConnectionInfo(ConnectionInfo * info) {
+    if (info->sourceDimension) { DestroyChannelDimension(info->sourceDimension); }
+    if (info->targetDimension) { DestroyChannelDimension(info->targetDimension); }
+}
+
+McxStatus ConnectionInfoSetFrom(ConnectionInfo * info, const ConnectionInfo * other) {
+    McxStatus retVal = RETURN_OK;
+
+    memcpy(info, other, sizeof(ConnectionInfo));
+
+    info->sourceDimension = CloneChannelDimension(other->sourceDimension);
+    info->targetDimension = CloneChannelDimension(other->targetDimension);
+
+    return RETURN_OK;
+}
+
 McxStatus ConnectionInfoInit(ConnectionInfo * info) {
     info->sourceComponent = NULL;
     info->targetComponent = NULL;
@@ -158,7 +174,10 @@ McxStatus ConnectionInfoInit(ConnectionInfo * info) {
 
     info->hasDiscreteTarget = FALSE;
 
-    info->connType_ = CHANNEL_UNKNOWN;
+    info->connType_ = &ChannelTypeUnknown;
+
+    info->sourceDimension = NULL;
+    info->targetDimension = NULL;
 
     return RETURN_OK;
 }

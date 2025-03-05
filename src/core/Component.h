@@ -16,8 +16,10 @@
 #include "core/Component_interface.h"
 #include "core/Dependency.h"
 #include "objects/StringContainer.h"
+#include "objects/Vector.h"
 #include "reader/model/components/ComponentInput.h"
 #include "core/connections/ConnectionInfo.h"
+#include "steptypes/StepType.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -227,6 +229,8 @@ struct Component {
     fOnConnectionsDone OnConnectionsDone;
 
     struct ComponentData * data;
+
+    StepTypeSynchronization syncHints;
 };
 
 /* these functions have to be called by subclasses */
@@ -250,8 +254,8 @@ McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, struct St
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time);
 McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
-ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID);
-struct Connection * GetInConnection(const Component * comp, size_t channelID);
+Vector * GetInConnectionInfos(const Component * comp, size_t channelID);
+struct ObjectContainer * GetInConnections(const Component * comp, size_t channelID);
 
 size_t ComponentGetNumOutGroups(const Component * comp);
 size_t ComponentGetNumInitialOutGroups(const Component * comp);

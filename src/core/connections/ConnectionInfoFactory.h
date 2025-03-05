@@ -20,12 +20,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
-
 Vector * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * components,
                                                     ConnectionInput * connInput,
                                                     Component * sourceCompOverride,
                                                     Component * targetCompOverride);
-
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

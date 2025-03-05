@@ -24,6 +24,7 @@
 
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelValueReference.h"
 #include "core/channels/ChannelInfo.h"
 #include "core/connections/Connection.h"
 #include "core/connections/FilteredConnection.h"
@@ -136,15 +137,15 @@ static void UpdateBinaryChannelTypes(Vector * connInfos, Task * task) {
             mcx_log(LOG_DEBUG, "Fast binary channel requirements fulfilled for connection %s", buffer);
             mcx_free(buffer);
 
-            trgInfo->type = CHANNEL_BINARY_REFERENCE;
-            srcInfo->type = CHANNEL_BINARY_REFERENCE;
+            trgInfo->type = &ChannelTypeBinaryReference;
+            srcInfo->type = &ChannelTypeBinaryReference;
         } else {
             char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "Using binary channels for connection %s", buffer);
             mcx_free(buffer);
 
-            trgInfo->type = CHANNEL_BINARY;
-            srcInfo->type = CHANNEL_BINARY;
+            trgInfo->type = &ChannelTypeBinary;
+            srcInfo->type = &ChannelTypeBinary;
         }
     }
 }
@@ -167,7 +168,7 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         mcx_log(LOG_ERROR, "Not enough memory to filter out constant connections");
         return RETURN_ERROR;
     }
-    filteredConns->Setup(filteredConns, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+    filteredConns->Setup(filteredConns, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
 
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
@@ -177,13 +178,20 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
         CompConstant * srcCompConst = NULL;
         Databus * srcDb = srcComp->GetDatabus(srcComp);
         ChannelInfo * srcChannelInfo = DatabusGetOutChannelInfo(srcDb, info->sourceChannel);
+        ChannelDimension * srcDim = NULL;
 
         Component * trgComp = info->targetComponent;
         Databus * trgDb = trgComp->GetDatabus(trgComp);
         ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->targetChannel);
+        ChannelDimension * trgDim = NULL;
 
         // if not a const conn, add to the filtered conns
         if (0 != strcmp(compConstantTypeString, srcComp->GetType(srcComp))) {
+            filteredConns->PushBack(filteredConns, info);
+            continue;
+        }
+
+        if (!ChannelDimensionEq(trgChannelInfo->dimension, info->targetDimension)) {
             filteredConns->PushBack(filteredConns, info);
             continue;
         }
@@ -197,40 +205,67 @@ static McxStatus ModelPreprocessConstConnections(Model * model) {
             goto cleanup_1;
         }
 
-        ChannelValueInit(src, srcChannelInfo->type);
+        ChannelValueInit(src, ChannelTypeClone(srcChannelInfo->type));
         retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->sourceChannel));
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
+        if (!trgChannelInfo->defaultValue) {
+            trgChannelInfo->defaultValue = (ChannelValue *) mcx_calloc(1, sizeof(ChannelValue));
+            ChannelValueInit(trgChannelInfo->defaultValue, ChannelTypeClone(trgChannelInfo->type));
+        }
+
+        // prepare slice dimensions
+        srcDim = CloneChannelDimension(info->sourceDimension);
+        if (info->sourceDimension && !srcDim) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension slice allocation failed");
+            goto cleanup_1;
+        }
+
+        retVal = ChannelDimensionAlignIndicesWithZero(srcDim, srcChannelInfo->dimension);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension normalization failed");
+            goto cleanup_1;
+        }
+
+        trgDim = CloneChannelDimension(info->targetDimension);
+        if (info->targetDimension && !trgDim) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension slice allocation failed");
+            goto cleanup_1;
+        }
+
+        retVal = ChannelDimensionAlignIndicesWithZero(trgDim, trgChannelInfo->dimension);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension normalization failed");
+            goto cleanup_1;
+        }
+
         // out channel range and linear conversions
-        retVal = ConvertRange(srcChannelInfo->min, srcChannelInfo->max, src);
+        retVal = ConvertRange(srcChannelInfo->min, srcChannelInfo->max, src, srcDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
-        retVal = ConvertLinear(srcChannelInfo->scale, srcChannelInfo->offset, src);
+        retVal = ConvertLinear(srcChannelInfo->scale, srcChannelInfo->offset, src, srcDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // type conversion
-        retVal = ConvertType(srcChannelInfo->type, trgChannelInfo->type, src);
+        retVal = ConvertType(trgChannelInfo->defaultValue, trgDim, src, srcDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
         // unit conversion
-        retVal = ConvertUnit(srcChannelInfo->unitString, trgChannelInfo->unitString, src);
+        retVal = ConvertUnit(srcChannelInfo->unitString, trgChannelInfo->unitString, trgChannelInfo->defaultValue, trgDim);
         if (retVal == RETURN_ERROR) {
             goto cleanup_1;
         }
 
-        // set the default value
-        if (trgChannelInfo->defaultValue) {
-            ChannelValueDestructor(trgChannelInfo->defaultValue);
-        }
-        trgChannelInfo->defaultValue = src;
+        object_destroy(srcDim);
+        object_destroy(trgDim);
 
         continue;
 
@@ -239,6 +274,9 @@ cleanup_1:
             ChannelValueDestructor(src);
             mcx_free(src);
         }
+
+        object_destroy(srcDim);
+        object_destroy(trgDim);
 
         retVal = RETURN_ERROR;
         goto cleanup;
@@ -507,6 +545,35 @@ static McxStatus ModelSignalConnectionsDone(ObjectContainer * comps) {
     return RETURN_OK;
 }
 
+int ComponentsHaveVectorChannels(ObjectContainer * components) {
+    size_t numComps = components->Size(components);
+    size_t i = 0;
+
+    for (i = 0; i < numComps; i++) {
+        Component * comp = (Component *) components->At(components, i);
+        Databus * db = comp->GetDatabus(comp);
+        size_t numIns = DatabusGetInChannelsNum(db);
+        size_t numOuts = DatabusGetOutChannelsNum(db);
+        size_t j = 0;
+
+        for (j = 0; j < numIns; j++) {
+            ChannelInfo * info = DatabusGetInChannelInfo(db, j);
+            if (ChannelTypeIsArray(info->type)) {
+                return TRUE;
+            }
+        }
+
+        for (j = 0; j < numOuts; j++) {
+            ChannelInfo* info = DatabusGetOutChannelInfo(db, j);
+            if (ChannelTypeIsArray(info->type)) {
+                return TRUE;
+            }
+        }
+    }
+
+    return FALSE;
+}
+
 static McxStatus ModelConnectionsDone(Model * model) {
     OrderedNodes * orderedNodes = NULL;
     McxStatus retVal = RETURN_OK;
@@ -531,6 +598,13 @@ static McxStatus ModelConnectionsDone(Model * model) {
 
     // determine initialization evaluation order
     if (model->config->cosimInitEnabled) {
+        // separate triggering of array elements is not supported at the moment
+        // therefore some models with array ports might not work
+        if (ComponentsHaveVectorChannels(model->components)) {
+            mcx_log(LOG_ERROR, "Co-Simulation initialization: Components with vector ports are not supported");
+            return RETURN_ERROR;
+        }
+
         retVal = ModelCreateInitSubModel(model);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "Model: InitSubModel could not be created");
@@ -677,7 +751,6 @@ static void ModelDestructor(void * self) {
     object_destroy(model->initialSubModelGenerator);
     object_destroy(model->subModel);
     object_destroy(model->initialSubModel);
-
 }
 
 static McxStatus ModelReadComponents(void * self, ComponentsInput * input) {
@@ -882,12 +955,11 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *)DatabusGetInChannel(db, i);
+        ChannelIn * in = (ChannelIn *) channel;
         ChannelInfo * info = &channel->info;
 
-        if ((info->mode == CHANNEL_MANDATORY)
-            && !channel->IsValid(channel)) {
-            mcx_log(LOG_ERROR, "Model: %zu. inport (%s) of element %s not connected"
-                , i+1, ChannelInfoGetName(info), comp->GetName(comp));
+        if (info->mode == CHANNEL_MANDATORY && !channel->ProvidesValue(channel)) {
+            mcx_log(LOG_ERROR, "Model: %zu. inport (%s) of element %s not connected", i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }
@@ -896,10 +968,8 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
         Channel * channel = (Channel *)DatabusGetOutChannel(db, i);
         ChannelInfo * info = &channel->info;
 
-        if ((info->mode == CHANNEL_MANDATORY)
-            && !channel->IsValid(channel)) {
-            mcx_log(LOG_ERROR, "Model: %zu. outport (%s) of element %s not connected"
-                , i+1, ChannelInfoGetName(info), comp->GetName(comp));
+        if (info->mode == CHANNEL_MANDATORY && !channel->ProvidesValue(channel)) {
+            mcx_log(LOG_ERROR, "Model: %zu. outport (%s) of element %s not connected", i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }
@@ -1293,6 +1363,35 @@ static McxStatus CompUpdateInitOutputs(CompAndGroup * compGroup, void * param) {
     return retVal;
 }
 
+static McxStatus CompUpdateInAndOutputs(CompAndGroup * compGroup, void * param) {
+    Component * comp = compGroup->comp;
+    double startTime = comp->GetTime(comp);
+    TimeInterval time = { startTime, startTime };
+    McxStatus retVal = RETURN_OK;
+
+    retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &time);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating inports after initialization loop failed");
+        return RETURN_ERROR;
+    }
+
+    if (comp->UpdateInChannels) {
+        retVal = comp->UpdateInChannels(comp);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Updating inports failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    retVal = ComponentUpdateOutChannels(comp, &time);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating outports after initialization loop failed");
+        return RETURN_ERROR;
+    }
+
+    return retVal;
+}
+
 static McxStatus CompUpdateOutputs(CompAndGroup * compGroup, void * param) {
     Component  * comp  = compGroup->comp;
     const Task * task  = (const Task *) param;
@@ -1345,6 +1444,17 @@ static McxStatus ModelInitialize(Model * model) {
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Model: Initialization of elements failed");
         return retVal;
+    }
+
+    if (model->config->patchWrongInitBehavior) {
+        // Additional step for faulty elements which return zeroes as out channel values during initialization.
+        // This makes sure that after the element exits initialization (CompExitInit),
+        // the output channels contain good values before they get forwarded to the filters (ModelConnectionsExitInitMode)
+        retVal = subModel->LoopEvaluationList(subModel, CompUpdateInAndOutputs, (void*)model->task);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Updating element channels failed");
+            return RETURN_ERROR;
+        }
     }
 
     retVal = ModelConnectionsExitInitMode(model->components, model->task->params->time);
@@ -1646,7 +1756,7 @@ static Model * ModelCreate(Model * model) {
     // set to default values
     model->components = (ObjectContainer *) object_create(ObjectContainer);
     model->connections = (Vector *) object_create(Vector);
-    model->connections->Setup(model->connections, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+    model->connections->Setup(model->connections, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
     model->factory = NULL;
 
     model->config = NULL;
