@@ -476,7 +476,7 @@ static McxStatus ObjectContainerSetElementName(ObjectContainer * container,
     size_t            pos,
     const char      * name) {
     if (pos >= container->size) {
-        mcx_log(LOG_ERROR, "ObjectContainer: SetElementName: Position %u out of bounds, max is %u", pos, container->size);
+        mcx_log(LOG_ERROR, "ObjectContainer: SetElementName: Position %zu out of bounds, max is %zu", pos, container->size);
         return RETURN_ERROR;
     }
 
