@@ -768,13 +768,13 @@ static struct Dependencies * SubModelGeneratorCreateDependencyMatrix(SubModelGen
 
                         if (0 == numOutChannels && (INITIAL_DEPENDENCIES == depType)) {
                             mcx_log(LOG_DEBUG,
-                                    "(%s,%d) -> (%s,-)",
+                                    "(%s,%zu) -> (%s,-)",
                                     sourceComp->GetName(sourceComp),
                                     sourceOutGroup,
                                     targetComp->GetName(targetComp));
                         } else {
                             mcx_log(LOG_DEBUG,
-                                    "(%s,%d) -> (%s,%d)",
+                                    "(%s,%zu) -> (%s,%zu)",
                                     sourceComp->GetName(sourceComp),
                                     sourceOutGroup,
                                     targetComp->GetName(targetComp),

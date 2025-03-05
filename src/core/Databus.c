@@ -321,7 +321,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
         ChannelInfo * info = DatabusReadPortInput(portInput);
         if (!info) {
-            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read info of port %d", i);
+            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read info of port %zu", i);
             retVal = RETURN_ERROR;
             goto cleanup;
         }
@@ -330,7 +330,7 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
 
         const char * name = ChannelInfoGetName(info);
         if (info->dimension) {
-            mcx_log(LOG_DEBUG, "    Port: \"%s[%d:%d]\"", name, info->dimension->startIdxs[0], info->dimension->endIdxs[0]);
+            mcx_log(LOG_DEBUG, "    Port: \"%s[%zu:%zu]\"", name, info->dimension->startIdxs[0], info->dimension->endIdxs[0]);
         } else {
             mcx_log(LOG_DEBUG, "    Port: \"%s\"", name);
         }
@@ -348,13 +348,13 @@ McxStatus DatabusInfoRead(DatabusInfo * dbInfo,
         if (SpecificRead) {
             retVal = SpecificRead(comp, info, portInput, i);
             if (RETURN_ERROR == retVal) {
-                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %d", i);
+                mcx_log(LOG_ERROR, "Ports: Read port infos: Could not read element specific data of port %zu", i);
                 goto cleanup;
             }
         }
 
         if (RETURN_OK != dbInfos->PushBack(dbInfos, info)) {
-            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %d", i);
+            mcx_log(LOG_ERROR, "Ports: Read port infos: Could not append info of port %zu", i);
             retVal = RETURN_ERROR;
             goto cleanup;
         }

@@ -306,7 +306,7 @@ static McxStatus AddFilter(Connection * connection) {
                                                                      info->targetComponent,
                                                                      connString);
                 if (NULL == filteredConnection->data->filters[i]) {
-                    mcx_log(LOG_DEBUG, "Connection: Array filter creation failed for index %d", i);
+                    mcx_log(LOG_DEBUG, "Connection: Array filter creation failed for index %zu", i);
                     retVal = RETURN_ERROR;
                     goto cleanup;
                 }

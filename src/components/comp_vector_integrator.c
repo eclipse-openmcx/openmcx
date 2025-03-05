@@ -42,7 +42,7 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
     size_t numOut = DatabusGetOutChannelsNum(db);
 
     if (numIn != numOut) {
-        ComponentLog(comp, LOG_ERROR, "#inports (%d) does not match the #outports (%d)", numIn, numOut);
+        ComponentLog(comp, LOG_ERROR, "#inports (%zu) does not match the #outports (%zu)", numIn, numOut);
         return RETURN_ERROR;
     }
 

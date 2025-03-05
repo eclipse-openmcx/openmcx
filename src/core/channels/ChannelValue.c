@@ -352,7 +352,7 @@ McxStatus mcx_array_get_elem(const mcx_array * a, size_t idx, ChannelValueData *
     size_t num_elems = mcx_array_num_elements(a);
 
     if (idx >= num_elems) {
-        mcx_log(LOG_ERROR, "mcx_array_get_elem: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
+        mcx_log(LOG_ERROR, "mcx_array_get_elem: Array index out of range (idx: %zu, num_elems: %zu)", idx, num_elems);
         return RETURN_ERROR;
     }
 
@@ -386,7 +386,7 @@ McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * eleme
     size_t num_elems = mcx_array_num_elements(a);
 
     if (idx >= num_elems) {
-        mcx_log(LOG_ERROR, "mcx_array_set_elem: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
+        mcx_log(LOG_ERROR, "mcx_array_set_elem: Array index out of range (idx: %zu, num_elems: %zu)", idx, num_elems);
         return RETURN_ERROR;
     }
 
@@ -453,7 +453,7 @@ void * mcx_array_get_elem_reference(const mcx_array * a, size_t idx) {
     char * data = (char *) a->data;
 
     if (idx >= num_elems) {
-        mcx_log(LOG_ERROR, "mcx_array_get_elem_reference: Array index out of range (idx: %d, num_elems: %d)", idx, num_elems);
+        mcx_log(LOG_ERROR, "mcx_array_get_elem_reference: Array index out of range (idx: %zu, num_elems: %zu)", idx, num_elems);
         return NULL;
     }
 
@@ -662,7 +662,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
     case CHANNEL_DOUBLE:
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
         if (len < length) {
-            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %zu, given: %zu", length, len);
             return RETURN_ERROR;
         }
         sprintf(buffer, doubleFmt, (unsigned)precision, (unsigned)precision, value->d);
@@ -671,7 +671,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
         length = 1 /* sign */ + mcx_digits10(abs(value->i)) + 1 /* string termination*/;
 
         if (len < length) {
-            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %zu, given: %zu", length, len);
             return RETURN_ERROR;
         }
         sprintf(buffer, "%d", value->i);
@@ -679,7 +679,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
     case CHANNEL_BOOL:
         length = 2;
         if (len < length) {
-            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %zu, given: %zu", length, len);
             return RETURN_ERROR;
         }
         sprintf(buffer, "%1d", (value->i != 0) ? 1 : 0);
@@ -691,7 +691,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
         }
         length = strlen(value->s) + 1 /* string termination */;
         if (len < length) {
-            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %zu, given: %zu", length, len);
             return RETURN_ERROR;
         }
         sprintf(buffer, "%s", value->s);
@@ -706,7 +706,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
     case CHANNEL_BINARY_REFERENCE:
         length = value->b.len * 4 + 1;
         if (len < length) {
-            mcx_log(LOG_DEBUG, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            mcx_log(LOG_DEBUG, "Port value to string: buffer too short. Needed: %zu, given: %zu", length, len);
             return RETURN_ERROR;
         }
         {
@@ -722,7 +722,7 @@ McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, Channel
 
         length = 1 /* sign */ + 1 /* pre decimal place */ + 1 /* dot */ + precision + digits_of_exp + 1 /* string termination */;
         if (len < length) {
-            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %d, given: %d", length, len);
+            mcx_log(LOG_ERROR, "Port value to string: buffer too short. Needed: %zu, given: %zu", length, len);
             return RETURN_ERROR;
         }
         sprintf(buffer, doubleFmt, (unsigned)precision, (unsigned)precision, *(double *)value->a.data);

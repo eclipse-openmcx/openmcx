@@ -214,7 +214,7 @@ size_t ChannelDimensionGetIndex(const ChannelDimension * dimension, size_t elem_
                 return slice_idx_0 * sizes[1] + slice_idx_1;
             }
         default:
-            mcx_log(LOG_ERROR, "ChannelDimensionGetIndex: Number of dimensions not supported (%d)", dimension->num);
+            mcx_log(LOG_ERROR, "ChannelDimensionGetIndex: Number of dimensions not supported (%zu)", dimension->num);
             break;
     }
 
@@ -246,7 +246,7 @@ size_t ChannelDimensionGetSliceIndex(const ChannelDimension * dimension, size_t 
                 return slice_idx_0 * dim_1_slice_size * slice_idx_1;
             }
         default:
-            mcx_log(LOG_ERROR, "ChannelDimensionGetSliceIndex: Number of dimensions not supported (%d)", dimension->num);
+            mcx_log(LOG_ERROR, "ChannelDimensionGetSliceIndex: Number of dimensions not supported (%zu)", dimension->num);
             break;
     }
 

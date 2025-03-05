@@ -1525,7 +1525,7 @@ McxStatus PrintComponentGraph(Component * comp,
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; j < GetDependencyNumIn(A); j++) {
             mcx_os_fprintf(dotFile, "        <tr>\n");
-            mcx_os_fprintf(dotFile, "          <td port=\"in%d\">%d</td>\n", j, j);
+            mcx_os_fprintf(dotFile, "          <td port=\"in%zu\">%zu</td>\n", j, j);
             mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1543,7 +1543,7 @@ McxStatus PrintComponentGraph(Component * comp,
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; j < DatabusGetOutChannelsNum(db); j++) {
             mcx_os_fprintf(dotFile, "        <tr>\n");
-            mcx_os_fprintf(dotFile, "          <td port=\"out%d\">%d</td>\n", j, j);
+            mcx_os_fprintf(dotFile, "          <td port=\"out%zu\">%zu</td>\n", j, j);
             mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1567,7 +1567,7 @@ McxStatus PrintComponentGraph(Component * comp,
             }
             GetDependency(A, i, grp, &dep);
             if (dep != DEP_INDEPENDENT) {
-                mcx_os_fprintf(dotFile, "in:in%d -> out:out%d;\n", i, j);
+                mcx_os_fprintf(dotFile, "in:in%zu -> out:out%zu;\n", i, j);
             }
         }
     }
@@ -1609,14 +1609,14 @@ McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * i
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetOutChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"out%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"out%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
         }
         mcx_os_fprintf(dotFile, "    </td>\n");
         mcx_os_fprintf(dotFile, "  </tr>\n");
-        mcx_os_fprintf(dotFile, "</table>>] comp%d;\n", comps->Size(comps));
+        mcx_os_fprintf(dotFile, "</table>>] comp%zu;\n", comps->Size(comps));
     }
 
     for (i = 0; i < comps->Size(comps); i++) {
@@ -1632,7 +1632,7 @@ McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * i
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetInChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"in%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"in%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1646,14 +1646,14 @@ McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * i
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetOutChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"out%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"out%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
         }
         mcx_os_fprintf(dotFile, "    </td>\n");
         mcx_os_fprintf(dotFile, "  </tr>\n");
-        mcx_os_fprintf(dotFile, "</table>>] comp%d;\n", c->GetID(c));
+        mcx_os_fprintf(dotFile, "</table>>] comp%zu;\n", c->GetID(c));
     }
 
     if (outComp) {
@@ -1668,7 +1668,7 @@ McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * i
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetInChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"in%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"in%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1676,13 +1676,13 @@ McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * i
         mcx_os_fprintf(dotFile, "    </td>\n");
         mcx_os_fprintf(dotFile, "    <td>out</td>\n");
         mcx_os_fprintf(dotFile, "  </tr>\n");
-        mcx_os_fprintf(dotFile, "</table>>] comp%d;\n", comps->Size(comps) + 1);
+        mcx_os_fprintf(dotFile, "</table>>] comp%zu;\n", comps->Size(comps) + 1);
     }
 
     mcx_os_fprintf(dotFile, "{\n");
 
     if (inComp && outComp) {
-        mcx_os_fprintf(dotFile, "comp%d -> comp%d [style=invis];\n",
+        mcx_os_fprintf(dotFile, "comp%zu -> comp%zu [style=invis];\n",
                 comps->Size(comps),
                 comps->Size(comps) + 1);
     }
