@@ -38,6 +38,7 @@ static StorageBackend * StorageBackendCreate(StorageBackend * backend) {
     backend->Configure = NULL;
     backend->Setup = NULL;
     backend->Store = NULL;
+    backend->StoreChannelValues = NULL;
     backend->Finished = NULL;
 
     backend->id = 0;
@@ -160,6 +161,25 @@ static McxStatus StorageStoreModelLocal(ResultsStorage * storage, SubModel * sub
     return RETURN_OK;
 }
 
+static McxStatus StorageStoreModelRTFactor(ResultsStorage * storage, SubModel * subModel, double time, StoreLevel level) {
+    size_t i = 0;
+
+    McxStatus retVal = RETURN_OK;
+
+    // Get values from Components
+    for (i = 0; i < storage->numComponents; i++) {
+        ComponentStorage * compStore = storage->componentStorage[i];
+        if (subModel->IsElement(subModel, compStore->comp)) {
+            retVal = compStore->StoreChannels(compStore, CHANNEL_STORE_RTFACTOR, time, level);
+            if (RETURN_OK != retVal) {
+                return RETURN_ERROR;
+            }
+        }
+    }
+
+    return RETURN_OK;
+}
+
 static McxStatus StorageFinishModel(ResultsStorage * storage, SubModel * subModel) {
     size_t i = 0;
 
@@ -168,7 +188,7 @@ static McxStatus StorageFinishModel(ResultsStorage * storage, SubModel * subMode
     // Get values from Components
     for (i = 0; i < storage->numComponents; i++) {
         ComponentStorage * compStore = storage->componentStorage[i];
-        if (subModel->IsElement(subModel, compStore->comp)) {
+        if (subModel->ContainsOrIsElement(subModel, compStore->comp)) {
             compStore->Finished(compStore);
         }
     }
@@ -241,8 +261,12 @@ static McxStatus StorageAddBackend(ResultsStorage * storage, BackendType type, i
         StorageBackend * storeBackend = NULL;
         switch (type) {
         case BACKEND_CSV:
-            storeBackend = (StorageBackend *)object_create(StorageBackendCsv);
+        {
+            {
+                storeBackend = (StorageBackend *)object_create(StorageBackendCsv);
+            }
             break;
+        }
         }
         if (NULL == storeBackend) {
             mcx_log(LOG_ERROR, "The %s result storage backend could not be created", GetBackendTypeString(type));
@@ -396,7 +420,7 @@ static McxStatus ResultsStorageSetChannelStoreEnabled(ResultsStorage * storage, 
     return RETURN_OK;
 }
 
-static McxStatus StorageRead(ResultsStorage * storage, ResultsInput * resultsInput, const Config * config) {
+static McxStatus StorageRead(ResultsStorage * storage, ResultsInput * resultsInput, const Config * config, int multiThreaded) {
     BackendsInput * backendsInput = resultsInput->backends;
     size_t i = 0;
     McxStatus retVal = RETURN_OK;
@@ -520,6 +544,7 @@ static ResultsStorage * ResultsStorageCreate(ResultsStorage * storage) {
     storage->StoreModel = StorageStoreModel;
     storage->StoreModelOut = StorageStoreModelOut;
     storage->StoreModelLocal = StorageStoreModelLocal;
+    storage->StoreModelRTFactor = StorageStoreModelRTFactor;
     storage->FinishModel = StorageFinishModel;
     storage->Finished   = StorageFinished;
 

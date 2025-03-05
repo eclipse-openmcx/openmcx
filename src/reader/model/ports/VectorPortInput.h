@@ -35,7 +35,7 @@ struct VectorPortInput {
     char * id;
     char * unit;
 
-    ChannelType type;
+    ChannelType * type;
 
     void * min;
     void * max;
@@ -46,7 +46,7 @@ struct VectorPortInput {
     void * default_;
     void * initial;
 
-    int * writeResults;
+    OPTIONAL_VALUE(int) writeResults;
 
     fVectorPortInputCopyFrom CopyFrom;
 };

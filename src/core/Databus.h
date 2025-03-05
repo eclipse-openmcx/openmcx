@@ -18,7 +18,6 @@
 #include "core/channels/Channel.h"
 #include "core/connections/Connection.h"
 #include "core/Component.h"
-#include "core/channels/VectorChannelInfo.h"
 #include "reader/model/ports/PortsInput.h"
 
 #ifdef __cplusplus
@@ -70,6 +69,9 @@ size_t DatabusGetInChannelsNum(struct Databus * db);
  */
 size_t DatabusGetLocalChannelsNum(struct Databus * db);
 
+size_t DatabusGetInChannelsElemNum(Databus * db);
+size_t DatabusGetOutChannelsElemNum(Databus * db);
+
 /**
  * \return The number of rtfactor channels of \a db or -1 if \a db is not initialized
  * correctly.
@@ -86,13 +88,13 @@ size_t DatabusGetRTFactorChannelsNum(struct Databus * db);
 McxStatus DatabusSetOutReference(struct Databus * db,
                                  size_t           channel,
                                  const void     * reference,
-                                 ChannelType      type);
+                                 ChannelType    * type);
 
 
 McxStatus DatabusSetOutReferenceFunction(struct Databus * db,
                                          size_t           channel,
                                          const void     * reference,
-                                         ChannelType      type);
+                                         ChannelType    * type);
 
 /**
  * Connects a variable of type \a type at \a reference to the in channel \a channel
@@ -101,7 +103,7 @@ McxStatus DatabusSetOutReferenceFunction(struct Databus * db,
  *
  * \return \c RETURN_OK on success, or \c RETURN_ERROR otherwise.
  */
-McxStatus DatabusSetInReference(struct Databus * db, size_t channel, void * reference, ChannelType type);
+McxStatus DatabusSetInReference(struct Databus * db, size_t channel, void * reference, ChannelType * type);
 
 /**
  * Adds a local channel of type \a type at \a reference to the databus \a db.
@@ -111,7 +113,7 @@ McxStatus DatabusAddLocalChannel(Databus * db,
                                  const char * id,
                                  const char * unit,
                                  const void * reference,
-                                 ChannelType type);
+                                 ChannelType * type);
 
 /**
  * Adds a rtfactor channel of type \a type at \a reference to the databus \a db.
@@ -121,27 +123,7 @@ McxStatus DatabusAddRTFactorChannel(Databus * db,
                                    const char * id,
                                    const char * unit,
                                    const void * reference,
-                                   ChannelType type);
-
-/* vector channel functions */
-
-VectorChannelInfo * DatabusGetInVectorChannelInfo(Databus * db, size_t channel);
-VectorChannelInfo * DatabusGetOutVectorChannelInfo(Databus * db, size_t channel);
-
-size_t DatabusGetInVectorChannelsNum(Databus * db);
-
-size_t DatabusGetOutVectorChannelsNum(Databus * db);
-
-McxStatus DatabusSetOutRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, const void * reference, ChannelType type);
-
-McxStatus DatabusSetOutRefVectorChannel(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, ChannelValue * value);
-
-McxStatus DatabusSetInRefVector(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, void * reference, ChannelType type);
-McxStatus DatabusSetInRefVectorChannel(Databus * db, size_t channel,
-    size_t startIdx, size_t endIdx, ChannelValue * value);
+                                   ChannelType * type);
 
 
 /**
@@ -167,37 +149,6 @@ struct ChannelInfo * DatabusGetInChannelInfo (struct Databus * db, size_t channe
  * \a channel are invalid.
  */
 struct ChannelInfo * DatabusGetOutChannelInfo(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the in channel \a channel in \a db is connected or
- * provides a default value, and \c FALSE if it is not connected or \a db or \a
- * channel are invalid.
- */
-int DatabusChannelInIsValid(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the in channel \a channel in \a db is connected or
- * and \c FALSE otherwise
- */
-int DatabusChannelInIsConnected(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the out channel \a channel in \a db is connected, and \c
- * FALSE if it is not connected or \a db or \a channel are invalid.
- */
-int DatabusChannelOutIsValid(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the local channel \a channel in \a db has a reference, and \c
- * FALSE if it has no reference or \a db or \a channel are invalid.
- */
-int DatabusChannelLocalIsValid(struct Databus * db, size_t channel);
-
-/**
- * \return \c TRUE if the rtfactor channel \a channel in \a db has a reference, and \c
- * FALSE if it has no reference or \a db or \a channel are invalid.
- */
-int DatabusChannelRTFactorIsValid(struct Databus * db, size_t channel);
 
 
 /** private interface for Component **/
@@ -246,10 +197,14 @@ struct Connection * DatabusCreateConnection(struct Databus * db, struct Connecti
  * \return \c RETURN_OK on success, or \c RETURN_ERROR otherwise.
  */
 McxStatus DatabusTriggerInConnections(struct Databus * db, TimeInterval * consumerTime);
+McxStatus DatabusTriggerConnectedInConnections(struct Databus * db, TimeInterval * consumerTime);
 
+McxStatus DatabusUpdateInConnected(Databus * db);
+
+McxStatus DatabusCollectModeSwitchData(Databus * db);
 McxStatus DatabusEnterCouplingStepMode(struct Databus * db, double timeStepSize);
 McxStatus DatabusEnterCommunicationMode(struct Databus * db, double time);
-McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectContainer * connections, double time);
+McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time);
 
 /* private interface for Component, Model, Task */
 
@@ -288,6 +243,9 @@ size_t DatabusInfoGetNumWriteChannels(DatabusInfo * dbInfo);
 
 /* internal */
 
+int DatabusInChannelsDefined(Databus * db);
+int DatabusOutChannelsDefined(Databus * db);
+
 /**
  * Accessor function for the \a i-th in channel of \a db.
  *
@@ -318,13 +276,21 @@ struct Channel * DatabusGetRTFactorChannel(Databus * db, size_t i);
 
 extern const struct ObjectClass _Databus;
 
+
+typedef struct {
+    Connection * connection;
+    double sourceTimeStepSize;
+    double targetTimeStepSize;
+} ModeSwitchData;
+
 typedef struct Databus {
     Object _; // base class
 
     struct DatabusData * data;
-} Databus;
 
-char * CreateIndexedName(const char * name, unsigned i);
+    ModeSwitchData * modeSwitchData;
+    size_t modeSwitchDataSize;
+} Databus;
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

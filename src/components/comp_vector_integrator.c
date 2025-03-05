@@ -11,6 +11,7 @@
 #include "components/comp_vector_integrator.h"
 
 #include "core/Databus.h"
+#include "core/channels/ChannelValue.h"
 #include "reader/model/components/specific_data/VectorIntegratorInput.h"
 
 #ifdef __cplusplus
@@ -20,9 +21,10 @@ extern "C" {
 typedef struct CompVectorIntegrator {
     Component _;
 
-    size_t numStates;
-    double * state;
-    double * deriv;
+    size_t num;
+
+    ChannelValue * state;
+    ChannelValue * deriv;
 
     double initialState;
 
@@ -33,31 +35,51 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
     CompVectorIntegrator * integrator = (CompVectorIntegrator *) comp;
     VectorIntegratorInput * integratorInput = (VectorIntegratorInput *) input;
 
-    size_t numAllIn = 0, numAllOut = 0;
     size_t i = 0;
 
     Databus * db = comp->GetDatabus(comp);
-    size_t numVecIn = DatabusGetInVectorChannelsNum(db);
-    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t numIn = DatabusGetInChannelsNum(db);
+    size_t numOut = DatabusGetOutChannelsNum(db);
 
-    for (i = 0; i < numVecIn; i++) {
-        VectorChannelInfo *vInfo = DatabusGetInVectorChannelInfo(db, i);
-        size_t numCh = vInfo->GetEndIndex(vInfo) - vInfo->GetStartIndex(vInfo) + 1;
-        numAllIn += numCh;
-    }
-    for (i = 0; i < numVecOut; i++) {
-        VectorChannelInfo *vInfo = DatabusGetOutVectorChannelInfo(db, i);
-        size_t numCh = vInfo->GetEndIndex(vInfo) - vInfo->GetStartIndex(vInfo) + 1;
-        numAllOut += numCh;
-    }
-
-    if (numAllIn != numAllOut) {
-        ComponentLog(comp, LOG_ERROR, "#inports (%d) does not match the #outports (%d)", numAllIn, numAllOut);
+    if (numIn != numOut) {
+        ComponentLog(comp, LOG_ERROR, "#inports (%zu) does not match the #outports (%zu)", numIn, numOut);
         return RETURN_ERROR;
     }
 
-    integrator->numStates = numAllOut;
+    integrator->num = numOut;
+
+    integrator->deriv = mcx_calloc(sizeof(ChannelValue), integrator->num);
+    if (!integrator->deriv) {
+        return RETURN_ERROR;
+    }
+
+    integrator->state = mcx_calloc(sizeof(ChannelValue), integrator->num);
+    if (!integrator->state) {
+        return RETURN_ERROR;
+    }
+
     integrator->initialState = integratorInput->initialState.defined ? integratorInput->initialState.value : 0.0;
+
+    for (i = 0; i < integrator->num; i++) {
+        ChannelInfo * inInfo = DatabusGetInChannelInfo(db, i);
+        ChannelInfo * outInfo = DatabusGetOutChannelInfo(db, i);
+
+        if (!ChannelTypeEq(inInfo->type, outInfo->type)) {
+            ComponentLog(comp, LOG_ERROR, "Types of inport %s and outport %s do not match", ChannelInfoGetName(inInfo), ChannelInfoGetName(outInfo));
+            return RETURN_ERROR;
+        }
+
+        ChannelInfo * info = outInfo;
+        ChannelType * type = info->type;
+
+        if (!ChannelTypeEq(ChannelTypeBaseType(type), &ChannelTypeDouble)) {
+            ComponentLog(comp, LOG_ERROR, "Inport %s: Invalid type", ChannelInfoGetName(info));
+            return RETURN_ERROR;
+        }
+
+        ChannelValueInit(&integrator->deriv[i], ChannelTypeClone(type));
+        ChannelValueInit(&integrator->state[i], ChannelTypeClone(type));
+    }
 
     return RETURN_OK;
 }
@@ -66,40 +88,26 @@ static McxStatus Setup(Component * comp) {
     CompVectorIntegrator * integrator = (CompVectorIntegrator *) comp;
     McxStatus retVal = RETURN_OK;
     Databus * db = comp->GetDatabus(comp);
-    size_t numVecIn = DatabusGetInVectorChannelsNum(db);
-    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t numIn = DatabusGetInChannelsNum(db);
+    size_t numOut = DatabusGetOutChannelsNum(db);
     size_t i = 0;
-    size_t nextIdx = 0;
 
-    integrator->deriv = (double *) mcx_malloc(integrator->numStates * sizeof(double));
-    integrator->state = (double *) mcx_malloc(integrator->numStates * sizeof(double));
+    for (i = 0; i < integrator->num; i++) {
+        ChannelInfo * inInfo = DatabusGetInChannelInfo(db, i);
+        ChannelInfo * outInfo = DatabusGetOutChannelInfo(db, i);
 
-    nextIdx = 0;
-    for (i = 0; i < numVecIn; i++) {
-        VectorChannelInfo *vInfo = DatabusGetInVectorChannelInfo(db, i);
-        size_t startIdx = vInfo->GetStartIndex(vInfo);
-        size_t endIdx = vInfo->GetEndIndex(vInfo);
-        size_t numCh = endIdx - startIdx;
-        retVal = DatabusSetInRefVector(db, i, startIdx, endIdx, integrator->deriv + nextIdx, CHANNEL_DOUBLE);
+        retVal = DatabusSetInReference(db, i, ChannelValueDataPointer(&integrator->deriv[i]), inInfo->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register in channel reference");
             return RETURN_ERROR;
         }
-        nextIdx = nextIdx + numCh + 1;
-    }
 
-    nextIdx = 0;
-    for (i = 0; i < numVecOut; i++) {
-        VectorChannelInfo *vInfo = DatabusGetOutVectorChannelInfo(db, i);
-        size_t startIdx = vInfo->GetStartIndex(vInfo);
-        size_t endIdx = vInfo->GetEndIndex(vInfo);
-        size_t numCh = endIdx - startIdx;
-        retVal = DatabusSetOutRefVector(db, i, startIdx, endIdx, integrator->state + nextIdx, CHANNEL_DOUBLE);
+        retVal = DatabusSetOutReference(db, i, ChannelValueDataPointer(&integrator->state[i]), outInfo->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register out channel reference");
             return RETURN_ERROR;
         }
-        nextIdx = nextIdx + numCh + 1;
+
     }
 
     return RETURN_OK;
@@ -109,8 +117,22 @@ static McxStatus Setup(Component * comp) {
 static McxStatus DoStep(Component * comp, size_t group, double time, double deltaTime, double endTime, int isNewStep) {
     CompVectorIntegrator * integrator = (CompVectorIntegrator *) comp;
     size_t i;
-    for (i = 0; i < integrator->numStates; i++) {
-        integrator->state[i] = integrator->state[i] + integrator->deriv[i] * deltaTime;
+    for (i = 0; i < integrator->num; i++) {
+        if (ChannelTypeIsArray(ChannelValueType(&integrator->state[i]))) {
+            mcx_array * state = ChannelValueDataPointer(&integrator->state[i]);
+            mcx_array * deriv = ChannelValueDataPointer(&integrator->deriv[i]);
+
+            size_t j = 0;
+            for (j = 0; j < mcx_array_num_elements(state); j++) {
+                ((double *)state->data)[j] = ((double *)state->data)[j] + ((double *)deriv->data)[j] * deltaTime;
+            }
+
+        } else {
+            double * state = (double *) ChannelValueDataPointer(&integrator->state[i]);
+            double * deriv = (double *) ChannelValueDataPointer(&integrator->deriv[i]);
+
+            (*state) = (*state) + (*deriv) * deltaTime;
+        }
     }
 
     return RETURN_OK;
@@ -120,8 +142,17 @@ static McxStatus DoStep(Component * comp, size_t group, double time, double delt
 static McxStatus Initialize(Component * comp, size_t idx, double startTime) {
     CompVectorIntegrator * integrator = (CompVectorIntegrator *) comp;
     size_t i;
-    for (i = 0; i < integrator->numStates; i++) {
-        integrator->state[i] = integrator->initialState;
+    for (i = 0; i < integrator->num; i++) {
+        if (ChannelTypeIsArray(ChannelValueType(&integrator->state[i]))) {
+            mcx_array * a = (mcx_array *) ChannelValueDataPointer(&integrator->state[i]);
+            size_t j;
+
+            for (j = 0; j < mcx_array_num_elements(a); j++) {
+                ((double *) a->data)[j] = integrator->initialState;
+            }
+        } else {
+            ChannelValueSetFromReference(&integrator->state[i], &integrator->initialState);
+        }
     }
     return RETURN_OK;
 }
@@ -146,7 +177,7 @@ static Component * CompVectorIntegratorCreate(Component * comp) {
 
     // local values
     self->initialState = 0.;
-    self->numStates = 0;
+    self->num = 0;
     self->state = NULL;
     self->deriv = NULL;
 

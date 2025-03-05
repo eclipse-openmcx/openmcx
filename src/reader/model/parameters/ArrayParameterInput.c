@@ -29,7 +29,7 @@ static void ArrayParameterInputDestructor(ArrayParameterInput * input) {
     }
 
     if (input->values) {
-        if (input->type == CHANNEL_STRING) {
+        if (ChannelTypeEq(input->type, &ChannelTypeString)) {
             size_t i = 0;
 
             for (i = 0; i < input->numValues; i++) {
@@ -47,7 +47,7 @@ static ArrayParameterInput * ArrayParameterInputCreate(ArrayParameterInput * inp
     input->numDims = 0;
     input->dims = NULL;
 
-    input->type = CHANNEL_UNKNOWN;
+    input->type = &ChannelTypeUnknown;
 
     input->numValues = 0;
     input->values = NULL;

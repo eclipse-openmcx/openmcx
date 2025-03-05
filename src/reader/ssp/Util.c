@@ -746,8 +746,8 @@ cleanup:
     return ret_status;
 }
 
-McxStatus xml_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType type, ChannelValueData * dest, SSDParamMode mode) {
-    switch (type) {
+McxStatus xml_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType * type, ChannelValueData * dest, SSDParamMode mode) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
         return xml_attr_double(node, attribute_name, &dest->d, mode);
     case CHANNEL_INTEGER:
@@ -1160,7 +1160,7 @@ McxStatus xml_opt_attr_enum(xmlNodePtr node, const char * attribute_name, MapStr
     return RETURN_OK;
 }
 
-McxStatus xml_opt_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType type, OPTIONAL_VALUE(ChannelValueData) * dest) {
+McxStatus xml_opt_attr_channel_value_data(xmlNodePtr node, const char * attribute_name, ChannelType * type, OPTIONAL_VALUE(ChannelValueData) * dest) {
     McxStatus ret_val = xml_attr_channel_value_data(node, attribute_name, type, &dest->value, SSD_OPTIONAL);
 
     if (ret_val == RETURN_ERROR) {
@@ -1172,7 +1172,7 @@ McxStatus xml_opt_attr_channel_value_data(xmlNodePtr node, const char * attribut
     return RETURN_OK;
 }
 
-McxStatus xml_attr_vec_len(xmlNodePtr node, const char * attribute_name, ChannelType type, size_t expectedLen, void ** dest, SSDParamMode mode) {
+McxStatus xml_attr_vec_len(xmlNodePtr node, const char * attribute_name, ChannelType * type, size_t expectedLen, void ** dest, SSDParamMode mode) {
     McxStatus ret_status = RETURN_OK;
     int ret_val = 0;
     xmlChar * buffer = NULL;
@@ -1209,7 +1209,7 @@ McxStatus xml_attr_vec_len(xmlNodePtr node, const char * attribute_name, Channel
         goto cleanup;
     }
 
-    switch (type) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
         ret_status = xml_attr_double_vec(node, attribute_name, &len, (double **) &values, mode);
         break;

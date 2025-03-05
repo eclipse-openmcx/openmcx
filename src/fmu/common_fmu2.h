@@ -19,22 +19,29 @@
 #include "reader/model/components/specific_data/FmuInput.h"
 #include "reader/model/parameters/ParametersInput.h"
 
+#include "core/Dependency.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type);
+ChannelType * Fmi2TypeToChannelType(fmi2_base_type_enu_t type);
+const char * Fmi2TypeToString(fmi2_base_type_enu_t type);
 
 struct Fmu2CommonStruct;
 
 typedef struct Fmu2CommonStruct Fmu2CommonStruct;
 
-ObjectContainer * Fmu2ReadParams(ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore);
+McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams, ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore);
+
+McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencies * deps, int init);
 
 // TODO: rename all variablearrays to something better
+McxStatus Fmu2SetVariableArrayInitialize(Fmu2CommonStruct * fmu, ObjectContainer * vals);
 McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals);
 McxStatus Fmu2GetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals);
 
+McxStatus Fmu2SetVariableInitialize(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal);
 McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal);
 McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal);
 
@@ -51,6 +58,10 @@ struct Fmu2CommonStruct {
     ObjectContainer * out;
     ObjectContainer * params;
     ObjectContainer * initialValues;
+
+    ObjectContainer * arrayParams;   // proxy views to array parameter elements (from params) (type: ArrayParameterProxy)
+
+    ObjectContainer * connectedIn;
 
     ObjectContainer * localValues;
     ObjectContainer * tunableParams;

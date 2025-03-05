@@ -49,7 +49,7 @@ void CreateLogHeader(Config * config, LogSeverity sev) {
     char * currentWorkingDirectory;
 
     time(&config->timeStamp);
-    strftime(timeString, TIMESTAMPLENGTH-1, "%a, %d.%m.%Y %H:%M:%S", localtime(&config->timeStamp));
+    strftime(timeString, TIMESTAMPLENGTH-1, "%a, %Y-%m-%d %H:%M:%S", localtime(&config->timeStamp));
     strcpy(compileTimeString, __DATE__ );
     strcat(compileTimeString, "-");
     strcat(compileTimeString, __TIME__ );
@@ -296,6 +296,115 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
     }
 
     {
+        char * profilingMode = mcx_os_get_env_var("MC_PROFILING");
+        if (profilingMode) {
+            if (!is_off(profilingMode)) {
+                mcx_log(LOG_INFO, "Development mode turned on");
+                config->profilingMode = TRUE;
+            }
+
+            mcx_free(profilingMode);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_INTERPOLATION_BUFFER_SIZE");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter buffer size (%d). Falling back to the default (%zu)",
+                        size, config->interpolationBuffSize);
+            } else {
+                config->interpolationBuffSize = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter buffer size: %zu", config->interpolationBuffSize);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_OVERRIDE_INTERPOLATION_BUFFER_SIZE");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter override buffer size (%d)", size);
+            } else {
+                config->overrideInterpolationBuffSize = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter override buffer size: %zu", config->overrideInterpolationBuffSize);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_INTERPOLATION_BUFFER_SIZE_LIMIT");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter buffer size limit (%d)", size);
+            } else {
+                config->interpolationBuffSizeLimit = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter buffer size limit: %zu", config->interpolationBuffSizeLimit);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_INTERPOLATION_BUFFER_SIZE_SAFE_EXT");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid interpolation filter buffer size safety extension (%d)", size);
+            } else {
+                config->interpolationBuffSizeSafetyExt = (size_t) size;
+                mcx_log(LOG_INFO, "Interpolation filter buffer size safety extension: %zu", config->interpolationBuffSizeSafetyExt);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
+        char * disableMemFilter = NULL;
+
+        disableMemFilter = mcx_os_get_env_var("MC_DISABLE_MEM_FILTER");
+        if (disableMemFilter) {
+            if (is_on(disableMemFilter)) {
+                config->useMemFilter = FALSE;
+            }
+            mcx_free(disableMemFilter);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_MEM_FILTER_HISTORY_LIMIT");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid memory filter history size limit (%s)", str);
+            } else {
+                config->memFilterHistoryLimit = (size_t) size;
+                mcx_log(LOG_INFO, "Memory filter history size limit: %zu", config->memFilterHistoryLimit);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
+        char * str = mcx_os_get_env_var("MC_MEM_FILTER_HISTORY_EXTRA");
+        if (str) {
+            int size = atoi(str);
+            if (size <= 0) {
+                mcx_log(LOG_WARNING, "Invalid memory filter extra history size (%s)", str);
+            } else {
+                config->memFilterHistoryExtra = (size_t) size;
+                mcx_log(LOG_INFO, "Memory filter extra history size: %zu", config->memFilterHistoryExtra);
+            }
+            mcx_free(str);
+        }
+    }
+
+    {
         char * cosimInitEnabled = NULL;
 
         cosimInitEnabled = mcx_os_get_env_var("MC_COSIM_INIT");
@@ -304,6 +413,18 @@ static McxStatus ConfigSetupFromEnvironment(Config * config) {
                 config->cosimInitEnabled = TRUE;
             }
             mcx_free(cosimInitEnabled);
+        }
+    }
+
+    {
+        char * wrongInitBehaviorDisabled = NULL;
+
+        wrongInitBehaviorDisabled = mcx_os_get_env_var("MCX_WRONG_INIT_BEHAVIOR");
+        if (wrongInitBehaviorDisabled) {
+            if (is_on(wrongInitBehaviorDisabled)) {
+                config->patchWrongInitBehavior = FALSE;
+            }
+            mcx_free(wrongInitBehaviorDisabled);
         }
     }
 
@@ -456,18 +577,29 @@ static Config * ConfigCreate(Config * config) {
     config->executable = NULL;
 
     config->flushEveryStore = FALSE;
-
     config->sumTimeDefined = FALSE;
     config->sumTime = TRUE;
 
     config->writeAllLogFile = FALSE;
 
     config->cosimInitEnabled = FALSE;
+    config->patchWrongInitBehavior = TRUE;
 
     config->maxNumTimeSnapWarnings = MAX_NUM_MSGS;
 
     config->nanCheck = NAN_CHECK_ALWAYS;
     config->nanCheckNumMessages = MAX_NUM_MSGS;
+
+    config->interpolationBuffSize = 1000;
+    config->overrideInterpolationBuffSize = 0;
+    config->interpolationBuffSizeLimit = 100000;
+    config->interpolationBuffSizeSafetyExt = 1;
+
+    config->useMemFilter = TRUE;
+    config->memFilterHistoryLimit = 10000000;
+    config->memFilterHistoryExtra = 1;
+
+    config->profilingMode = FALSE;
 
     return config;
 }

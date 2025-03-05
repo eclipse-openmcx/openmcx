@@ -25,6 +25,7 @@ extern "C" {
 
 
 //declare storage functions
+static McxStatus StoreChannelValues(StorageBackend * backend, ChannelStoreType chType, size_t comp, ChannelValue * values, size_t num);
 static McxStatus Store(StorageBackend * backend, ChannelStoreType chType, size_t comp, size_t row);
 static McxStatus Finished(StorageBackend * backend);
 static McxStatus StoreFull(StorageBackend * backend, ChannelStoreType chType, size_t comp, size_t row);
@@ -91,6 +92,7 @@ static McxStatus Configure(StorageBackend * backend, ResultsStorage * storage, c
     } else {
         backend->needsFullStorage = 0;
         backend->Store = Store;
+        backend->StoreChannelValues = StoreChannelValues;
         backend->Finished = Finished;
     }
 
@@ -196,9 +198,8 @@ static char * QuoteString(const char * _str) {
     return newStr;
 }
 
-static McxStatus WriteRow(FILE * file, ChannelStorage * chStore, size_t row, const char * separator) {
+static McxStatus WriteRow(FILE * file, ChannelValue * values, size_t numChannels, const char * separator) {
     size_t channel = 0;
-    const size_t numChannels = chStore->GetChannelNum(chStore);
     char staticBuffer[32];
     int storedLen = 0;
 
@@ -209,12 +210,15 @@ static McxStatus WriteRow(FILE * file, ChannelStorage * chStore, size_t row, con
 
     for (channel = 0; channel < numChannels; channel++) {
         McxStatus retVal = RETURN_OK;
-        ChannelValue val = chStore->GetValueAt(chStore, row, channel);
+        ChannelValue val = values[channel];
         const char * sep = separator;
         if (channel == 0) { // leave out separator at the beginning
             sep = "";
         }
-        switch (ChannelValueType(&val)) {
+
+        // TODO: This should not mention CHANNEL_* anymore
+
+        switch (ChannelValueType(&val)->con) {
         case CHANNEL_DOUBLE:
         case CHANNEL_INTEGER:
         case CHANNEL_BOOL:
@@ -244,6 +248,12 @@ static McxStatus WriteRow(FILE * file, ChannelStorage * chStore, size_t row, con
             }
             break;
         }
+        case CHANNEL_ARRAY: {
+            char * str = ChannelValueToString(&val);
+            mcx_os_fprintf(file, "%s%s", sep, str);
+            mcx_free(str);
+            break;
+        }
         default:
             mcx_os_fprintf(file, "%s\"\"", sep);
             break;
@@ -259,8 +269,7 @@ static McxStatus WriteRow(FILE * file, ChannelStorage * chStore, size_t row, con
     return RETURN_OK;
 }
 
-
-static McxStatus Store(StorageBackend * backend, ChannelStoreType chType, size_t comp, size_t row) {
+static McxStatus StoreChannelValues(StorageBackend * backend, ChannelStoreType chType, size_t comp, ChannelValue * values, size_t num) {
     StorageBackendText * textBackend = (StorageBackendText *) backend;
     ResultsStorage * storage = backend->storage;
     ComponentStorage * compStore = storage->componentStorage[comp];
@@ -271,10 +280,10 @@ static McxStatus Store(StorageBackend * backend, ChannelStoreType chType, size_t
         mcx_log(LOG_ERROR, "Results: No result file for element %d", comp);
         return RETURN_ERROR;
     }
+
     textFile = &(textBackend->comps[comp].files[chType]);
 
-    MCX_DEBUG_LOG("STORE WRITE (%d) chtype %d row %d", comp, chType, row);
-    retVal = WriteRow(textFile->fp, compStore->channels[chType], row, textBackend->separator);
+    retVal = WriteRow(textFile->fp, values, num, textBackend->separator);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Results: Could not write result row for \"%s\"", textFile->name);
         return RETURN_ERROR;
@@ -285,6 +294,16 @@ static McxStatus Store(StorageBackend * backend, ChannelStoreType chType, size_t
         }
     }
     return RETURN_OK;
+
+}
+
+
+static McxStatus Store(StorageBackend * backend, ChannelStoreType chType, size_t comp, size_t row) {
+    ResultsStorage * storage = backend->storage;
+    ComponentStorage * compStore = storage->componentStorage[comp];
+    ChannelStorage * chStore = compStore->channels[chType];
+
+    return backend->StoreChannelValues(backend, chType, comp, chStore->GetValuesAtRow(chStore, row), chStore->GetChannelNum(chStore));
 }
 
 
@@ -336,7 +355,7 @@ static McxStatus FinishedFull(StorageBackend * backend) {
 
             if (storage->channelStoreEnabled[chType] && textFile) {
                 for (chIdx = 0; chIdx < chStore->Length(chStore); chIdx++) {
-                    McxStatus retVal = WriteRow(textFile->fp, chStore, chIdx, textBackend->separator);
+                    McxStatus retVal = WriteRow(textFile->fp, chStore->GetValuesAtRow(chStore, chIdx), chStore->GetChannelNum(chStore), textBackend->separator);
                     if (RETURN_OK != retVal) {
                         mcx_log(LOG_ERROR, "Results: Could not write result row for %s", textFile->name);
                         finishedStatus = RETURN_ERROR;

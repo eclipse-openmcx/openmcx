@@ -100,7 +100,6 @@ typedef enum DecoupleTypeDef {
     DECOUPLE_ALWAYS   = 0x4
 } DecoupleType;
 
-// Note: the enum values are mandatory because the enum is used in integer context
 typedef enum PolyOrderTypeDef {
       POLY_CONSTANT = 0
     , POLY_LINEAR = 1
@@ -150,6 +149,7 @@ typedef enum StoreLevel {
     STORE_NONE  = 1,
     STORE_SYNCHRONIZATION = 2,
     STORE_COUPLING = 3,
+    STORE_MICRO = 4,
 } StoreLevel;
 
 typedef enum {

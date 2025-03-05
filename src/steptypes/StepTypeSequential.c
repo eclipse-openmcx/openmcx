@@ -61,7 +61,7 @@ McxStatus CompPreDoUpdateState(Component * comp, void * param) {
             }
         }
 
-        retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+        retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "Simulation: Update inports for element PreDoUpdateState failed");
             return RETURN_ERROR;
@@ -96,7 +96,7 @@ McxStatus CompPostDoUpdateState(Component * comp, void * param) {
             }
         }
 
-        retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &interval);
+        retVal = DatabusTriggerConnectedInConnections(comp->GetDatabus(comp), &interval);
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "Simulation: Update inports for element PostDoUpdateState failed");
             return RETURN_ERROR;
