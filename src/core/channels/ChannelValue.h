@@ -13,6 +13,7 @@
 
 #include "CentralParts.h"
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,7 +58,7 @@ extern ChannelType ChannelTypeString;
 extern ChannelType ChannelTypeBinary;
 extern ChannelType ChannelTypeBinaryReference;
 ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
-ChannelType * ChannelTypeArrayLongDims(ChannelType * inner, size_t numDims, unsigned long * dims);
+ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, uint64_t * dims);
 
 ChannelType * ChannelTypeClone(ChannelType * type);
 void ChannelTypeDestructor(ChannelType * type);
@@ -93,7 +94,7 @@ typedef union ChannelValueData ChannelValueData;
 typedef struct ChannelValue ChannelValue;
 
 typedef struct {
-    int (* fn)(TimeInterval * arg, void * env, ChannelValue * res);
+    McxStatus (* fn)(TimeInterval * arg, void * env, ChannelValue * res);
     void * env;
 } proc;
 

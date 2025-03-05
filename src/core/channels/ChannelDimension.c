@@ -243,7 +243,7 @@ size_t ChannelDimensionGetSliceIndex(const ChannelDimension * dimension, size_t 
 
                 size_t dim_1_slice_size = dimension->endIdxs[1] - dimension->startIdxs[1] + 1;
 
-                return slice_idx_0 * dim_1_slice_size * slice_idx_1;
+                return slice_idx_0 * dim_1_slice_size + slice_idx_1;
             }
         default:
             mcx_log(LOG_ERROR, "ChannelDimensionGetSliceIndex: Number of dimensions not supported (%zu)", dimension->num);

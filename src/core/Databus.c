@@ -1303,8 +1303,8 @@ McxStatus DatabusCollectModeSwitchData(Databus * db) {
     // determine cache size
     for (i = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
-        ObjectList * conns = out->GetConnections(out);
-        db->modeSwitchDataSize += conns->Size(conns);
+        ConnectionList * conns = out->GetConnections(out);
+        db->modeSwitchDataSize += conns->numConnections;
     }
 
     // allocate cache
@@ -1316,11 +1316,11 @@ McxStatus DatabusCollectModeSwitchData(Databus * db) {
     // fill up the cache
     for (i = 0, idx = 0; i < size; i++) {
         ChannelOut * out = db->data->out[i];
-        ObjectList * conns = out->GetConnections(out);
-        size_t connSize = conns->Size(conns);
+        ConnectionList * conns = out->GetConnections(out);
+        size_t connSize = conns->numConnections;
 
         for (j = 0; j < connSize; j++, idx++) {
-            Connection * connection = (Connection*)conns->At(conns, j);
+            Connection * connection = conns->connections[j];
             ConnectionInfo * info = connection->GetInfo(connection);
             Component * target = info->targetComponent;
             Component * source = info->sourceComponent;

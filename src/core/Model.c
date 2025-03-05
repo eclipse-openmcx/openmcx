@@ -447,10 +447,10 @@ static McxStatus ModelInsertAllFilters(Model * model) {
 
         for (j = 0; j < numOutChannels; j++) {
             ChannelOut * out = DatabusGetOutChannel(db, j);
-            ObjectList * conns = out->GetConnections(out);
+            ConnectionList * conns = out->GetConnections(out);
 
-            for (k = 0; k < conns->Size(conns); k++) {
-                Connection * connection = (Connection *) conns->At(conns, k);
+            for (k = 0; k < conns->numConnections; k++) {
+                Connection * connection = conns->connections[k];
                 ConnectionInfo * info = connection->GetInfo(connection);
                     if (connection->AddFilter) {
                         char * connStr = ConnectionInfoConnectionString(info);
@@ -700,10 +700,10 @@ static Connection * ModelGetConnectionFromInfo(Model * model, ConnectionInfo * i
 
         for (j = 0; j < numOutChannels; j++) {
             ChannelOut * out = DatabusGetOutChannel(db, j);
-            ObjectList * conns = out->GetConnections(out);
+            ConnectionList * conns = out->GetConnections(out);
 
-            for (k = 0; k < conns->Size(conns); k++) {
-                Connection * connection = (Connection *) conns->At(conns, k);
+            for (k = 0; k < conns->numConnections; k++) {
+                Connection * connection = conns->connections[k];
                 if (connection->GetInfo(connection) == info) {
                     return connection;
                 }
@@ -1262,6 +1262,38 @@ static McxStatus ModelSetup(void * self) {
         return RETURN_ERROR;
     }
     mcx_log(LOG_DEBUG, " ");
+
+    // Set isFullyConnected status on all channels
+    size_t i = 0;
+    size_t j = 0;
+    Component * comp = NULL;
+    Databus * db = NULL;
+    size_t inNum = 0;
+    size_t outNum = 0;
+    Channel * channel = NULL;
+    ObjectContainer * comps = model->components;
+    for (i = 0; i < comps->Size(comps); i++) {
+        comp = (Component *)comps->At(comps, i);
+        db = comp->GetDatabus(comp);
+        inNum = DatabusGetInChannelsNum(db);
+        for (j = 0; j < inNum; j++) {
+            channel = (Channel *) DatabusGetInChannel(db, j);
+            retVal = channel->SetIsFullyConnected(channel);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Model: Setting IsFullyConnected state for input %s failed", channel->info.name);
+                return RETURN_ERROR;
+            }
+        }
+        outNum = DatabusGetOutChannelsNum(db);
+        for (j = 0; j < outNum; j++) {
+            channel = (Channel *) DatabusGetOutChannel(db, j);
+            retVal = channel->SetIsFullyConnected(channel);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Model: Setting IsFullyConnected state for output %s failed", channel->info.name);
+                return RETURN_ERROR;
+            }
+        }
+    }
 
     if (model->config->outputModel) {
         retVal = ModelPrint(model);

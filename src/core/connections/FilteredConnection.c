@@ -9,7 +9,6 @@
  ********************************************************************************/
 
 #include "core/connections/FilteredConnection.h"
-#include "core/connections/FilteredConnection_impl.h"
 #include "core/connections/Connection.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/channels/Channel.h"
@@ -20,14 +19,15 @@
 extern "C" {
 #endif /* __cplusplus */
 
-static FilteredConnectionData * FilteredConnectionDataCreate(FilteredConnectionData * data) {
+static McxStatus FilteredConnectionDataInit(FilteredConnectionData * data) {
     data->filters = NULL;
+    data->_filter = NULL;
     data->numFilters = 0;
 
     ChannelValueInit(&data->updateBuffer, ChannelTypeClone(&ChannelTypeUnknown));
     ChannelValueInit(&data->store, ChannelTypeClone(&ChannelTypeUnknown));
 
-    return data;
+    return RETURN_OK;
 }
 
 static void FilteredConnectionDataDestructor(FilteredConnectionData * data) {
@@ -39,12 +39,11 @@ static void FilteredConnectionDataDestructor(FilteredConnectionData * data) {
         for (i = 0; i < data->numFilters; i++) {
             object_destroy(data->filters[i]);
         }
-        mcx_free(data->filters);
+        if (data->numFilters != 1) {
+            mcx_free(data->filters);
+        }
     }
 }
-
-OBJECT_CLASS(FilteredConnectionData, Object);
-
 
 static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * out,
                                          ChannelIn * in, ConnectionInfo * info) {
@@ -63,8 +62,8 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     }
 
     // filter will be added after model is connected
-    filteredConnection->data->filters = NULL;
-    filteredConnection->data->numFilters = 0;
+    filteredConnection->data.filters = NULL;
+    filteredConnection->data.numFilters = 0;
 
     storeType = ChannelTypeFromDimension(sourceInfo->type, info->sourceDimension);
     if (!storeType) {
@@ -72,13 +71,13 @@ static McxStatus FilteredConnectionSetup(Connection * connection, ChannelOut * o
     }
 
     // value store
-    ChannelValueInit(&filteredConnection->data->store, storeType);  // steals ownership of storeType -> no clone needed
+    ChannelValueInit(&filteredConnection->data.store, storeType);  // steals ownership of storeType -> no clone needed
 
     // value reference
-    connection->value_ = ChannelValueDataPointer(&filteredConnection->data->store);
+    connection->value_ = ChannelValueDataPointer(&filteredConnection->data.store);
 
     // initialize the buffer for channel function calls
-    ChannelValueInit(&filteredConnection->data->updateBuffer, ChannelTypeClone(storeType));
+    ChannelValueInit(&filteredConnection->data.updateBuffer, ChannelTypeClone(storeType));
 
     // Connection::Setup()
     // this has to be done last as it connects the channels
@@ -96,7 +95,7 @@ static McxStatus FilteredConnectionEnterCommunicationMode(Connection * connectio
     McxStatus retVal = RETURN_OK;
     size_t i = 0;
 
-    for (i = 0; i < filteredConnection->data->numFilters; i++) {
+    for (i = 0; i < filteredConnection->data.numFilters; i++) {
         ChannelFilter * filter = filteredConnection->GetWriteFilter(filteredConnection, i);
         if (filter) {
             if (filter->EnterCommunicationMode) {
@@ -120,7 +119,7 @@ static McxStatus FilteredConnectionEnterCouplingStepMode(Connection * connection
     McxStatus retVal = RETURN_OK;
     size_t i = 0;
 
-    for (i = 0; i < filteredConnection->data->numFilters; i++) {
+    for (i = 0; i < filteredConnection->data.numFilters; i++) {
         ChannelFilter * filter = filteredConnection->GetWriteFilter(filteredConnection, i);
         if (filter) {
             if (filter->EnterCouplingStepMode) {
@@ -137,18 +136,18 @@ static McxStatus FilteredConnectionEnterCouplingStepMode(Connection * connection
 }
 
 static ChannelFilter * FilteredConnectionGetFilter(FilteredConnection * connection, size_t idx) {
-    if (connection->data->filters && idx < connection->data->numFilters) {
-        return connection->data->filters[idx];
+    if (connection->data.filters && idx < connection->data.numFilters) {
+        return connection->data.filters[idx];
     }
     return NULL;
 }
 
 static size_t FilteredConnectionGetNumFilters(FilteredConnection *connection) {
-    return connection->data->numFilters;
+    return connection->data.numFilters;
 }
 
 static McxStatus FilteredConnectionSetResult(FilteredConnection * connection, const void * value) {
-    return ChannelValueSetFromReference(&connection->data->store, value);
+    return ChannelValueSetFromReference(&connection->data.store, value);
 }
 
 static size_t GetSliceShift(Connection * connection) {
@@ -217,12 +216,12 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
         proc * p = (proc *) out->GetFunction(out);
 
         // TODO: Update functions to only update the slices ?
-        if (p->fn(time, p->env, &filteredConnection->data->updateBuffer) != 0) {
+        if (RETURN_ERROR == p->fn(time, p->env, &filteredConnection->data.updateBuffer)) {
             mcx_log(LOG_ERROR, "FilteredConnection: Function failed");
             return RETURN_ERROR;
         }
 
-        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, ChannelValueDataPointer(&filteredConnection->data->updateBuffer))) {
+        if (RETURN_OK != filteredConnection->SetResult(filteredConnection, ChannelValueDataPointer(&filteredConnection->data.updateBuffer))) {
             mcx_log(LOG_ERROR, "FilteredConnection: SetResult failed");
             return RETURN_ERROR;
         }
@@ -244,7 +243,7 @@ static McxStatus FilteredConnectionUpdateToOutput(Connection * connection, TimeI
                 size_t numFilters = FilteredConnectionGetNumFilters(filteredConnection);
                 ChannelType * type = info->type;
 
-                mcx_array * elements = (mcx_array *) ChannelValueDataPointer(&filteredConnection->data->updateBuffer);
+                mcx_array * elements = (mcx_array *) ChannelValueDataPointer(&filteredConnection->data.updateBuffer);
                 char * dest = (char *) elements->data;
                 for (i = 0; i < numFilters; i++) {
                     filter = filteredConnection->GetReadFilter(filteredConnection, i);
@@ -271,7 +270,7 @@ static McxStatus AddFilter(Connection * connection) {
 
     McxStatus retVal = RETURN_OK;
 
-    if (filteredConnection->data->filters) {
+    if (filteredConnection->data.filters) {
         mcx_log(LOG_DEBUG, "Connection: Not inserting filter");
     } else {
         ConnectionInfo * info = connection->GetInfo(connection);
@@ -287,16 +286,16 @@ static McxStatus AddFilter(Connection * connection) {
                 goto cleanup;
             }
 
-            filteredConnection->data->numFilters = dimension->endIdxs[0] - dimension->startIdxs[0] + 1;
-            filteredConnection->data->filters = (ChannelFilter **) mcx_calloc(filteredConnection->data->numFilters, sizeof(ChannelFilter*));
-            if (!filteredConnection->data->filters) {
+            filteredConnection->data.numFilters = dimension->endIdxs[0] - dimension->startIdxs[0] + 1;
+            filteredConnection->data.filters = (ChannelFilter **) mcx_calloc(filteredConnection->data.numFilters, sizeof(ChannelFilter*));
+            if (!filteredConnection->data.filters) {
                 mcx_log(LOG_ERROR, "Creating array filters failed: no memory");
                 retVal = RETURN_ERROR;
                 goto cleanup;
             }
 
-            for (i = 0; i < filteredConnection->data->numFilters; i++) {
-                filteredConnection->data->filters[i] = FilterFactory(&connection->state_,
+            for (i = 0; i < filteredConnection->data.numFilters; i++) {
+                filteredConnection->data.filters[i] = FilterFactory(&connection->state_,
                                                                      info->interExtrapolationType,
                                                                      &info->interExtrapolationParams,
                                                                      ChannelTypeBaseType(ConnectionInfoGetType(info)),
@@ -305,35 +304,29 @@ static McxStatus AddFilter(Connection * connection) {
                                                                      info->sourceComponent,
                                                                      info->targetComponent,
                                                                      connString);
-                if (NULL == filteredConnection->data->filters[i]) {
+                if (NULL == filteredConnection->data.filters[i]) {
                     mcx_log(LOG_DEBUG, "Connection: Array filter creation failed for index %zu", i);
                     retVal = RETURN_ERROR;
                     goto cleanup;
                 }
             }
         } else {
-            filteredConnection->data->filters = (ChannelFilter **) mcx_calloc(1, sizeof(ChannelFilter *));
-            if (!filteredConnection->data->filters) {
-                mcx_log(LOG_ERROR, "Creating filter failed: no memory");
-                retVal = RETURN_ERROR;
-                goto cleanup;
-            }
-
-            filteredConnection->data->numFilters = 1;
-            filteredConnection->data->filters[0] = FilterFactory(&connection->state_,
-                                                                 info->interExtrapolationType,
-                                                                 &info->interExtrapolationParams,
-                                                                 ConnectionInfoGetType(info),
-                                                                 info->isInterExtrapolating,
-                                                                 ConnectionInfoIsDecoupled(info),
-                                                                 info->sourceComponent,
-                                                                 info->targetComponent,
-                                                                 connString);
-            if (NULL == filteredConnection->data->filters[0]) {
+            filteredConnection->data.numFilters = 1;
+            filteredConnection->data._filter = FilterFactory(&connection->state_,
+                                                             info->interExtrapolationType,
+                                                             &info->interExtrapolationParams,
+                                                             ConnectionInfoGetType(info),
+                                                             info->isInterExtrapolating,
+                                                             ConnectionInfoIsDecoupled(info),
+                                                             info->sourceComponent,
+                                                             info->targetComponent,
+                                                             connString);
+            if (NULL == filteredConnection->data._filter) {
                 mcx_log(LOG_DEBUG, "Connection: No Filter created");
                 retVal = RETURN_ERROR;
                 goto cleanup;
             }
+            filteredConnection->data.filters = &filteredConnection->data._filter;
         }
 
 cleanup:
@@ -348,15 +341,16 @@ cleanup:
 
 static ChannelType * FilteredConnectionGetValueType(Connection * connection) {
     FilteredConnection * filteredConnection = (FilteredConnection *) connection;
-    return filteredConnection->data->store.type;
+    return filteredConnection->data.store.type;
 }
 
 static void FilteredConnectionDestructor(FilteredConnection * filteredConnection) {
-    object_destroy(filteredConnection->data);
+    FilteredConnectionDataDestructor(&filteredConnection->data);
 }
 
 static FilteredConnection * FilteredConnectionCreate(FilteredConnection * filteredConnection) {
     Connection * connection = (Connection *) filteredConnection;
+    McxStatus retVal = RETURN_OK;
 
     connection->Setup    = FilteredConnectionSetup;
     connection->UpdateFromInput = FilteredConnectionUpdateFromInput;
@@ -373,7 +367,11 @@ static FilteredConnection * FilteredConnectionCreate(FilteredConnection * filter
 
     filteredConnection->SetResult = FilteredConnectionSetResult;
 
-    filteredConnection->data = (FilteredConnectionData *) object_create(FilteredConnectionData);
+    retVal = FilteredConnectionDataInit(&filteredConnection->data);
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "FilteredConnectionCreate: FilteredConnectionDataInit failed");
+        return NULL;
+    }
 
     return filteredConnection;
 }

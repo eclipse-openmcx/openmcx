@@ -117,7 +117,7 @@ ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dim
     return array;
 }
 
-ChannelType * ChannelTypeArrayLongDims(ChannelType * inner, size_t numDims, unsigned long * dims) {
+ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, uint64_t * dims) {
     ChannelType * array = NULL;
     size_t i = 0;
 
@@ -205,6 +205,7 @@ int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelTy
         }
     } else {
         if (sliceA || sliceB) {
+            mcx_log(LOG_ERROR, "ChannelTypeConformable: Slice dimensions defined for non-array channels");
             return 0;
         }
 
@@ -224,7 +225,6 @@ int ChannelTypeEq(const ChannelType * a, const ChannelType * b) {
             }
         }
         return a->ty.a.inner == b->ty.a.inner;
-        return 1;
     } else {
         return a->con == b->con;
     }
@@ -256,8 +256,9 @@ void mcx_array_destroy(mcx_array * a) {
 int mcx_array_all(mcx_array * a, mcx_array_predicate_f_ptr predicate) {
     size_t i = 0;
     ChannelValueData element = {0};
+    size_t numElems = mcx_array_num_elements(a);
 
-    for (i = 0; i < mcx_array_num_elements(a); i++) {
+    for (i = 0; i < numElems; i++) {
         if (RETURN_OK != mcx_array_get_elem(a, i, &element)) {
             mcx_log(LOG_WARNING, "mcx_array_all: Getting element %zu failed", i);
             return 0;
@@ -936,6 +937,11 @@ McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source) {
 }
 
 McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference) {
+    if (!reference) {
+        mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Reference not defined");
+        return RETURN_ERROR;
+    }
+
     switch (type->con) {
         case CHANNEL_DOUBLE:
             *(double *) reference = value->d;
@@ -961,10 +967,11 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
             }
             break;
         case CHANNEL_BINARY:
-            if (NULL != reference && NULL != ((binary_string *) reference)->data) {
+            if (NULL != ((binary_string *) reference)->data) {
                 mcx_free(((binary_string *) reference)->data);
                 ((binary_string *) reference)->data = NULL;
             }
+
             if (value->b.data) {
                 ((binary_string *) reference)->len = value->b.len;
                 ((binary_string *) reference)->data = (char *) mcx_calloc(value->b.len, 1);
@@ -974,34 +981,35 @@ McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType *
             }
             break;
         case CHANNEL_BINARY_REFERENCE:
-            if (NULL != reference) {
-                ((binary_string *) reference)->len = value->b.len;
-                ((binary_string *) reference)->data = value->b.data;
-            }
+            ((binary_string *) reference)->len = value->b.len;
+            ((binary_string *) reference)->data = value->b.data;
             break;
         case CHANNEL_ARRAY:
-            if (NULL != reference) {
+            {
                 mcx_array * a = (mcx_array *) reference;
 
                 // First Set fixes the dimensions
                 if (value->a.numDims && !a->numDims) {
                     if (RETURN_OK != mcx_array_init(a, value->a.numDims, value->a.dims, value->a.type)) {
+                        mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Array initialization failed");
                         return RETURN_ERROR;
                     }
                 }
 
                 // Arrays do not support multiplexing (yet)
                 if (!mcx_array_dims_match(a, &value->a)) {
+                    mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: Array dimensions do not match");
                     return RETURN_ERROR;
                 }
 
                 if (value->a.data == NULL || a->data == NULL) {
+                    mcx_log(LOG_ERROR, "ChannelValueDataSetToReference: No array data available");
                     return RETURN_ERROR;
                 }
 
                 memcpy(a->data, value->a.data, ChannelValueTypeSize(a->type) * mcx_array_num_elements(a));
+                break;
             }
-            break;
         case CHANNEL_UNKNOWN:
         default:
             break;
