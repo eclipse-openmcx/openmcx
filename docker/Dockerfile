@@ -15,4 +15,5 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y build-essential && \
     apt-get install -y python-is-python3 python3-numpy && \
     apt-get install -y libxml2-dev zlib1g-dev && \
+    apt-get install -y libasio-dev libxerces-c-dev libzip-dev && \
     rm -rf /var/lib/apt/lists/*
