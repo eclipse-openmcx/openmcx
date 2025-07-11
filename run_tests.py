@@ -79,6 +79,7 @@ def _run_tests(exe, test_dir):
         # check reference files
         test_passed = True
         ref_dir = os.path.join(test_dir_abs_path, example, "reference")
+        if os.path.exists(ref_dir):
         for res in os.listdir(ref_dir):
             if not res.endswith(".csv"):
                 continue
