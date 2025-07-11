@@ -80,26 +80,26 @@ def _run_tests(exe, test_dir):
         test_passed = True
         ref_dir = os.path.join(test_dir_abs_path, example, "reference")
         if os.path.exists(ref_dir):
-        for res in os.listdir(ref_dir):
-            if not res.endswith(".csv"):
-                continue
+          for res in os.listdir(ref_dir):
+              if not res.endswith(".csv"):
+                  continue
 
-            res_path = os.path.join("results", res)
-            ref_path = os.path.join(ref_dir, res)
+              res_path = os.path.join("results", res)
+              ref_path = os.path.join(ref_dir, res)
 
-            if not os.path.exists(res_path):
-                print("Results {} are missing".format(res))
-                test_passed = False
+              if not os.path.exists(res_path):
+                  print("Results {} are missing".format(res))
+                  test_passed = False
 
-            res_data = np.genfromtxt(res_path, delimiter=',', skip_header=3)
-            ref_data = np.genfromtxt(ref_path, delimiter=',', skip_header=3)
-            diff_data = ref_data - res_data
+              res_data = np.genfromtxt(res_path, delimiter=',', skip_header=3)
+              ref_data = np.genfromtxt(ref_path, delimiter=',', skip_header=3)
+              diff_data = ref_data - res_data
 
-            for i, j in np.ndindex(diff_data.shape):
-                if abs(diff_data[i, j]) > 1e-8:
-                    print("Results {} do not match".format(res))
-                    test_passed = False
-                    break
+              for i, j in np.ndindex(diff_data.shape):
+                  if abs(diff_data[i, j]) > 1e-8:
+                      print("Results {} do not match".format(res))
+                      test_passed = False
+                      break
 
         if test_passed:
             print("\tSUCCESS")
