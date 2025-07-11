@@ -15,7 +15,11 @@ project(dcp_executables)
 option(ENABLE_DCP_DEBUG "Turn on debug output of the DCP slaves" OFF)
 
 # dependencies
-find_package(xercesc REQUIRED)
+if(UNIX)
+    find_package(XercesC REQUIRED)
+else()
+    find_package(xercesc REQUIRED)
+endif()
 find_package(ASIO REQUIRED)
 find_package(DCPLib REQUIRED)
 
