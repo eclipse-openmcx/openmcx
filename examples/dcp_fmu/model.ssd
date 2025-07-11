@@ -6,7 +6,7 @@
                             name="connections">
     <System name="Root">
         <Elements>
-            <Component name="Sinus 1" source="file:../../fmus/sinusGenerator.fmu">
+            <Component name="Sinus 1" source="../../fmus/sinusGenerator.fmu">
                 <Connectors>
                     <Connector name="sinus_out" kind="output">
                         <ssc:Real/>
