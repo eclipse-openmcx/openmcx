@@ -2,6 +2,7 @@
 - Joško Balić
 - Herwig Stütz
 - Denis Čaušević
+- Dominic Hirtler
 - Simon Terres
 - Aakash Sehgal
 - Tobias Düser
