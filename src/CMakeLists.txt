@@ -43,7 +43,7 @@ file(GLOB UTIL_HEADERS "util/*.h")
 if(WIN32)
     file(GLOB UTIL_SRC "util/win/*.c" "util/*.c" "util/common/*.c")
 else()
-    file(GLOB UTIL_SRC "util/linux/*.c" "util/*.c" "util/common/*.c")
+    file(GLOB UTIL_SRC "util/unix/*.c" "util/*.c" "util/common/*.c")
 endif()
 
 
@@ -94,7 +94,7 @@ target_compile_definitions(
 )
 
 
-if(UNIX)
+if(UNIX AND NOT APPLE)
     set_target_properties(mcx_common PROPERTIES LINK_OPTIONS -Wl,--exclude-libs,ALL)
 endif()
 

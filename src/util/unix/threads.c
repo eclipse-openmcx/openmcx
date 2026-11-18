@@ -44,6 +44,66 @@ int mcx_thread_join(McxThread handle, long * ret) {
     return pthread_join(handle, (void * *) ret);
 }
 
+struct args {
+    int joined;
+    pthread_t td;
+    pthread_mutex_t mtx;
+    pthread_cond_t cond;
+    void **res;
+};
+
+static void *waiter(void *ap)
+{
+    struct args *args = ap;
+    pthread_join(args->td, args->res);
+    pthread_mutex_lock(&args->mtx);
+    args->joined = 1;
+    pthread_mutex_unlock(&args->mtx);
+    pthread_cond_signal(&args->cond);
+    return 0;
+}
+
+// Portable implementation of `pthread_timedjoin_np()`. Inspired 
+// and copied from https://stackoverflow.com/a/11552244. As this
+// implementation is more costly than `pthread_timedjoin_np()`, 
+// we only use this portable version for Apple platforms. 
+int pthread_timedjoin_p(pthread_t td, void **res, struct timespec *ts)
+{
+    pthread_t tmp;
+    int ret;
+    struct args args = { .td = td, .res = res };
+
+    pthread_mutex_init(&args.mtx, 0);
+    pthread_cond_init(&args.cond, 0);
+    pthread_mutex_lock(&args.mtx);
+
+    ret = pthread_create(&tmp, 0, waiter, &args);
+    if (!ret) {
+        do {
+            ret = pthread_cond_timedwait(&args.cond, &args.mtx, ts);
+        } while (!args.joined && ret != ETIMEDOUT);
+    }
+
+    pthread_mutex_unlock(&args.mtx);
+
+    pthread_cancel(tmp);
+    pthread_join(tmp, 0);
+
+    pthread_cond_destroy(&args.cond);
+    pthread_mutex_destroy(&args.mtx);
+
+    return args.joined ? 0 : ret;
+}
+
+int pthread_timedjoin(pthread_t handle, void **ret, struct timespec *time) 
+{
+#if(__APPLE__)
+    return pthread_timedjoin_p(handle, ret, time);
+#else
+    return pthread_timedjoin_np(handle, ret, time);
+#endif
+}
+
 int mcx_thread_join_with_timeout(McxThread handle, long * ret, int secs) {
     struct timespec time;
     int status = 0;
@@ -53,7 +113,7 @@ int mcx_thread_join_with_timeout(McxThread handle, long * ret, int secs) {
 
     time.tv_sec += secs;
 
-    status = pthread_timedjoin_np(handle, (void * *) ret, &time);
+    status = pthread_timedjoin(handle, (void * *) ret, &time);
     if (status) {
         const char * cause = NULL;
 

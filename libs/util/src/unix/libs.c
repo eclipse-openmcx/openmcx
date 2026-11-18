@@ -31,13 +31,20 @@ static McxStatus __mcx_dll_load(DllHandle * handle, const char * dllPath, int fl
     return RETURN_OK;
 }
 
-
 McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
+#if(__APPLE__)
+    return __mcx_dll_load(handle, dllPath, RTLD_LAZY|RTLD_LOCAL);
+#else
     return __mcx_dll_load(handle, dllPath, RTLD_LAZY|RTLD_LOCAL|RTLD_DEEPBIND);
+#endif
 }
 
 McxStatus mcx_dll_load_global(DllHandle * handle, const char * dllPath) {
+#if(__APPLE__)
+    return __mcx_dll_load(handle, dllPath, RTLD_LAZY|RTLD_GLOBAL);
+#else
     return __mcx_dll_load(handle, dllPath, RTLD_LAZY|RTLD_GLOBAL|RTLD_DEEPBIND);
+#endif
 }
 
 void * mcx_dll_get_function(DllHandle dllHandle, const char* functionName) {

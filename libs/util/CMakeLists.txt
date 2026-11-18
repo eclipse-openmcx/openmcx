@@ -28,10 +28,10 @@ if(WIN32)
     )
 else()
     set(UTIL_PLATFORM_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/libs.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/os.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/paths.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/linux/string.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/unix/libs.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/unix/os.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/unix/paths.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/unix/string.c"
     )
 endif()
 

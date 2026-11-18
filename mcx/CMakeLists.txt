@@ -20,7 +20,7 @@ target_link_libraries(${EXECUTABLE_NAME} PRIVATE mcx_common)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/" PREFIX "Source Files" FILES ${MCX_EXE_SOURCES})
 
-if(UNIX)
+if(UNIX AND NOT APPLE)
     set_target_properties(${EXECUTABLE_NAME} PROPERTIES LINK_OPTIONS -Wl,--exclude-libs,ALL)
 endif()
 

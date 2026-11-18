@@ -82,8 +82,14 @@ typedef struct {
     void * arg;
 } StrCmpCtx;
 
-static int ObjectContainerElementCmp(const void * first, const void * second, void * ctx) {
-    StrCmpCtx * data = (StrCmpCtx *)ctx;
+#if(__APPLE__)
+static int ObjectContainerElementCmp(void *ctx, const void *first,
+                                     const void *second) {
+#else
+static int ObjectContainerElementCmp(const void * first, const void * second,
+                                     void * ctx) {
+#endif
+    StrCmpCtx *data = (StrCmpCtx *)ctx;
 
     ObjectContainerElement * firstElement = (ObjectContainerElement *) first;
     ObjectContainerElement * secondElement = (ObjectContainerElement *) second;

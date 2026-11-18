@@ -32,8 +32,14 @@ extern "C" {
  * is the context passed to mcx_sort.
  * @param arg context for the compar function
  */
-void mcx_sort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *, void *), void *arg);
 
+#if(__APPLE__)
+void mcx_sort(void *base, size_t nmemb, size_t size,
+              int (*compar)(void *, const void *, const void *), void *arg);
+#else
+void mcx_sort(void *base, size_t nmemb, size_t size,
+              int (*compar)(const void *, const void *, void *), void *arg);
+#endif
 int mcx_natural_sort_cmp(const char * left, const char * right);
 
 /**
