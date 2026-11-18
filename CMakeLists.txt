@@ -27,6 +27,7 @@ add_subdirectory(cmake/fmi-library)
 
 find_package(LibXml2 REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package (Python COMPONENTS Interpreter Development)
 
 # global project settings
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

@@ -19,7 +19,7 @@
 # function used to generate custom command comment
 function(gen_cmd_comment CMD_COMMENT SCHEMA_FILE PYTHON_SCRIPT OUTPUT_DIR PREFIX OUTPUT_FILE)
     set(COMMENT "Processing ${SCHEMA_FILE}:")
-    set(COMMENT "${COMMENT} python")
+    set(COMMENT "${COMMENT} ${Python_EXECUTABLE}")
     set(COMMENT "${COMMENT} ${PYTHON_SCRIPT}")
     set(COMMENT "${COMMENT} ${SCHEMA_FILE}")
     set(COMMENT "${COMMENT} -o ${OUTPUT_DIR}")
@@ -61,7 +61,7 @@ foreach(SCHEMA_FILE ${SCHEMA_FILES})
 
         add_custom_command(
             OUTPUT "${OUT_DIR}/${SUB_DIR}/${SCHEMA_FILE_NAME}.h"
-            COMMAND python "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}/${SUB_DIR}" -p "${SUB_DIR}"
+            COMMAND "${Python_EXECUTABLE}" "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}/${SUB_DIR}" -p "${SUB_DIR}"
             DEPENDS "${SCHEMA_FILE}"
             COMMENT "${CMD_COMMENT}")
 
@@ -77,7 +77,7 @@ foreach(SCHEMA_FILE ${SCHEMA_FILES})
 
         add_custom_command(
             OUTPUT "${OUT_DIR}/${SCHEMA_FILE_NAME}.h"
-            COMMAND python "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}"
+            COMMAND "${Python_EXECUTABLE}" "${PYTHON_SCRIPT}" "${SCHEMA_FILE}" -o "${OUT_DIR}"
             DEPENDS "${SCHEMA_FILE}"
             COMMENT "${CMD_COMMENT}")
 

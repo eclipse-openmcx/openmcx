@@ -15,7 +15,6 @@ set -euo pipefail
 # apt update
 # apt install -y cmake git
 # apt install -y build-essential
-# apt install -y python-is-python3
 # apt install -y libxml2-dev zlib1g-dev
 
 mkdir -p build
