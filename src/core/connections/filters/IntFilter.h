@@ -22,7 +22,7 @@ extern "C" {
 
 typedef struct IntFilter IntFilter;
 
-typedef McxStatus (* fIntFilterSetup)(IntFilter * filter, int degree);
+typedef McxStatus (* fIntFilterSetup)(IntFilter * filter, int degree, size_t buffSize);
 
 extern const struct ObjectClass _IntFilter;
 

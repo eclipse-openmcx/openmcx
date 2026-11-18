@@ -12,18 +12,89 @@
 #define MCX_CORE_CHANNELS_CHANNEL_VALUE_H
 
 #include "CentralParts.h"
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+
+typedef struct ChannelDimension ChannelDimension;
+
+char * CreateIndexedName(const char * name, unsigned i);
+
+// possible types of values that can be put on channels
+typedef enum ChannelTypeConstructor {
+    CHANNEL_UNKNOWN = 0,
+    CHANNEL_DOUBLE = 1,
+    CHANNEL_INTEGER = 2,
+    CHANNEL_BOOL = 3,
+    CHANNEL_STRING = 4,
+    CHANNEL_BINARY = 5,
+    CHANNEL_BINARY_REFERENCE = 6,
+    CHANNEL_ARRAY = 7,
+} ChannelTypeConstructor;
+
+typedef struct ChannelTypeArrayType {
+    struct ChannelType * inner;
+    size_t numDims;
+    size_t * dims;
+} ChannelTypeArrayType;
+
+typedef struct ChannelType {
+    ChannelTypeConstructor con;
+    union {
+        ChannelTypeArrayType a;
+    } ty;
+} ChannelType;
+
+// pre-defined types
+extern ChannelType ChannelTypeUnknown;
+extern ChannelType ChannelTypeInteger;
+extern ChannelType ChannelTypeDouble;
+extern ChannelType ChannelTypeBool;
+extern ChannelType ChannelTypeString;
+extern ChannelType ChannelTypeBinary;
+extern ChannelType ChannelTypeBinaryReference;
+ChannelType * ChannelTypeArray(ChannelType * inner, size_t numDims, size_t * dims);
+ChannelType * ChannelTypeArrayUInt64Dims(ChannelType * inner, size_t numDims, uint64_t * dims);
+
+ChannelType * ChannelTypeClone(ChannelType * type);
+void ChannelTypeDestructor(ChannelType * type);
+
+ChannelType * ChannelTypeArrayInner(ChannelType * array);
+
+int ChannelTypeIsValid(const ChannelType * a);
+int ChannelTypeIsScalar(const ChannelType * a);
+int ChannelTypeIsArray(const ChannelType * a);
+int ChannelTypeIsBinary(const ChannelType * a);
+
+size_t ChannelTypeNumElements(const ChannelType * type);
+
+ChannelType * ChannelTypeFromDimension(ChannelType * base_type, ChannelDimension * dimension);
+
+ChannelType * ChannelTypeBaseType(const ChannelType * a);
+
+int ChannelTypeEq(const ChannelType * a, const ChannelType * b);
+int ChannelTypeConformable(ChannelType * a, ChannelDimension * sliceA, ChannelType * b, ChannelDimension * sliceB);
+
+typedef struct MapStringChannelType {
+    const char * key;
+    ChannelType * value;
+} MapStringChannelType;
+
 
 typedef struct {
     double startTime;
     double endTime;
 } TimeInterval;
 
+typedef union ChannelValueData ChannelValueData;
+typedef struct ChannelValue ChannelValue;
+
 typedef struct {
-    double (* fn)(TimeInterval * arg, void * env);
+    McxStatus (* fn)(TimeInterval * arg, void * env, ChannelValue * res);
     void * env;
 } proc;
 
@@ -32,57 +103,83 @@ typedef struct {
     char * data;
 } binary_string;
 
-// possible types of values that can be put on channels
-typedef enum ChannelType {
-    CHANNEL_UNKNOWN = 0,
-    CHANNEL_DOUBLE = 1,
-    CHANNEL_INTEGER = 2,
-    CHANNEL_BOOL = 3,
-    CHANNEL_STRING = 4,
-    CHANNEL_BINARY = 5,
-    CHANNEL_BINARY_REFERENCE = 6,
-} ChannelType;
+typedef struct {
+    size_t numDims;
+    size_t * dims;
+    ChannelType * type;
+    void * data;
+} mcx_array;
 
-typedef union ChannelValueData {
+McxStatus mcx_array_init(mcx_array * a, size_t numDims, size_t * dims, ChannelType * type);
+void mcx_array_destroy(mcx_array * a);
+int mcx_array_dims_match(mcx_array * a, mcx_array * b);
+size_t mcx_array_num_elements(const mcx_array * a);
+
+typedef int (*mcx_array_map_f_ptr)(void * element, size_t idx, ChannelType * type, void * ctx);
+
+McxStatus mcx_array_map(mcx_array * a, mcx_array_map_f_ptr fn, void * ctx);
+McxStatus mcx_array_get_elem(const mcx_array * a, size_t idx, ChannelValueData * element);
+McxStatus mcx_array_set_elem(mcx_array * a, size_t idx, ChannelValueData * element);
+
+void * mcx_array_get_elem_reference(const mcx_array * a, size_t idx);
+
+typedef int (*mcx_array_predicate_f_ptr)(void * element, ChannelType * type);
+int mcx_array_all(mcx_array * a, mcx_array_predicate_f_ptr predicate);
+int mcx_array_leq(const mcx_array * left, const mcx_array * right);
+
+union ChannelValueData {
     /* the order is significant. double needs to be the first entry for union initialization to work */
     double d;
     int i;
     char * s;
     binary_string b;
-} ChannelValueData;
+    mcx_array a;
+};
 
-typedef struct ChannelValue {
-    ChannelType type;
+struct ChannelValue {
+    ChannelType * type;
     ChannelValueData value;
-} ChannelValue;
+};
 
-void   ChannelValueInit(ChannelValue * value, ChannelType type);
+// Takes ownership of type
+void   ChannelValueInit(ChannelValue * value, ChannelType * type);
 void ChannelValueDestructor(ChannelValue * value);
 char * ChannelValueToString(ChannelValue * value);
-McxStatus ChannelValueDataToStringBuffer(ChannelValueData * value, ChannelType type, char * buffer, size_t len);
-McxStatus ChannelValueToStringBuffer(ChannelValue * value, char * buffer, size_t len);
+McxStatus ChannelValueDataToStringBuffer(const ChannelValueData * value, ChannelType * type, char * buffer, size_t len);
+McxStatus ChannelValueToStringBuffer(const ChannelValue * value, char * buffer, size_t len);
 
-ChannelType ChannelValueType(ChannelValue * value);
-void *      ChannelValueReference(ChannelValue * value);
+ChannelType * ChannelValueType(ChannelValue * value);
+void *      ChannelValueDataPointer(ChannelValue * value);
 
-void ChannelValueDataDestructor(ChannelValueData * data, ChannelType type);
-void ChannelValueDataInit(ChannelValueData * data, ChannelType type);
-void ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType type, const void * reference);
+void ChannelValueDataDestructor(ChannelValueData * data, ChannelType * type);
+void ChannelValueDataInit(ChannelValueData * data, ChannelType * type);
+McxStatus ChannelValueDataSetFromReference(ChannelValueData * data, ChannelType * type, const void * reference);
+typedef int (*fChannelValueDataSetterPredicate)(void * first, void * second, ChannelType * type);
+McxStatus ChannelValueDataSetFromReferenceIfElemwisePred(ChannelValueData * data,
+                                                         ChannelType * type,
+                                                         const void * reference,
+                                                         fChannelValueDataSetterPredicate predicate);
+McxStatus ChannelValueDataSetToReference(ChannelValueData * value, ChannelType * type, void * reference);
 
-void ChannelValueSetFromReference(ChannelValue * value, const void * reference);
-void ChannelValueSetToReference(ChannelValue * value, void * reference);
+McxStatus ChannelValueSetFromReference(ChannelValue * value, const void * reference);
+McxStatus ChannelValueSetToReference(ChannelValue * value, void * reference);
 
 McxStatus ChannelValueSet(ChannelValue * value, const ChannelValue * source);
 
-size_t ChannelValueTypeSize(ChannelType type);
+size_t ChannelValueTypeSize(ChannelType * type);
+int ChannelTypeMatch(ChannelType * a, ChannelType * b);
 
-ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType type);
+ChannelValue * ChannelValueNewScalar(ChannelType * type, void * data);
+ChannelValue * ChannelValueNewArray(size_t numDims, size_t dims[], ChannelType * type, void * data);
+void ChannelValueDestroy(ChannelValue ** value);
+
+ChannelValue ** ArrayToChannelValueArray(void * values, size_t num, ChannelType * type);
 
 /*
  * Returns a string representation of ChannelType for use in log
  * messages.
  */
-const char * ChannelTypeToString(ChannelType type);
+const char * ChannelTypeToString(ChannelType * type);
 
 /*
  * Creates a copy of value. Allocates memory if needed, e.g. when

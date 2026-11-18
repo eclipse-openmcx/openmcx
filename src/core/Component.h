@@ -16,12 +16,14 @@
 #include "core/Component_interface.h"
 #include "core/Dependency.h"
 #include "objects/StringContainer.h"
+#include "objects/Vector.h"
 #include "reader/model/components/ComponentInput.h"
+#include "core/connections/ConnectionInfo.h"
+#include "steptypes/StepType.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
 
 typedef enum ComponentFinishState {
     COMP_IS_FINISHED,
@@ -34,7 +36,6 @@ struct Model;
 struct ComponentData;
 struct ChannelInfo;
 struct Connection;
-struct ConnectionInfo;
 struct StepTypeParams;
 struct ResultsStorage;
 struct ComponentStorage;
@@ -49,9 +50,12 @@ typedef McxStatus (* fComponentUpdateOutChannels)(Component * comp);
 
 typedef McxStatus (* fComponentUpdateInChannels)(Component * comp);
 
+typedef int (* fComponentContainsComponent)(Component * comp, const Component * otherComp);
+
 typedef struct ComponentStorage * (* fComponentGetStorage)(const Component * comp);
 typedef McxStatus (* fComponentDoStep)(Component * comp, size_t group, double time,
     double deltaTime, double endTime, int isNewStep);
+typedef McxStatus (*fComponentPostDoStep)(Component * comp);
 
 typedef McxStatus (* fComponentFinish)(Component * comp, FinishState * finishState);
 typedef size_t (* fComponentGetNumber)(const Component * comp);
@@ -72,13 +76,15 @@ typedef int (* fComponentOneOutputOneGroup)(Component * comp);
 typedef ComponentFinishState (* fComponentGetFinishState)(const Component * comp);
 typedef void (* fComponentSetIsFinished)(Component * comp);
 
+typedef McxStatus (* fOnConnectionsDone)(Component* comp);
+
 typedef struct Databus * (* fComponentGetDatabus)(const Component * comp);
 typedef const char * (* fComponentGetName)(const Component * comp);
 typedef struct Model * (* fComponentGetModel)(const Component * comp);
 typedef size_t (* fComponentGetID)(const Component * comp);
 typedef int (* fComponentGetSequenceNumber)(const Component * comp);
 typedef int (* fComponentGetCPUIdx)(const Component * comp);
-typedef ObjectContainer * (*fComponentGetConnections)(Component * fromComp, Component * toComp);
+typedef ObjectList * (*fComponentGetConnections)(Component * fromComp, Component * toComp);
 
 typedef struct PpdLink * (* fGetPPDLink)(struct Component * comp);
 typedef ChannelMode (* fGetChannelDefaultMode)(struct Component * comp);
@@ -99,6 +105,8 @@ typedef McxStatus (*fComponentSetDouble)(Component * comp, double offset);
 
 typedef void (*fComponentSetIsPartOfInitCalculation)(Component * comp, int isPartOfInitCalculation);
 
+
+typedef McxStatus (* fAddObservableChannels)(const Component * comp, StringContainer * container, size_t * count);
 
 extern const struct ObjectClass _Component;
 
@@ -136,6 +144,7 @@ struct Component {
     fComponentStore Store;
 
     fComponentDoStep DoStep;
+    fComponentPostDoStep PostDoStep;
     fComponentFinish Finish;
 
     // Read and Setup Channels
@@ -189,6 +198,8 @@ struct Component {
 
     fComponentSetModel SetModel;
 
+    fComponentContainsComponent ContainsComponent;
+
     fComponentGetDatabus GetDatabus;
     fComponentGetName    GetName;
     fComponentGetName    GetType;
@@ -212,19 +223,27 @@ struct Component {
 
     fComponentSetDouble SetResultTimeOffset;
 
+    fComponentGetNumber GetNumObservableChannels;
+    fAddObservableChannels AddObservableChannels;
+
+    fOnConnectionsDone OnConnectionsDone;
+
     struct ComponentData * data;
+
+    StepTypeSynchronization syncHints;
 };
 
 /* these functions have to be called by subclasses */
 void ComponentLog(const Component * comp, LogSeverity sev, const char * format, ...);
 
-McxStatus ComponentRead(Component * comp, ComponentInput * input);
+McxStatus ComponentRead(Component * comp, ComponentInput * input, const struct Config * const config);
 McxStatus ComponentSetup(Component * comp);
 
 McxStatus ComponentRegisterStorage(Component* comp, struct ResultsStorage* storage);
 
 McxStatus ComponentInitialize(Component * comp, size_t group, double startTime);
 McxStatus ComponentExitInitializationMode(Component * comp);
+McxStatus ComponentBeforeDoSteps(Component * comp, void * param);
 
 McxStatus ComponentUpdateOutChannels(Component * comp, TimeInterval * time);
 
@@ -233,10 +252,10 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
 McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, struct StepTypeParams * params);
 
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time);
-McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectContainer * connections, TimeInterval * time);
+McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time);
 
-struct ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID);
-struct Connection * GetInConnection(const Component * comp, size_t channelID);
+Vector * GetInConnectionInfos(const Component * comp, size_t channelID);
+struct ConnectionList * GetInConnections(const Component * comp, size_t channelID);
 
 size_t ComponentGetNumOutGroups(const Component * comp);
 size_t ComponentGetNumInitialOutGroups(const Component * comp);

@@ -23,6 +23,268 @@ typedef struct ObjectContainerElement {
     void * value;
 } ObjectContainerElement;
 
+typedef struct {
+    int (*cmp)(const void *, const void *, void *);
+    void * arg;
+} StrCmpCtx;
+
+static int ObjectContainerElementCmp(const void * first, const void * second, void * ctx) {
+    StrCmpCtx * data = (StrCmpCtx *)ctx;
+
+    ObjectContainerElement * firstElement = (ObjectContainerElement *)first;
+    ObjectContainerElement * secondElement = (ObjectContainerElement *)second;
+
+    return data->cmp(&(firstElement->object), &(secondElement->object), data->arg);
+}
+
+
+
+static size_t ObjectListSize(const ObjectList * container) {
+    return container->size;
+}
+
+static McxStatus ObjectListResize(ObjectList * container, size_t size) {
+    size_t oldSize = container->size;
+    size_t oldCapacity = container->capacity;
+    size_t i = 0;
+
+    container->size = size;
+    if (oldCapacity < size) {
+        container->capacity = size + container->increment;
+        container->elements = (Object * *)mcx_realloc(container->elements, container->capacity * sizeof(Object *));
+        if (!container->elements) {
+            mcx_log(LOG_ERROR, "ObjectList: Resize: Memory allocation failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    // if we make the container larger, init new elements with NULL
+    for (i = oldSize; i < size; i++) {
+        container->elements[i] = NULL;
+    }
+
+    return RETURN_OK;
+}
+
+
+static McxStatus ObjectListPushBack(ObjectList * container, Object * obj) {
+    McxStatus retVal = container->Resize(container, container->size + 1);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ObjectList: PushBack: Resize failed");
+        return RETURN_ERROR;
+    }
+    container->elements[container->size - 1] = obj;
+
+    return RETURN_OK;
+}
+
+static McxStatus ObjectListSort(ObjectList * container, int (*cmp)(const void *, const void *, void *), void * arg) {
+    size_t i = 0;
+    size_t n = container->size;
+
+    StrCmpCtx ctx;
+    ctx.cmp = cmp;
+    ctx.arg = arg;
+
+    ObjectContainerElement * elements = mcx_malloc(n * sizeof(ObjectContainerElement));
+    if (!elements) {
+        return RETURN_ERROR;
+    }
+
+    for (i = 0; i < n; i++) {
+        elements[i].object = container->elements[i];
+    }
+
+    mcx_sort(elements, n, sizeof(ObjectContainerElement), ObjectContainerElementCmp, &ctx);
+
+    for (i = 0; i < n; i++) {
+        container->elements[i] = elements[i].object;
+    }
+
+    mcx_free(elements);
+
+    return RETURN_OK;
+}
+
+static Object * ObjectListAt(const ObjectList * container, size_t pos) {
+    if (pos < container->size) {
+        return container->elements[pos];
+    } else {
+        return NULL;
+    }
+}
+
+static McxStatus ObjectListSetAt(ObjectList * container, size_t pos, Object * obj) {
+    if (pos >= container->size) {
+        container->Resize(container, pos + 1);
+    }
+
+    container->elements[pos] = obj;
+
+    return RETURN_OK;
+}
+
+static ObjectList * ObjectListCopy(ObjectList * container) {
+    McxStatus retVal;
+    size_t i = 0;
+
+    ObjectList * newContainer = (ObjectList *) object_create(ObjectList);
+
+    if (!newContainer) {
+        mcx_log(LOG_ERROR, "ObjectContainer: Copy: Memory allocation failed");
+        return NULL;
+    }
+
+    retVal = newContainer->Resize(newContainer, container->Size(container));
+    if (RETURN_OK != retVal) {
+        object_destroy(newContainer);
+        return NULL;
+    }
+
+    for (i = 0; i < newContainer->Size(newContainer); i++) {
+        newContainer->elements[i] = container->elements[i];
+    }
+
+    return newContainer;
+}
+
+static McxStatus ObjectListAppend(ObjectList * container, ObjectList * appendee) {
+    size_t appendeeSize = 0;
+    size_t size = 0;
+    size_t i = 0;
+
+    McxStatus retVal = RETURN_OK;
+
+    if (!appendee) {
+        mcx_log(LOG_ERROR, "ObjectContainer: Append: Appendee missing");
+        return RETURN_ERROR;
+    }
+
+    appendeeSize = appendee->Size(appendee);
+    for (i = 0; i < appendeeSize; i++) {
+        retVal = container->PushBack(container, appendee->At(appendee, i));
+        if (RETURN_OK != retVal) {
+            return RETURN_ERROR;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+static Object ** ObjectListData(ObjectList * container) {
+    return container->elements;
+}
+
+static void ObjectListAssignArray(ObjectList * container, size_t size, Object ** objs) {
+    container->size = size;
+
+    if (container->elements) {
+        mcx_free(container->elements);
+    }
+    container->elements = objs;
+}
+
+static void ObjectListDestroyObjects(ObjectList * container) {
+    size_t i = 0;
+
+    for (i = 0; i < container->size; i++) {
+        Object * obj = container->At(container, i);
+        object_destroy(obj);
+    }
+
+    container->Resize(container, 0);
+}
+
+static int ObjectListContains(ObjectList * container, Object * obj) {
+    size_t i = 0;
+    for (i = 0; i < container->size; i++) {
+        if (container->At(container, i) == obj) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static ObjectList * ObjectListFilter(ObjectList * container, fObjectPredicate predicate) {
+    ObjectList * filtered = (ObjectList *) object_create(ObjectList);
+
+    size_t i = 0;
+
+    for (i = 0; i < container->size; i++) {
+        Object * obj = container->At(container, i);
+        if (predicate(obj)) {
+            filtered->PushBack(filtered, obj);
+        }
+    }
+
+    return filtered;
+}
+
+static ObjectList * ObjectListFilterCtx(ObjectList * container, fObjectPredicateCtx predicate, void * ctx) {
+    ObjectList * filtered = (ObjectList *) object_create(ObjectList);
+
+    size_t i = 0;
+
+    for (i = 0; i < container->size; i++) {
+        Object * obj = container->At(container, i);
+        if (predicate(obj, ctx)) {
+            filtered->PushBack(filtered, obj);
+        }
+    }
+
+    return filtered;
+}
+
+static void ObjectListIterate(ObjectList * container, fObjectIter iter) {
+    size_t i = 0;
+    for (i = 0; i < container->size; i++) {
+        Object * obj = container->At(container, i);
+        iter(obj);
+    }
+}
+
+static void ObjectListDestructor(ObjectList * container) {
+    if (container->elements) {
+        mcx_free(container->elements);
+    }
+}
+
+static ObjectList * ObjectListCreate(ObjectList * container) {
+    container->Size = ObjectListSize;
+    container->Resize = ObjectListResize;
+    container->PushBack = ObjectListPushBack;
+    container->At = ObjectListAt;
+    container->SetAt = ObjectListSetAt;
+    container->Copy = ObjectListCopy;
+    container->Append = ObjectListAppend;
+    container->Data = ObjectListData;
+    container->AssignArray = ObjectListAssignArray;
+
+    container->DestroyObjects = ObjectListDestroyObjects;
+
+    container->Contains = ObjectListContains;
+    container->Filter = ObjectListFilter;
+    container->FilterCtx = ObjectListFilterCtx;
+
+    container->Iterate = ObjectListIterate;
+    container->Sort = ObjectListSort;
+
+    container->elements = NULL;
+    container->size = 0;
+    container->capacity = 0;
+    container->increment = 10;
+
+    return container;
+}
+
+OBJECT_CLASS(ObjectList, Object);
+
+
+
+
+
+
+/////////////////
 
 static size_t ObjectContainerSize(const ObjectContainer * container) {
     return container->size;
@@ -30,14 +292,17 @@ static size_t ObjectContainerSize(const ObjectContainer * container) {
 
 static McxStatus ObjectContainerResize(ObjectContainer * container, size_t size) {
     size_t oldSize = container->size;
+    size_t oldCapacity = container->capacity;
     size_t i = 0;
 
-    container->size     = size;
-    container->elements = (Object * *) mcx_realloc(container->elements,
-                                     size * sizeof(Object *));
-    if (!container->elements && 0 < size) {
-        mcx_log(LOG_ERROR, "ObjectContainer: Resize: Memory allocation failed");
-        return RETURN_ERROR;
+    container->size = size;
+    if (oldCapacity < size) {
+        container->capacity = size + container->increment;
+        container->elements = (Object * *)mcx_realloc(container->elements, container->capacity * sizeof(Object *));
+        if (!container->elements) {
+            mcx_log(LOG_ERROR, "ObjectContainer: Resize: Memory allocation failed");
+            return RETURN_ERROR;
+        }
     }
 
     /* if we make the container larger, init new elements with NULL */
@@ -49,14 +314,11 @@ static McxStatus ObjectContainerResize(ObjectContainer * container, size_t size)
 }
 
 static McxStatus ObjectContainerPushBack(ObjectContainer * container, Object * obj) {
-    container->size  += 1;
-    container->elements = (Object * *) mcx_realloc(container->elements,
-                                     container->size * sizeof(Object *));
-    if (!container->elements) {
-        mcx_log(LOG_ERROR, "ObjectContainer: PushBack: Memory allocation failed");
+    McxStatus retVal = container->Resize(container, container->size + 1);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ObjectContainer: PushBack: Resize failed");
         return RETURN_ERROR;
     }
-
     container->elements[container->size - 1] = obj;
 
     return StringContainerResize(container->strToIdx, container->size);
@@ -77,19 +339,6 @@ static McxStatus ObjectContainerPushBackNamed(ObjectContainer  * container, Obje
     return RETURN_OK;
 }
 
-typedef struct {
-    int (*cmp)(const void *, const void *, void *);
-    void * arg;
-} StrCmpCtx;
-
-static int ObjectContainerElementCmp(const void * first, const void * second, void * ctx) {
-    StrCmpCtx * data = (StrCmpCtx *)ctx;
-
-    ObjectContainerElement * firstElement = (ObjectContainerElement *) first;
-    ObjectContainerElement * secondElement = (ObjectContainerElement *) second;
-
-    return data->cmp(&(firstElement->object), &(secondElement->object), data->arg);
-}
 
 static McxStatus ObjectContainerSort(ObjectContainer * container, int (*cmp)(const void *, const void *, void *), void * arg) {
     size_t i = 0;
@@ -145,7 +394,7 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     McxStatus retVal;
     size_t i = 0;
 
-    ObjectContainer * newContainer = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectContainer * newContainer = (ObjectContainer *)object_create(ObjectContainer);
 
     if (!newContainer) {
         mcx_log(LOG_ERROR, "ObjectContainer: Copy: Memory allocation failed");
@@ -161,7 +410,7 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     for (i = 0; i < newContainer->Size(newContainer); i++) {
         newContainer->elements[i] = container->elements[i];
         retVal = StringContainerSetString(newContainer->strToIdx, i,
-                                          StringContainerGetString(container->strToIdx, i));
+            StringContainerGetString(container->strToIdx, i));
         if (retVal != RETURN_OK) {
             return NULL;
         }
@@ -170,9 +419,7 @@ static ObjectContainer * ObjectContainerCopy(ObjectContainer * container) {
     return newContainer;
 }
 
-static McxStatus ObjectContainerAppend(
-    ObjectContainer * container,
-    ObjectContainer * appendee) {
+static McxStatus ObjectContainerAppend(ObjectContainer * container, ObjectContainer * appendee) {
     size_t appendeeSize = 0;
     size_t size = 0;
     size_t i = 0;
@@ -192,7 +439,7 @@ static McxStatus ObjectContainerAppend(
         }
 
         retVal = container->SetElementName(container, container->Size(container) - 1,
-                                           appendee->GetElementName(appendee, i));
+            appendee->GetElementName(appendee, i));
         if (RETURN_OK != retVal) {
             return RETURN_ERROR;
         }
@@ -205,9 +452,7 @@ static Object ** ObjectContainerData(ObjectContainer * container) {
     return container->elements;
 }
 
-static void ObjectContainerAssignArray(ObjectContainer * container,
-                                       size_t            size,
-                                       Object         ** objs) {
+static void ObjectContainerAssignArray(ObjectContainer * container, size_t size, Object ** objs) {
     container->size = size;
 
     if (container->elements) {
@@ -228,33 +473,30 @@ static void ObjectContainerDestroyObjects(ObjectContainer * container) {
 }
 
 static McxStatus ObjectContainerSetElementName(ObjectContainer * container,
-                                               size_t            pos,
-                                               const char      * name) {
+    size_t            pos,
+    const char      * name) {
     if (pos >= container->size) {
-        mcx_log(LOG_ERROR, "ObjectContainer: SetElementName: Position %u out of bounds, max is %u", pos, container->size);
+        mcx_log(LOG_ERROR, "ObjectContainer: SetElementName: Position %zu out of bounds, max is %zu", pos, container->size);
         return RETURN_ERROR;
     }
 
     return StringContainerSetString(container->strToIdx, pos, name);
 }
 
-static const char * ObjectContainerGetElementName(ObjectContainer * container,
-                                                  size_t pos) {
+static const char * ObjectContainerGetElementName(ObjectContainer * container, size_t pos) {
     return StringContainerGetString(container->strToIdx, pos);
 }
 
-static int ObjectContainerGetNameIndex(ObjectContainer * container,
-                                             const char * name) {
+static int ObjectContainerGetNameIndex(ObjectContainer * container, const char * name) {
     return StringContainerGetIndex(container->strToIdx, name);
 }
 
 static Object * ObjectContainerGetByName(const ObjectContainer * container, const char * name) {
     return container->At(container, container->GetNameIndex((ObjectContainer *)container, name));
 }
-static int ObjectContainerContains(ObjectContainer * container,
-                                   Object * obj) {
+static int ObjectContainerContains(ObjectContainer * container, Object * obj) {
     size_t i = 0;
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         if (container->At(container, i) == obj) {
             return TRUE;
         }
@@ -263,11 +505,10 @@ static int ObjectContainerContains(ObjectContainer * container,
 }
 
 static ObjectContainer * ObjectContainerFilter(ObjectContainer * container, fObjectPredicate predicate) {
-    ObjectContainer * filtered = (ObjectContainer *) object_create(ObjectContainer);
-
+    ObjectContainer * filtered = (ObjectContainer *)object_create(ObjectContainer);
     size_t i = 0;
 
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         if (predicate(obj)) {
             filtered->PushBack(filtered, obj);
@@ -278,14 +519,14 @@ static ObjectContainer * ObjectContainerFilter(ObjectContainer * container, fObj
 }
 
 static ObjectContainer * ObjectContainerFilterCtx(ObjectContainer * container, fObjectPredicateCtx predicate, void * ctx) {
-    ObjectContainer * filtered = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectContainer * filtered = (ObjectContainer *)object_create(ObjectContainer);
 
     size_t i = 0;
 
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         if (predicate(obj, ctx)) {
-            filtered->PushBack(filtered, obj);
+            filtered->PushBackNamed(filtered, obj, container->GetElementName(container, i));
         }
     }
 
@@ -294,7 +535,7 @@ static ObjectContainer * ObjectContainerFilterCtx(ObjectContainer * container, f
 
 static void ObjectContainerIterate(ObjectContainer * container, fObjectIter iter) {
     size_t i = 0;
-    for (i = 0; i < container->Size(container); i++) {
+    for (i = 0; i < container->size; i++) {
         Object * obj = container->At(container, i);
         iter(obj);
     }
@@ -337,8 +578,10 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
 
     container->elements = NULL;
     container->size = 0;
+    container->capacity = 0;
+    container->increment = 10;
 
-    container->strToIdx = (StringContainer *) mcx_malloc(sizeof(StringContainer));
+    container->strToIdx = (StringContainer *)mcx_malloc(sizeof(StringContainer));
     if (!container->strToIdx) { return NULL; }
 
     StringContainerInit(container->strToIdx, 0);
@@ -347,6 +590,7 @@ static ObjectContainer * ObjectContainerCreate(ObjectContainer * container) {
 }
 
 OBJECT_CLASS(ObjectContainer, Object);
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

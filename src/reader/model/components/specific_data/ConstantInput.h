@@ -25,7 +25,7 @@ extern const ObjectClass _ScalarConstantValueInput;
 typedef struct ScalarConstantValueInput {
     InputElement _;
 
-    ChannelType type;
+    ChannelType * type;
     ChannelValueData value;
 } ScalarConstantValueInput;
 
@@ -34,7 +34,7 @@ extern const ObjectClass _ArrayConstantValueInput;
 typedef struct ArrayConstantValueInput {
     InputElement _;
 
-    ChannelType type;
+    ChannelType * type;
 
     size_t numValues;
     void * values;

@@ -10,6 +10,7 @@
 
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
 #include <windows.h>
+#include <shlwapi.h>
 
 #include "common/logging.h"
 #include "common/memory.h"
@@ -23,24 +24,12 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
-    DllHandleCheck compValue;
-
-    wchar_t * wDllPath = mcx_string_to_widechar(dllPath);
-
-    * handle = LoadLibraryExW(wDllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-    mcx_free(wDllPath);
-
-    compValue = (DllHandleCheck) * handle;
-    if (compValue <= HINSTANCE_ERROR) {
-        LPVOID lpMsgBuf;
-        DWORD err = GetLastError();
-
-        mcx_log(LOG_ERROR, "Util: Dll (%s) could not be loaded", dllPath);
-
-        switch (err) {
+static void print_last_error() {
+    LPVOID lpMsgBuf;
+    DWORD err = GetLastError();
+    switch (err) {
         case ERROR_BAD_EXE_FORMAT:
-            mcx_log(LOG_ERROR, "Util: There is a mismatch in bitness (32/64) between current Model.CONNECT Execution Engine and the dynamic library", dllPath);
+            mcx_log(LOG_ERROR, "Util: There is a mismatch in bitness (32/64) between current Model.CONNECT Execution Engine and the dynamic library");
             break;
         default:
             FormatMessage(
@@ -56,11 +45,62 @@ McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
             mcx_log(LOG_ERROR, "Util: Error %d: %s", err, lpMsgBuf);
             LocalFree(lpMsgBuf);
             break;
+    }
+}
+
+
+McxStatus mcx_dll_load(DllHandle * handle, const char * dllPath) {
+    DllHandleCheck compValue;
+
+    wchar_t * wDllPath = mcx_string_to_widechar(dllPath);
+
+    McxStatus retVal = RETURN_OK;
+
+    if (PathIsRelativeW(wDllPath)) {
+        wchar_t * wFullDllPath = NULL;
+        DWORD length = GetFullPathNameW(wDllPath, 0, NULL, NULL);
+        if (length == 0) {
+            mcx_log(LOG_ERROR, "Util: Error retrieving length of absolute path of Dll (%s)", dllPath);
+            print_last_error();
+            retVal = RETURN_ERROR;
+            goto relpath_cleanup;
         }
-        return RETURN_ERROR;
+        wFullDllPath = (wchar_t *) mcx_malloc(sizeof(wchar_t) * length);
+        length = GetFullPathNameW(wDllPath, length, wFullDllPath, NULL);
+        if (length == 0) {
+            mcx_log(LOG_ERROR, "Util: Error creating absolute path for Dll (%s)", dllPath);
+            print_last_error();
+            retVal = RETURN_ERROR;
+            goto relpath_cleanup;
+        }
+relpath_cleanup:
+        if (wDllPath) {
+            mcx_free(wDllPath);
+        }
+        if (retVal != RETURN_OK) {
+            goto cleanup;
+        }
+        wDllPath = wFullDllPath;
     }
 
-    return RETURN_OK;
+    mcx_log(LOG_DEBUG, "Util: Loading Dll %S", wDllPath);
+
+    * handle = LoadLibraryExW(wDllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+
+    compValue = (DllHandleCheck) * handle;
+    if (compValue <= HINSTANCE_ERROR) {
+        mcx_log(LOG_ERROR, "Util: Dll (%s) could not be loaded", dllPath);
+        print_last_error();
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+cleanup:
+    if (wDllPath) {
+        mcx_free(wDllPath);
+    }
+
+    return retVal;
 }
 
 

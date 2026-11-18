@@ -18,6 +18,7 @@ file(GLOB MCX_SRC_COMMON
     "core/channels/*.c" "core/channels/*.cpp"
     "core/connections/*.c" "core/connections/*.cpp"
     "core/connections/filters/*.c" "core/connections/filters/*.cpp"
+    "core/parameters/*.c" "core/parameters/*.cpp"
     "components/*.c" "components/*.cpp"
     "fmu/*.c" "fmu/*.cpp"
     "objects/*.c" "objects/*.cpp"

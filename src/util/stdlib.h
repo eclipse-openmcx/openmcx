@@ -18,6 +18,8 @@ extern "C" {
 #endif /* __cplusplus */
 
 
+void * mcx_copy(void * object, size_t size);
+
 /**
  * Sorts the given array in-place using quicksort.
  *

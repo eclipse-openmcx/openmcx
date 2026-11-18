@@ -10,6 +10,7 @@
 
 #include "components/comp_constant.h"
 
+#include "core/channels/ChannelValue.h"
 #include "core/Databus.h"
 #include "reader/model/components/specific_data/ConstantInput.h"
 
@@ -18,42 +19,32 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-typedef struct CompConstant {
-    Component _;
-
-    ChannelValue ** values;
-} CompConstant;
-
 static McxStatus Read(Component * comp, ComponentInput * input, const struct Config * const config) {
     CompConstant * compConstant = (CompConstant *)comp;
     ConstantInput * constantInput = (ConstantInput *)input;
 
     Databus * db = comp->GetDatabus(comp);
-    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t numOut = DatabusGetOutChannelsNum(db);
 
-    // We read each vector channel (scalars are vectors of length 1)
-    // and the corresponding values from the input file.
-    compConstant->values = (ChannelValue **)mcx_calloc(numVecOut, sizeof(ChannelValue *));
+    compConstant->values = (ChannelValue **)mcx_calloc(numOut, sizeof(ChannelValue *));
 
     if (constantInput->values) {
         ConstantValuesInput * values = constantInput->values;
         size_t i = 0;
 
-        for (i = 0; i < numVecOut; i++) {
+        for (i = 0; i < numOut; i++) {
             ConstantValueInput * value = (ConstantValueInput *)values->values->At(values->values, i);
             if (value->type == CONSTANT_VALUE_SCALAR) {
-                compConstant->values[i] = (ChannelValue *)mcx_calloc(1, sizeof(ChannelValue));
-                ChannelValueInit(compConstant->values[i], value->value.scalar->type);
-                ChannelValueSetFromReference(compConstant->values[i], &value->value.scalar->value);
+                compConstant->values[i] = ChannelValueNewScalar(value->value.scalar->type, &value->value.scalar->value);
+                if (!compConstant->values[i]) {
+                    ComponentLog(comp, LOG_ERROR, "Could not set channel value");
+                    return RETURN_ERROR;
+                }
             } else {
-                size_t j = 0;
-                size_t size = ChannelValueTypeSize(value->value.array->type);
-                compConstant->values[i] = (ChannelValue *)mcx_calloc(value->value.array->numValues,
-                                                                     sizeof(ChannelValue));
-                for (j = 0; j < value->value.array->numValues; j++) {
-                    ChannelValueInit(compConstant->values[i] + j, value->value.array->type);
-                    ChannelValueSetFromReference(compConstant->values[i] + j,
-                                                 (char *)value->value.array->values + j * size);
+                compConstant->values[i] = ChannelValueNewArray(1, &value->value.array->numValues, value->value.array->type, value->value.array->values);
+                if (!compConstant->values[i]) {
+                    ComponentLog(comp, LOG_ERROR, "Could not set channel value");
+                    return RETURN_ERROR;
                 }
             }
         }
@@ -62,20 +53,32 @@ static McxStatus Read(Component * comp, ComponentInput * input, const struct Con
     return RETURN_OK;
 }
 
+static ChannelValue * GetValue(CompConstant * compConstant, size_t idx) {
+    Component * comp = (Component *) (compConstant);
+    Databus * db = comp->GetDatabus(comp);
+    size_t numOut = DatabusGetOutChannelsNum(db);
+    ChannelValue * value = NULL;
+
+    if (idx >= numOut) {
+        ComponentLog(comp, LOG_ERROR, "GetValue: Invalid index (%zu) provided", idx);
+        return NULL;
+    }
+
+    value = compConstant->values[idx];
+
+    return value;
+}
+
 static McxStatus Setup(Component * comp) {
     CompConstant * constComp = (CompConstant *)comp;
     McxStatus retVal = RETURN_OK;
     Databus * db = comp->GetDatabus(comp);
-    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t numOut = DatabusGetOutChannelsNum(db);
 
     size_t i = 0;
 
-    for (i = 0; i < numVecOut; i++) {
-        VectorChannelInfo * vInfo = DatabusGetOutVectorChannelInfo(db, i);
-        size_t startIdx = vInfo->GetStartIndex(vInfo);
-        size_t endIdx = vInfo->GetEndIndex(vInfo);
-        size_t numCh = endIdx - startIdx;
-        retVal = DatabusSetOutRefVectorChannel(db, i, startIdx, endIdx, constComp->values[i]);
+    for (i = 0; i < numOut; i++) {
+        retVal = DatabusSetOutReference(db, i, (void *) &constComp->values[i]->value, constComp->values[i]->type);
         if (RETURN_OK != retVal) {
             ComponentLog(comp, LOG_ERROR, "Could not register out channel reference");
             return RETURN_ERROR;
@@ -97,18 +100,12 @@ static void CompConstantDestructor(CompConstant * compConst) {
     Component * comp = (Component *)compConst;
     McxStatus retVal = RETURN_OK;
     Databus * db = comp->GetDatabus(comp);
-    size_t numVecOut = DatabusGetOutVectorChannelsNum(db);
+    size_t numOut = DatabusGetOutChannelsNum(db);
 
-    if (numVecOut > 0 && compConst->values != NULL) {
-        size_t i, j;
-        for (i = 0; i < numVecOut; i++) {
-            VectorChannelInfo * vInfo = DatabusGetOutVectorChannelInfo(db, i);
-            size_t startIdx = vInfo->GetStartIndex(vInfo);
-            size_t endIdx = vInfo->GetEndIndex(vInfo);
-            size_t numCh = endIdx - startIdx + 1;
-            for (j = 0; j < numCh; j++) {
-                ChannelValueDestructor(&compConst->values[i][j]);
-            }
+    if (numOut > 0 && compConst->values != NULL) {
+        size_t i;
+        for (i = 0; i < numOut; i++) {
+            ChannelValueDestructor(compConst->values[i]);
             mcx_free(compConst->values[i]);
         }
         mcx_free(compConst->values);
@@ -118,13 +115,15 @@ static void CompConstantDestructor(CompConstant * compConst) {
 static Component * CompConstantCreate(Component * comp) {
     CompConstant * self = (CompConstant *)comp;
 
-    // map to local funciotns
+    // map to local functions
     comp->Read = Read;
     comp->Setup = Setup;
     comp->Initialize = Initialize;
 
     comp->GetFinishState = CompConstantGetFinishState;
 
+    // local functions
+    self->GetValue = GetValue;
     // local values
     self->values = NULL;
 

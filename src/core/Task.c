@@ -27,16 +27,23 @@ extern "C" {
 
 static int TaskSubmodelIsFinished(SubModel * subModel) {
     size_t i = 0;
-
     ObjectContainer * eval = subModel->evaluationList;
+    size_t numComps = eval->Size(eval);
+    int modelContainsOnlyNeverFinishingComps = numComps ? TRUE : FALSE;
 
-    for (i = 0; i < eval->Size(eval); i++) {
+    for (i = 0; i < numComps; i++) {
         CompAndGroup * compAndGroup = (CompAndGroup *) eval->At(eval, i);
         Component * comp = (Component *) compAndGroup->comp;
 
         if (comp->GetFinishState(comp) == COMP_IS_NOT_FINISHED) {
             return FALSE;
+        } else if (comp->GetFinishState(comp) != COMP_NEVER_FINISHES) {
+            modelContainsOnlyNeverFinishingComps = FALSE;
         }
+    }
+
+    if (modelContainsOnlyNeverFinishingComps) {
+        return FALSE;
     }
 
     return TRUE;
@@ -77,19 +84,25 @@ static McxStatus TaskPrepareRun(Task * task, Model * model) {
     McxStatus retVal = RETURN_OK;
 
 #if defined (ENABLE_STORAGE)
+    mcx_signal_handler_set_function("ResultsStorageSetup");
     retVal = task->storage->Setup(task->storage, task->timeStart);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Could not setup storage");
         return RETURN_ERROR;
     }
 
+    mcx_signal_handler_set_function("ResultsStorageAddModelComponents");
     retVal = task->storage->AddModelComponents(task->storage, model->subModel);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Could not setup component storage");
         return RETURN_ERROR;
     }
 
+    mcx_signal_handler_set_function("ResultsStorageSetupBackends");
     retVal = task->storage->SetupBackends(task->storage);
+    mcx_signal_handler_unset_function();
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Could not setup storage backends");
         return RETURN_ERROR;
@@ -112,7 +125,7 @@ static McxStatus TaskInitialize(Task * task, Model * model) {
         return RETURN_ERROR;
     }
 
-    retVal = subModel->LoopComponents(subModel, CompPostDoUpdateState, (void *) task);
+    retVal = subModel->LoopComponents(subModel, CompPostDoUpdateState, (void *) stepParams);
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Post update state of elements failed during initialization");
         return RETURN_ERROR;
@@ -122,6 +135,7 @@ static McxStatus TaskInitialize(Task * task, Model * model) {
 
     task->storage->StoreModelOut(task->storage, model->subModel, stepParams->time, STORE_SYNCHRONIZATION);
     task->storage->StoreModelLocal(task->storage, model->subModel, stepParams->time, STORE_SYNCHRONIZATION);
+    task->storage->StoreModelRTFactor(task->storage, model->subModel, stepParams->time, STORE_SYNCHRONIZATION);
 
     task->stepType->Configure(task->stepType, stepParams, subModel);
 
@@ -147,7 +161,9 @@ static McxStatus TaskRun(Task * task, Model * model) {
             stepParams->timeEndStep += task->params->timeStepSize;
         }
 
+        mcx_signal_handler_set_function("StepTypeDoStep");
         status = task->stepType->DoStep(task->stepType, stepParams, subModel);
+        mcx_signal_handler_unset_function();
         if (status != RETURN_OK) {
             break;
         }
@@ -218,12 +234,14 @@ static McxStatus TaskRead(Task * task, TaskInput * taskInput) {
     task->params->timeStepSize = taskInput->deltaTime.defined ? taskInput->deltaTime.value : 0.01;
     mcx_log(LOG_INFO, "  Synchronization time step: %g s", task->params->timeStepSize);
 
-    task->params->sumTime = taskInput->sumTime.defined ? taskInput->sumTime.value : FALSE;
+    task->params->sumTime = taskInput->sumTime.defined ? taskInput->sumTime.value : TRUE;
     if (task->config && task->config->sumTimeDefined) {
         task->params->sumTime = task->config->sumTime;
     }
     if (task->params->sumTime) {
         mcx_log(LOG_DEBUG, "  Using summation for time calculation");
+    } else {
+        mcx_log(LOG_DEBUG, "  Using multiplication for time calculation");
     }
 
     task->stepTypeType = taskInput->stepType;
@@ -274,7 +292,7 @@ static McxStatus TaskRead(Task * task, TaskInput * taskInput) {
     }
 
     task->rtFactorEnabled = taskInput->timingOutput.defined ? taskInput->timingOutput.value : FALSE;
-    retVal = task->storage->Read(task->storage, taskInput->results, task->config);
+    retVal = task->storage->Read(task->storage, taskInput->results, task->config, IsStepTypeMultiThreading(task->stepTypeType));
 
     return retVal;
 }

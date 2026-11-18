@@ -17,6 +17,9 @@
 /* for ChannelType */
 #include "core/channels/ChannelValue.h"
 
+/* for ChannelDimension */
+#include "core/channels/ChannelDimension.h"
+
 /* for Component */
 #include "core/Component.h"
 
@@ -37,6 +40,9 @@ typedef struct ConnectionInfoData {
 
     int sourceChannel;
     int targetChannel;
+
+    ChannelDimension * sourceDimension;
+    ChannelDimension * targetDimension;
 
     // Decouple Info: If this connection is decoupled because of an algebraic loop
     // in the model (this means that the value of the source for the target is

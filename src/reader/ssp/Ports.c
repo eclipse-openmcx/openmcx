@@ -17,6 +17,7 @@
 #include "reader/model/ports/ScalarPortInput.h"
 #include "reader/model/ports/VectorPortInput.h"
 
+#include "core/channels/ChannelValue.h"
 #include "util/string.h"
 
 
@@ -24,20 +25,20 @@
 extern "C" {
 #endif /* __cplusplus */
 
-static MapStringInt _typeMapping[] = {
-    {"Real",        CHANNEL_DOUBLE},
-    {"Integer",     CHANNEL_INTEGER},
-    {"Boolean",     CHANNEL_BOOL},
-    {"String",      CHANNEL_STRING},
-    {"Binary",      CHANNEL_BINARY},
-    {NULL,          0},
+static MapStringChannelType _typeMapping[] = {
+    {"Real",        &ChannelTypeDouble},
+    {"Integer",     &ChannelTypeInteger},
+    {"Boolean",     &ChannelTypeBool},
+    {"String",      &ChannelTypeString},
+    {"Binary",      &ChannelTypeBinary},
+    {NULL,          &ChannelTypeUnknown},
 };
 
-static MapStringInt _vectorTypeMapping[] = {
-    {"RealVector",    CHANNEL_DOUBLE},
-    {"IntegerVector", CHANNEL_INTEGER},
-    {"BooleanVector", CHANNEL_BOOL},
-    {NULL,          0},
+static MapStringChannelType _vectorTypeMapping[] = {
+    {"RealVector",    &ChannelTypeDouble},
+    {"IntegerVector", &ChannelTypeInteger},
+    {"BooleanVector", &ChannelTypeBool},
+    {NULL,            &ChannelTypeUnknown},
 };
 
 
@@ -140,7 +141,7 @@ cleanup_1:
                     break;
                 }
             }
-            if (vectorPortInput->type == CHANNEL_UNKNOWN) {
+            if (!ChannelTypeIsValid(vectorPortInput->type)) {
                 retVal = xml_error_unsupported_node(typeNode);
                 goto cleanup;
             }
@@ -172,7 +173,7 @@ cleanup_1:
                     xmlNodePtr vectorNode = NULL;
                     size_t num = 0;
 
-                    switch (vectorPortInput->type) {
+                    switch (vectorPortInput->type->con) {
                     case CHANNEL_DOUBLE:
                         vectorNode = xml_child(portNode, "RealVector");
                         break;
@@ -238,18 +239,9 @@ cleanup_1:
                         goto cleanup;
                     }
 
-                    {
-                        size_t n = 0;
-                        retVal = xml_attr_bool_vec(vectorNode, "writeResults", &n, &vectorPortInput->writeResults, SSD_OPTIONAL);
-                        if (RETURN_ERROR == retVal) {
-                            goto cleanup;
-                        } else if (RETURN_OK == retVal) {
-                            if (n != num) {
-                                mcx_log(LOG_ERROR, "xml_attr_vec_len: Expected length (%d) does not match actual length (%d)", num, n);
-                                retVal = RETURN_ERROR;
-                                goto cleanup;
-                            }
-                        }
+                    retVal = xml_opt_attr_bool(vectorNode, "writeResults", &vectorPortInput->writeResults);
+                    if (RETURN_ERROR == retVal) {
+                        goto cleanup;
                     }
                 }
             }
@@ -354,7 +346,7 @@ cleanup_1:
                     break;
                 }
             }
-            if (scalarPortInput->type == CHANNEL_UNKNOWN) {
+            if (!ChannelTypeIsValid(scalarPortInput->type)) {
                 retVal = xml_error_unsupported_node(typeNode);
                 goto cleanup;
             }
@@ -386,7 +378,7 @@ cleanup_1:
                     xmlNodePtr scalarNode = NULL;
                     size_t num = 0;
 
-                    switch (scalarPortInput->type) {
+                    switch (scalarPortInput->type->con) {
                     case CHANNEL_DOUBLE:
                         scalarNode = xml_child(portNode, "Real");
                         break;

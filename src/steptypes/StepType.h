@@ -24,12 +24,27 @@ typedef struct SubModel SubModel;
 typedef struct CompAndGroup CompAndGroup;
 
 
+typedef struct StepTypeSynchronization {
+    // flag whether the coupling and synchronization step size are multiples of one another
+    int stepSizesAreMultiples;
+
+    // epsilon used for time comparisons
+    double eps;
+} StepTypeSynchronization;
+
+void StepTypeSynchronizationSetup(StepTypeSynchronization * stepTypes, Component * comp, double syncStepSize);
+void StepTypeSynchronizationInit(StepTypeSynchronization * stepTypes);
+
+
 typedef enum StepTypeType {
     STEP_TYPE_UNDEFINED = -1,       /* "parallel_singlethreaded" */
     STEP_TYPE_SEQUENTIAL = 1,       /* "sequential" */
     STEP_TYPE_PARALLEL_ST = 2,      /* "parallel_singlethreaded" */
     STEP_TYPE_PARALLEL_MT = 3,      /* "parallel_multithreaded" */
 } StepTypeType;
+
+
+int IsStepTypeMultiThreading(StepTypeType type);
 
 
 typedef McxStatus (* fStepTypeDoStep)(StepType * stepType, StepTypeParams * params, SubModel * subModel);
@@ -56,6 +71,7 @@ struct StepTypeParams {
 /* shared functionality between step types */
 McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeParams * params);
 McxStatus CompEnterCouplingStepMode(Component * comp, void * param);
+McxStatus CompCollectModeSwitchData(Component * comp, void * param);
 McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param);
 McxStatus CompDoStep(CompAndGroup * compGroup, void * param);
 

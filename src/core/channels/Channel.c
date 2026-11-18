@@ -10,77 +10,134 @@
 
 #include "CentralParts.h"
 #include "core/Config.h"
+#include "core/channels/ChannelValue.h"
 #include "core/connections/Connection.h"
 #include "core/Conversion.h"
 
 #include "core/channels/ChannelInfo.h"
+#include "core/channels/ChannelValueReference.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelValue.h"
 #include "core/channels/Channel_impl.h"
+
+#include <stdarg.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+
+static McxStatus ReportConnStringError(ChannelInfo * chInfo, const char * prefixFmt, ConnectionInfo * connInfo, const char * fmt, ...) {
+    // create format string
+    const char * portPrefix = "Port %s: ";
+    char * connString = NULL;
+    char * formatString = NULL;
+    char * prefix = NULL;
+
+    if (connInfo) {
+        char * connString = ConnectionInfoConnectionString(connInfo);
+
+        prefix = (char *) mcx_calloc(strlen(portPrefix) - 2 /* format specifier %s */ +
+                                     strlen(prefixFmt) - (connInfo == NULL ? 0 : 2 /* format specifier %s */) +
+                                     (connInfo == NULL ? 0 : connString ? strlen(connString) : strlen("(null)")) +
+                                     strlen(ChannelInfoGetLogName(chInfo)) + 1 /* \0 at the end of the string */,
+                                     sizeof(char));
+        if (!prefix) {
+            goto cleanup;
+        }
+
+        sprintf(prefix, portPrefix, ChannelInfoGetLogName(chInfo));
+        sprintf(prefix + strlen(prefix), prefixFmt, connString);
+    } else {
+        prefix = (char *) mcx_calloc(strlen(portPrefix) - 2 /* format specifier %s */ + strlen(prefixFmt) +
+                                     strlen(ChannelInfoGetLogName(chInfo)) + 1 /* \0 at the end of the string */,
+                                     sizeof(char));
+        if (!prefix) {
+            goto cleanup;
+        }
+
+        sprintf(prefix, portPrefix, ChannelInfoGetLogName(chInfo));
+    }
+
+    formatString = (char *) mcx_calloc(strlen(fmt) + strlen(prefix) + 1, sizeof(char));
+    if (!formatString) {
+        goto cleanup;
+    }
+
+    strcat(formatString, prefix);
+    strcat(formatString, fmt);
+
+    // log error message
+    va_list args;
+    va_start(args, fmt);
+
+    mcx_vlog(LOG_ERROR, formatString, args);
+
+    va_end(args);
+
+cleanup:
+    // free connection string
+    if (connString) {
+        mcx_free(connString);
+    }
+
+    if (prefix) {
+        mcx_free(prefix);
+    }
+
+    if (formatString) {
+        mcx_free(formatString);
+    }
+
+    return RETURN_ERROR;
+}
+
 // ----------------------------------------------------------------------
 // Channel
 
-static ChannelData * ChannelDataCreate(ChannelData * data) {
-    /* create dummy info*/
-    data->info = (ChannelInfo *) object_create(ChannelInfo);
-    if (!data->info) {
-        return NULL;
+static int ChannelIsFullyConnected(Channel * channel) {
+    if (channel->isFullyConnected_ == INVALID_CONNECTION_STATUS) {
+        channel->SetIsFullyConnected(channel);
     }
-
-    data->isDefinedDuringInit = FALSE;
-    data->internalValue = NULL;
-    ChannelValueInit(&data->value, CHANNEL_UNKNOWN);
-
-    return data;
+    return channel->isFullyConnected_ == CHANNEL_FULLY_CONNECTED;
 }
-
-static void ChannelDataDestructor(ChannelData * data) {
-    // Note: This is done in Databus
-    // object_destroy(data->info);
-
-    ChannelValueDestructor(&data->value);
-}
-
-OBJECT_CLASS(ChannelData, Object);
-
 
 static int ChannelIsDefinedDuringInit(Channel * channel) {
-    return channel->data->isDefinedDuringInit;
+    return channel->isDefinedDuringInit;
 }
 
 static void ChannelSetDefinedDuringInit(Channel * channel) {
-    channel->data->isDefinedDuringInit = TRUE;
-}
-
-static ChannelInfo * ChannelGetInfo(Channel * channel) {
-    return channel->data->info;
+    channel->isDefinedDuringInit = TRUE;
 }
 
 static McxStatus ChannelSetup(Channel * channel, ChannelInfo * info) {
-    if (channel->data->info) {
-        object_destroy(channel->data->info);
-    }
-    channel->data->info = info;
+    McxStatus retVal = RETURN_OK;
+
     info->channel = channel;
+
+    retVal = ChannelInfoSetFrom(&channel->info, info);
+    if (RETURN_ERROR == retVal) {
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }
 
 static void ChannelDestructor(Channel * channel) {
-    object_destroy(channel->data);
+    ChannelInfoDestroy(&channel->info);
+    ChannelValueDestructor(&channel->value);
 }
 
 static Channel * ChannelCreate(Channel * channel) {
-    channel->data = (ChannelData *) object_create(ChannelData);
-    if (!channel->data) {
+    if (RETURN_ERROR == ChannelInfoInit(&channel->info)) {
         return NULL;
     }
 
-    channel->GetInfo = ChannelGetInfo;
+    channel->isDefinedDuringInit = FALSE;
+    channel->internalValue = NULL;
+    ChannelValueInit(&channel->value, &ChannelTypeUnknown);
+
     channel->Setup = ChannelSetup;
     channel->IsDefinedDuringInit = ChannelIsDefinedDuringInit;
     channel->SetDefinedDuringInit = ChannelSetDefinedDuringInit;
@@ -88,9 +145,11 @@ static Channel * ChannelCreate(Channel * channel) {
     // virtual functions
     channel->GetValueReference = NULL;
     channel->Update = NULL;
-    channel->IsValid = NULL;
+    channel->ProvidesValue = NULL;
 
     channel->IsConnected = NULL;
+    channel->isFullyConnected_ = INVALID_CONNECTION_STATUS;
+    channel->IsFullyConnected = ChannelIsFullyConnected;
 
     return channel;
 }
@@ -102,238 +161,240 @@ static Channel * ChannelCreate(Channel * channel) {
 // object that is stored in target component that stores
 // the channel connection
 
+static void DestroyChannelValueReferencePtr(ChannelValueReference ** ptr) {
+    DestroyChannelValueReference(*ptr);
+}
 
-static ChannelInData * ChannelInDataCreate(ChannelInData * data) {
-    data->connection = NULL;
+static McxStatus ChannelInDataInit(ChannelInData * data) {
+    data->increment = 2;
+
+    data->connList.connections = (Connection * *) mcx_malloc(sizeof(Connection *));
+    if (!data->connList.connections) {
+        mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for connections failed");
+        return RETURN_ERROR;
+    }
+    data->connList.capacity = 1;
+    data->connList.numConnections = 0;
+
+    data->valueReferences = (ChannelValueReference * *) mcx_malloc(sizeof(ChannelValueReference *));
+    if (!data->valueReferences) {
+        mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for value references failed");
+        return RETURN_ERROR;
+    }
+
     data->reference  = NULL;
+    data->type = ChannelTypeClone(&ChannelTypeUnknown);
+    if (!data->type) {
+        mcx_log(LOG_ERROR, "ChannelInDataInit: Cloning ChannelType failed");
+        return RETURN_ERROR;
+    }
 
-    data->unitConversion = NULL;
-    data->typeConversion = NULL;
+    data->typeConversions = (TypeConversion * *) mcx_malloc(sizeof(TypeConversion *));
+    if (!data->typeConversions) {
+        mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for type conversion objects failed");
+        return RETURN_ERROR;
+    }
+    data->unitConversions = (UnitConversion * *) mcx_malloc(sizeof(UnitConversion *));
+    if (!data->unitConversions) {
+        mcx_log(LOG_ERROR, "ChannelInDataInit: Allocating space for unit conversion objects failed");
+        return RETURN_ERROR;
+    }
     data->linearConversion = NULL;
     data->rangeConversion = NULL;
 
     data->isDiscrete = FALSE;
 
-    return data;
+    return RETURN_OK;
 }
 
 static void ChannelInDataDestructor(ChannelInData * data) {
-    if (data->unitConversion) {
-        object_destroy(data->unitConversion);
-    }
-    if (data->typeConversion) {
-        object_destroy(data->typeConversion);
-    }
+
     if (data->linearConversion) {
         object_destroy(data->linearConversion);
     }
     if (data->rangeConversion) {
         object_destroy(data->rangeConversion);
     }
+    if (data->type) {
+        ChannelTypeDestructor(data->type);
+    }
+
+    if (data->valueReferences) {
+        mcx_free((void *) data->valueReferences);
+    }
+
+    if (data->connList.connections) {
+        mcx_free((void *) data->connList.connections);
+    }
+    if (data->typeConversions) {
+        for (int j = 0; j < data->connList.numConnections; j++) {
+            object_destroy(data->typeConversions[j]);
+        }
+        mcx_free((void *) data->typeConversions);
+    }
+    if (data->unitConversions) {
+        for (int j = 0; j < data->connList.numConnections; j++) {
+            object_destroy(data->unitConversions[j]);
+        }
+        mcx_free((void *) data->unitConversions);
+    }
 }
 
-OBJECT_CLASS(ChannelInData, Object);
-
-
-
-static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, ChannelType type) {
+static McxStatus ChannelInSetReference(ChannelIn * in, void * reference, ChannelType * type) {
     Channel * ch = (Channel *) in;
-    ChannelInfo * info = ch->GetInfo(ch);
+    ChannelInfo * info = &ch->info;
 
     if (!in) {
         mcx_log(LOG_ERROR, "Port: Set inport reference: Invalid port");
         return RETURN_ERROR;
     }
-    if (in->data->reference) {
-        mcx_log(LOG_ERROR, "Port %s: Set inport reference: Reference already set", info->GetLogName(info));
+    if (in->data.reference) {
+        mcx_log(LOG_ERROR, "Port %s: Set inport reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
-    if (CHANNEL_UNKNOWN != type) {
+    if (ChannelTypeIsValid(type)) {
         if (!info) {
-            mcx_log(LOG_ERROR, "Port %s: Set inport reference: Port not set up", info->GetLogName(info));
+            mcx_log(LOG_ERROR, "Port %s: Set inport reference: Port not set up", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
-        if (info->GetType(info) != type) {
-            if (info->IsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
-                mcx_log(LOG_ERROR, "Port %s: Set inport reference: Mismatching types", info->GetLogName(info));
+                mcx_log(LOG_ERROR, "Port %s: Set inport reference: Mismatching types", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
         }
     }
 
-    in->data->reference = reference;
+    in->data.reference = reference;
+    in->data.type = ChannelTypeClone(type);
 
     return RETURN_OK;
 }
 
 static const void * ChannelInGetValueReference(Channel * channel) {
     ChannelIn * in = (ChannelIn *) channel;
-    if (!channel->IsValid(channel)) {
+    if (!channel->ProvidesValue(channel)) {
         const static int maxCountError = 10;
         static int i = 0;
         if (i < maxCountError) {
-            ChannelInfo * info = channel->GetInfo(channel);
+            ChannelInfo * info = &channel->info;
             i++;
-            mcx_log(LOG_ERROR, "Port %s: Get value reference: No value reference for inport", info->GetLogName(info));
+            mcx_log(LOG_ERROR, "Port %s: Get value reference: No value reference for inport", ChannelInfoGetLogName(info));
             if (i == maxCountError) {
-                mcx_log(LOG_ERROR, "Port %s: Get value reference: No value reference for inport - truncated", info->GetLogName(info)) ;
+                mcx_log(LOG_ERROR, "Port %s: Get value reference: No value reference for inport - truncated", ChannelInfoGetLogName(info)) ;
             }
         }
         return NULL;
     }
 
-    return ChannelValueReference(&channel->data->value);
+    return ChannelValueDataPointer(&channel->value);
 }
 
 static McxStatus ChannelInUpdate(Channel * channel, TimeInterval * time) {
     ChannelIn * in = (ChannelIn *) channel;
-    ChannelInfo * info = channel->GetInfo(channel);
-    Connection * conn = in->data->connection;
+    ChannelInfo * info = &channel->info;
 
     McxStatus retVal = RETURN_OK;
 
     /* if no connection is present we have nothing to update*/
-    if (conn) {
-        ConnectionInfo * connInfo = NULL;
-        ChannelValue * val = &channel->data->value;
-
-        connInfo = conn->GetInfo(conn);
-
-        ChannelValueDestructor(val);
-        ChannelValueInit(val, connInfo->GetType(connInfo));
+    size_t i = 0;
+    size_t numConns = in->data.connList.numConnections;
+    for (i = 0; i < numConns; i++) {
+        Connection * conn = (Connection *) in->data.connList.connections[i];
+        ConnectionInfo * connInfo = &conn->info;
+        TypeConversion * typeConv = in->data.typeConversions[i];
+        UnitConversion * unitConv = in->data.unitConversions[i];
+        ChannelValueReference * valueRef = in->data.valueReferences[i];
 
         /* Update the connection for the current time */
-        conn->UpdateToOutput(conn, time);
-        ChannelValueSetFromReference(val, conn->GetValueReference(conn));
+        if (RETURN_OK != conn->UpdateToOutput(conn, time)) {
+            return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "UpdateToOutput failed");
+        }
 
-        //type
-        if (in->data->typeConversion) {
-            Conversion * conversion = (Conversion *) in->data->typeConversion;
-            retVal = conversion->convert(conversion, val);
+        // TODO: ideally make conn->GetValueReference return ChannelValueReference
+        if (RETURN_OK != ChannelValueReferenceSetFromPointer(valueRef, conn->GetValueReference(conn), conn->GetValueDimension(conn), typeConv)) {
+            return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "ChannelValueReferenceSetFromPointer failed");
+        }
+
+        // unit conversion
+        if (unitConv) {
+            retVal = unitConv->ConvertValueReference(unitConv, valueRef);
             if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute type conversion", info->GetLogName(info));
-                return RETURN_ERROR;
+                return ReportConnStringError(info, "Update inport for connection %s: ", connInfo, "Unit conversion failed");
             }
         }
     }
 
 
-    if (info->GetType(info) == CHANNEL_DOUBLE) {
-        ChannelValue * val =  &channel->data->value;
-        // unit
-        if (in->data->unitConversion) {
-            Conversion * conversion = (Conversion *) in->data->unitConversion;
-            retVal = conversion->convert(conversion, val);
-            if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute unit conversion", info->GetLogName(info));
-                return RETURN_ERROR;
-            }
-        }
-    }
-
-    if (info->GetType(info) == CHANNEL_DOUBLE ||
-        info->GetType(info) == CHANNEL_INTEGER) {
-        ChannelValue * val =  &channel->data->value;
+    // Conversions
+    if (numConns > 0) {
+        ChannelValue * val =  &channel->value;
 
         // linear
-        if (in->data->linearConversion) {
-            Conversion * conversion = (Conversion *) in->data->linearConversion;
+        if (in->data.linearConversion) {
+            Conversion * conversion = (Conversion *) in->data.linearConversion;
             retVal = conversion->convert(conversion, val);
             if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute linear conversion", info->GetLogName(info));
+                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute linear conversion", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
         }
 
         // range
-        if (in->data->rangeConversion) {
-            Conversion * conversion = (Conversion *) in->data->rangeConversion;
+        if (in->data.rangeConversion) {
+            Conversion * conversion = (Conversion *) in->data.rangeConversion;
             retVal = conversion->convert(conversion, val);
             if (RETURN_OK != retVal) {
-                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute range conversion", info->GetLogName(info));
+                mcx_log(LOG_ERROR, "Port %s: Update inport: Could not execute range conversion", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
         }
     }
 
     /* no reference from the component was set, skip updating*/
-    if (!in->data->reference || !channel->GetValueReference(channel)) {
+    if (!in->data.reference || !channel->GetValueReference(channel)) {
         return RETURN_OK;
     }
 
-
-    switch (info->GetType(info)) {
-    case CHANNEL_DOUBLE:
 #ifdef MCX_DEBUG
-        if (time->startTime < MCX_DEBUG_LOG_TIME) {
-            MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, info->GetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
-        }
+    if (time->startTime < MCX_DEBUG_LOG_TIME && ChannelTypeEq(info->type, &ChannelTypeDouble)) {
+        MCX_DEBUG_LOG("[%f] CH IN  (%s) (%f, %f)", time->startTime, ChannelInfoGetLogName(info), time->startTime, * (double *) channel->GetValueReference(channel));
+    }
 #endif // MCX_DEBUG
-        * (double *) in->data->reference = * (double *) channel->GetValueReference(channel);
-        break;
-    case CHANNEL_INTEGER:
-        * (int *) in->data->reference = * (int *) channel->GetValueReference(channel);
-        break;
-    case CHANNEL_BOOL:
-        * (int *) in->data->reference = * (int *) channel->GetValueReference(channel);
-        break;
-    case CHANNEL_STRING:
-    {
-        const void * reference = channel->GetValueReference(channel);
 
-        if (NULL != reference && NULL != * (const char * *) reference ) {
-            if (* (char * *) in->data->reference) {
-                mcx_free(* (char * *) in->data->reference);
-            }
-            * (char * *) in->data->reference = (char *) mcx_calloc(strlen(* (const char **) reference) + 1, sizeof(char));
-            if (* (char * *) in->data->reference) {
-                strncpy(* (char * *) in->data->reference, * (const char **)reference, strlen(* (const char **)reference) + 1);
-            }
-        }
-        break;
-    }
-    case CHANNEL_BINARY:
-    {
-        const void * reference = channel->GetValueReference(channel);
-
-        if (NULL != reference && NULL != ((const binary_string *) reference)->data) {
-            if (((binary_string *) in->data->reference)->data) {
-                mcx_free(((binary_string *) in->data->reference)->data);
-            }
-            ((binary_string *) in->data->reference)->len = ((const binary_string *) reference)->len;
-            ((binary_string *) in->data->reference)->data = (char *) mcx_malloc(((binary_string *) in->data->reference)->len);
-            if (((binary_string *) in->data->reference)->data) {
-                memcpy(((binary_string *) in->data->reference)->data, ((const binary_string *) reference)->data, ((binary_string *) in->data->reference)->len);
-            }
-        }
-        break;
-    }
-    case CHANNEL_BINARY_REFERENCE:
-    {
-        const void * reference = channel->GetValueReference(channel);
-
-        if (NULL != reference && NULL != ((binary_string *) reference)->data) {
-            ((binary_string *) in->data->reference)->len = ((binary_string *) reference)->len;
-            ((binary_string *) in->data->reference)->data = ((binary_string *) reference)->data;
-        }
-        break;
-    }
-    default:
-        break;
+    if (RETURN_OK != ChannelValueDataSetFromReference(in->data.reference, in->data.type, channel->GetValueReference(channel))) {
+        return RETURN_ERROR;
     }
 
     return RETURN_OK;
 }
 
-static int ChannelInIsValid(Channel * channel) {
+static McxStatus ChannelInSetIsFullyConnected(Channel * channel) {
+    ChannelIn * in = (ChannelIn *) channel;
+    size_t i = 0;
+    size_t connectedElems = 0;
+    size_t channelNumElems = channel->info.dimension ? ChannelDimensionNumElements(channel->info.dimension) : 1;
 
-    if (channel->IsConnected(channel)) {
+    for (i = 0; i < in->data.connList.numConnections; i++) {
+        Connection * conn = (Connection *) in->data.connList.connections[i];
+        ConnectionInfo * info = &conn->info;
+
+        connectedElems += info->targetDimension ? ChannelDimensionNumElements(info->targetDimension) : 1;
+    }
+
+    channel->isFullyConnected_ = connectedElems == channelNumElems;
+
+    return RETURN_OK;
+}
+
+static int ChannelInProvidesValue(Channel * channel) {
+    if (channel->IsFullyConnected(channel)) {
         return TRUE;
     } else {
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
         if (info && NULL != info->defaultValue) {
             return TRUE;
         }
@@ -342,19 +403,19 @@ static int ChannelInIsValid(Channel * channel) {
 }
 
 static void ChannelInSetDiscrete(ChannelIn * in) {
-    in->data->isDiscrete = TRUE;
+    in->data.isDiscrete = TRUE;
 }
 
 static int ChannelInIsDiscrete(ChannelIn * in) {
-    return in->data->isDiscrete;
+    return in->data.isDiscrete;
 }
 
 static int ChannelInIsConnected(Channel * channel) {
-    if (channel->data->info && channel->data->info->connected) {
+    if (ChannelTypeIsValid(channel->info.type) && channel->info.connected) {
         return TRUE;
     } else {
         ChannelIn * in = (ChannelIn *) channel;
-        if (NULL != in->data->connection) {
+        if (in->data.connList.numConnections > 0) {
             return TRUE;
         }
     }
@@ -362,64 +423,108 @@ static int ChannelInIsConnected(Channel * channel) {
     return FALSE;
 }
 
-static ConnectionInfo * ChannelInGetConnectionInfo(ChannelIn * in) {
-    if (in->data->connection) {
-        return in->data->connection->GetInfo(in->data->connection);
-    } else {
+static Vector * ChannelInGetConnectionInfos(ChannelIn * in) {
+    Vector * infos = (Vector*) object_create(Vector);
+    size_t numConns = in->data.connList.numConnections;
+    size_t i = 0;
+
+    if (!infos) {
         return NULL;
     }
-}
 
-static Connection * ChannelInGetConnection(ChannelIn * in) {
-    if (in->data->connection) {
-        return in->data->connection;
-    } else {
-        return NULL;
+    infos->Setup(infos, sizeof(ConnectionInfo*), NULL, NULL, NULL);
+
+    for (i = 0; i < numConns; i++) {
+        Connection * conn = in->data.connList.connections[i];
+        ConnectionInfo * connInfo = &conn->info;
+        if (RETURN_ERROR == infos->PushBack(infos, &connInfo)) {
+            object_destroy(infos);
+            return NULL;
+        }
     }
+
+    return infos;
 }
 
-static McxStatus ChannelInSetConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType type
-) {
+static ConnectionList * ChannelInGetConnections(ChannelIn * in) {
+    return &in->data.connList;
+}
+
+static McxStatus ChannelInRegisterConnection(ChannelIn * in, Connection * connection, const char * unit, ChannelType * type) {
+    ConnectionInfo * connInfo = &connection->info;
     Channel * channel = (Channel *) in;
-    ChannelInfo * inInfo = NULL;
+    ChannelInfo * inInfo = &channel->info;
+    ChannelValueReference * valRef = NULL;
+    ConnectionList * connList = &in->data.connList;
 
-    McxStatus retVal;
+    McxStatus retVal = RETURN_OK;
 
-    in->data->connection = connection;
-    channel->data->internalValue = connection->GetValueReference(connection);
+    while (connList->capacity <= connList->numConnections) {
+        connList->capacity *= in->data.increment;
+        connList->connections = mcx_realloc(connList->connections, sizeof(Connection *) * connList->capacity);
+        in->data.typeConversions = mcx_realloc(in->data.typeConversions, sizeof(TypeConversion *) * connList->capacity);
+        in->data.unitConversions = mcx_realloc(in->data.unitConversions, sizeof(UnitConversion *) * connList->capacity);
+        in->data.valueReferences = mcx_realloc(in->data.valueReferences, sizeof(ChannelValueReference *) * connList->capacity);
+        if (!connList->connections || !in->data.typeConversions || !in->data.unitConversions || !in->data.valueReferences) {
+            mcx_log(LOG_ERROR, "ChannelInRegisterConnection: (Re-)Allocation of connection related data failed");
+            return RETURN_ERROR;
+        }
+    }
+    connList->connections[connList->numConnections] = connection;
+    connList->numConnections++;
 
-    // setup unit conversion
-    inInfo = channel->GetInfo(channel);
+    ChannelDimension * dimension = connInfo->targetDimension;
+    if (dimension && !ChannelDimensionEq(dimension, inInfo->dimension)) {
+        ChannelDimension * slice = CloneChannelDimension(dimension);
 
-    if (inInfo->GetType(inInfo) == CHANNEL_DOUBLE) {
-        in->data->unitConversion = (UnitConversion *) object_create(UnitConversion);
-        retVal = in->data->unitConversion->Setup(in->data->unitConversion,
-                                                 unit,
-                                                 inInfo->GetUnit(inInfo));
-        if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Set inport connection: Could not setup unit conversion", inInfo->GetLogName(inInfo));
+        retVal = ChannelDimensionAlignIndicesWithZero(slice, inInfo->dimension);
+        if (retVal == RETURN_ERROR) {
+            ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Normalizing array slice dimension failed");
             return RETURN_ERROR;
         }
 
-        if (in->data->unitConversion->IsEmpty(in->data->unitConversion)) {
-            object_destroy(in->data->unitConversion);
+        valRef = MakeChannelValueReference(&channel->value, slice);
+    } else {
+        valRef = MakeChannelValueReference(&channel->value, NULL);
+    }
+
+    in->data.valueReferences[connList->numConnections - 1] = valRef;
+
+    if (ChannelTypeEq(ChannelTypeBaseType(inInfo->type), &ChannelTypeDouble)) {
+        UnitConversion * conversion = (UnitConversion *) object_create(UnitConversion);
+
+        retVal = conversion->Setup(conversion, unit, inInfo->unitString);
+        if (RETURN_ERROR == retVal) {
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up unit conversion");
         }
+
+        if (conversion->IsEmpty(conversion)) {
+            object_destroy(conversion);
+        }
+
+        in->data.unitConversions[connList->numConnections - 1] = conversion;
+    } else {
+        in->data.unitConversions[connList->numConnections - 1] = NULL;
     }
 
     // setup type conversion
-    if (inInfo->GetType(inInfo) != type) {
-        in->data->typeConversion = (TypeConversion *) object_create(TypeConversion);
-        retVal = in->data->typeConversion->Setup(in->data->typeConversion,
-                                                 type,
-                                                 inInfo->GetType(inInfo));
+    if (!ChannelTypeConformable(inInfo->type, inInfo->dimension, connection->GetValueType(connection), connection->GetValueDimension(connection))) {
+        TypeConversion * typeConv = (TypeConversion *) object_create(TypeConversion);
+        retVal = typeConv->Setup(typeConv,
+                                 connection->GetValueType(connection),
+                                 connection->GetValueDimension(connection),
+                                 inInfo->type,
+                                 connInfo->targetDimension);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Set connection: Could not setup type conversion", inInfo->GetLogName(inInfo));
-            return RETURN_ERROR;
+            return ReportConnStringError(inInfo, "Register inport connection %s: ", connInfo, "Could not set up type conversion");
         }
+
+        in->data.typeConversions[connList->numConnections - 1] = typeConv;
+    } else {
+        in->data.typeConversions[connList->numConnections - 1] = NULL;
     }
 
-    return RETURN_OK;
-
+    return retVal;
 }
 
 static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
@@ -429,52 +534,63 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
     retVal = channel->Setup(channel, info); // call base-class function
 
     // types
-    if (info->type == CHANNEL_UNKNOWN) {
-        mcx_log(LOG_ERROR, "Port %s: Setup inport: Unknown type", info->GetLogName(info));
+    if (!ChannelTypeIsValid(info->type)) {
+        mcx_log(LOG_ERROR, "Port %s: Setup inport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    ChannelValueInit(&channel->data->value, info->type);
+    ChannelValueInit(&channel->value, ChannelTypeClone(info->type));
 
     // default value
     if (info->defaultValue) {
-        ChannelValueSet(&channel->data->value, info->defaultValue);
+        ChannelValueSet(&channel->value, info->defaultValue);
+
+        // apply range and linear conversions immediately
+        retVal = ConvertRange(info->min, info->max, &channel->value, NULL);
+        if (retVal == RETURN_ERROR) {
+            return RETURN_ERROR;
+        }
+
+        retVal = ConvertLinear(info->scale, info->offset, &channel->value, NULL);
+        if (retVal == RETURN_ERROR) {
+            return RETURN_ERROR;
+        }
+
         channel->SetDefinedDuringInit(channel);
-        channel->data->internalValue = ChannelValueReference(&channel->data->value);
     }
 
     // unit conversion is setup when a connection is set
 
     // min/max conversions are only used for double types
-    if (info->GetType(info) == CHANNEL_DOUBLE
-        || info->GetType(info) == CHANNEL_INTEGER)
+    if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble) ||
+        ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger))
     {
-        ChannelValue * min = info->GetMin(info);
-        ChannelValue * max = info->GetMax(info);
+        ChannelValue * min = info->min;
+        ChannelValue * max = info->max;
 
-        ChannelValue * scale  = info->GetScale(info);
-        ChannelValue * offset = info->GetOffset(info);
+        ChannelValue * scale  = info->scale;
+        ChannelValue * offset = info->offset;
 
-        in->data->rangeConversion = (RangeConversion *) object_create(RangeConversion);
-        retVal = in->data->rangeConversion->Setup(in->data->rangeConversion, min, max);
+        in->data.rangeConversion = (RangeConversion *) object_create(RangeConversion);
+        retVal = in->data.rangeConversion->Setup(in->data.rangeConversion, min, max);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Setup inport: Could not setup range conversion", info->GetLogName(info));
-            object_destroy(in->data->rangeConversion);
+            mcx_log(LOG_ERROR, "Port %s: Setup inport: Could not setup range conversion", ChannelInfoGetLogName(info));
+            object_destroy(in->data.rangeConversion);
             return RETURN_ERROR;
         } else {
-            if (in->data->rangeConversion->IsEmpty(in->data->rangeConversion)) {
-                object_destroy(in->data->rangeConversion);
+            if (in->data.rangeConversion->IsEmpty(in->data.rangeConversion)) {
+                object_destroy(in->data.rangeConversion);
             }
         }
 
-        in->data->linearConversion = (LinearConversion *) object_create(LinearConversion);
-        retVal = in->data->linearConversion->Setup(in->data->linearConversion, scale, offset);
+        in->data.linearConversion = (LinearConversion *) object_create(LinearConversion);
+        retVal = in->data.linearConversion->Setup(in->data.linearConversion, scale, offset);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Setup inport: Could not setup linear conversion", info->GetLogName(info));
-            object_destroy(in->data->linearConversion);
+            mcx_log(LOG_ERROR, "Port %s: Setup inport: Could not setup linear conversion", ChannelInfoGetLogName(info));
+            object_destroy(in->data.linearConversion);
             return RETURN_ERROR;
         } else {
-            if (in->data->linearConversion->IsEmpty(in->data->linearConversion)) {
-                object_destroy(in->data->linearConversion);
+            if (in->data.linearConversion->IsEmpty(in->data.linearConversion)) {
+                object_destroy(in->data.linearConversion);
             }
         }
     }
@@ -483,30 +599,33 @@ static McxStatus ChannelInSetup(ChannelIn * in, ChannelInfo * info) {
 }
 
 static void ChannelInDestructor(ChannelIn * in) {
-    object_destroy(in->data);
+    ChannelInDataDestructor(&in->data);
 }
 
 static ChannelIn * ChannelInCreate(ChannelIn * in) {
     Channel * channel = (Channel *) in;
+    McxStatus retVal = RETURN_OK;
 
-    in->data = (ChannelInData *) object_create(ChannelInData);
-    if (!in->data) {
+    retVal = ChannelInDataInit(&in->data);
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "ChannelInCreate: ChannelInDataInit failed");
         return NULL;
     }
 
     // virtual functions
     channel->GetValueReference = ChannelInGetValueReference;
-    channel->IsValid           = ChannelInIsValid;
+    channel->ProvidesValue     = ChannelInProvidesValue;
     channel->Update            = ChannelInUpdate;
     channel->IsConnected       = ChannelInIsConnected;
+    channel->SetIsFullyConnected  = ChannelInSetIsFullyConnected;
 
     in->Setup        = ChannelInSetup;
     in->SetReference = ChannelInSetReference;
 
-    in->GetConnectionInfo = ChannelInGetConnectionInfo;
+    in->GetConnectionInfos = ChannelInGetConnectionInfos;
 
-    in->GetConnection = ChannelInGetConnection;
-    in->SetConnection = ChannelInSetConnection;
+    in->GetConnections = ChannelInGetConnections;
+    in->RegisterConnection = ChannelInRegisterConnection;
 
     in->IsDiscrete = ChannelInIsDiscrete;
     in->SetDiscrete = ChannelInSetDiscrete;
@@ -518,14 +637,23 @@ static ChannelIn * ChannelInCreate(ChannelIn * in) {
 // ----------------------------------------------------------------------
 // ChannelOut
 
-static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
+static McxStatus ChannelOutDataInit(ChannelOutData * data) {
     data->valueFunction = NULL;
+    ChannelValueInit(&data->valueFunctionRes, ChannelTypeClone(&ChannelTypeUnknown));
     data->rangeConversion = NULL;
     data->linearConversion = NULL;
 
     data->rangeConversionIsActive = TRUE;
 
-    data->connections = (ObjectContainer *) object_create(ObjectContainer);
+    data->increment = 2;
+
+    data->connList.numConnections = 0;
+    data->connList.capacity = 1;
+    data->connList.connections = (Connection * *) mcx_malloc(sizeof(Connection *));
+    if (!data->connList.connections) {
+        mcx_log(LOG_ERROR, "ChannelOutDataInit: Allocation of connections failed");
+        return RETURN_ERROR;
+    }
 
     data->nanCheck = NAN_CHECK_ALWAYS;
 
@@ -533,11 +661,10 @@ static ChannelOutData * ChannelOutDataCreate(ChannelOutData * data) {
     data->maxNumNaNCheckWarning = 0;
 
 
-    return data;
+    return RETURN_OK;
 }
 
 static void ChannelOutDataDestructor(ChannelOutData * data) {
-    ObjectContainer * conns = data->connections;
     size_t i = 0;
 
     if (data->rangeConversion) {
@@ -547,129 +674,182 @@ static void ChannelOutDataDestructor(ChannelOutData * data) {
         object_destroy(data->linearConversion);
     }
 
-    for (i = 0; i < conns->Size(conns); i++) {
-        object_destroy(conns->elements[i]);
+    if (data->connList.connections) {
+        for (i = 0; i < data->connList.numConnections; i++) {
+            if (data->connList.connections[i]) {
+                object_destroy(data->connList.connections[i]);
+            }
+        }
+        mcx_free(data->connList.connections);
     }
-    object_destroy(data->connections);
+
+    ChannelValueDestructor(&data->valueFunctionRes);
 }
-
-OBJECT_CLASS(ChannelOutData, Object);
-
-
 
 static McxStatus ChannelOutSetup(ChannelOut * out, ChannelInfo * info, Config * config) {
     Channel * channel = (Channel *) out;
 
-    ChannelValue * min = info->GetMin(info);
-    ChannelValue * max = info->GetMax(info);
+    ChannelValue * min = info->min;
+    ChannelValue * max = info->max;
 
-    ChannelValue * scale  = info->GetScale(info);
-    ChannelValue * offset = info->GetOffset(info);
+    ChannelValue * scale  = info->scale;
+    ChannelValue * offset = info->offset;
 
     McxStatus retVal;
 
     retVal = channel->Setup(channel, info); // call base-class function
 
     // default value
-    if (info->type == CHANNEL_UNKNOWN) {
-        mcx_log(LOG_ERROR, "Port %s: Setup outport: Unknown type", info->GetLogName(info));
+    if (!ChannelTypeIsValid(info->type)) {
+        mcx_log(LOG_ERROR, "Port %s: Setup outport: Unknown type", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    ChannelValueInit(&channel->data->value, info->type);
+    ChannelValueInit(&channel->value, ChannelTypeClone(info->type));
 
     // default value
     if (info->defaultValue) {
-        channel->data->internalValue = ChannelValueReference(info->defaultValue);
+        channel->internalValue = ChannelValueDataPointer(channel->info.defaultValue);
     }
 
 
     // min/max conversions are only used for double types
-    if (info->GetType(info) == CHANNEL_DOUBLE
-        || info->GetType(info) == CHANNEL_INTEGER)
+    if (ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeDouble)
+        || ChannelTypeEq(ChannelTypeBaseType(info->type), &ChannelTypeInteger))
     {
-        out->data->rangeConversion = (RangeConversion *) object_create(RangeConversion);
-        retVal = out->data->rangeConversion->Setup(out->data->rangeConversion, min, max);
+        out->data.rangeConversion = (RangeConversion *) object_create(RangeConversion);
+        retVal = out->data.rangeConversion->Setup(out->data.rangeConversion, min, max);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Setup outport: Could not setup range conversion", info->GetLogName(info));
-            object_destroy(out->data->rangeConversion);
+            mcx_log(LOG_ERROR, "Port %s: Setup outport: Could not setup range conversion", ChannelInfoGetLogName(info));
+            object_destroy(out->data.rangeConversion);
             return RETURN_ERROR;
         } else {
-            if (out->data->rangeConversion->IsEmpty(out->data->rangeConversion)) {
-                object_destroy(out->data->rangeConversion);
+            if (out->data.rangeConversion->IsEmpty(out->data.rangeConversion)) {
+                object_destroy(out->data.rangeConversion);
             }
         }
 
-        out->data->linearConversion = (LinearConversion *) object_create(LinearConversion);
-        retVal = out->data->linearConversion->Setup(out->data->linearConversion, scale, offset);
+        out->data.linearConversion = (LinearConversion *) object_create(LinearConversion);
+        retVal = out->data.linearConversion->Setup(out->data.linearConversion, scale, offset);
         if (RETURN_ERROR == retVal) {
-            mcx_log(LOG_ERROR, "Port %s: Setup outport: Could not setup linear conversion", info->GetLogName(info));
-            object_destroy(out->data->linearConversion);
+            mcx_log(LOG_ERROR, "Port %s: Setup outport: Could not setup linear conversion", ChannelInfoGetLogName(info));
+            object_destroy(out->data.linearConversion);
             return RETURN_ERROR;
         } else {
-            if (out->data->linearConversion->IsEmpty(out->data->linearConversion)) {
-                object_destroy(out->data->linearConversion);
+            if (out->data.linearConversion->IsEmpty(out->data.linearConversion)) {
+                object_destroy(out->data.linearConversion);
             }
         }
     }
 
     if (!config) {
-        mcx_log(LOG_DEBUG, "Port %s: Setup outport: No config available", info->GetLogName(info));
+        mcx_log(LOG_DEBUG, "Port %s: Setup outport: No config available", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
-    out->data->nanCheck = config->nanCheck;
-    out->data->maxNumNaNCheckWarning = config->nanCheckNumMessages;
+    out->data.nanCheck = config->nanCheck;
+    out->data.maxNumNaNCheckWarning = config->nanCheckNumMessages;
 
     return RETURN_OK;
 }
 
 static McxStatus ChannelOutRegisterConnection(ChannelOut * out, Connection * connection) {
-    ObjectContainer * conns = out->data->connections;
+    ChannelInfo * outInfo = &((Channel *) out)->info;
+    ConnectionInfo * connInfo = &connection->info;
+    ConnectionList * connList = &out->data.connList;
 
-    return conns->PushBack(conns, (Object *) connection);
+    // TODO: do we have to check that channelout and connection match
+    // in type/dimension?
+
+    while (connList->capacity <= connList->numConnections) {
+        connList->capacity *= out->data.increment;
+        connList->connections = mcx_realloc(connList->connections, connList->capacity * sizeof(Connection *));
+        if (!connList->connections) {
+            return ReportConnStringError(outInfo, "Register outport connection %s: ", connInfo, "Could not set up connections (realloc failed)");
+        }
+    }
+    connList->connections[connList->numConnections] = connection;
+    connList->numConnections++;
+
+    return RETURN_OK;
 }
 
 static const void * ChannelOutGetValueReference(Channel * channel) {
     ChannelOut * out = (ChannelOut *) channel;
-    ChannelInfo * info = channel->GetInfo(channel);
+    ChannelInfo * info = &channel->info;
 
     // check if out is initialized
-    if (!channel->IsValid(channel)) {
-        mcx_log(LOG_ERROR, "Port %s: Get value reference: No Value Reference", info->GetLogName(info));
+    if (!channel->ProvidesValue(channel)) {
+        mcx_log(LOG_ERROR, "Port %s: Get value reference: No Value Reference", ChannelInfoGetLogName(info));
         return NULL;
     }
 
-    return ChannelValueReference(&channel->data->value);
+    return ChannelValueDataPointer(&channel->value);
 }
 
 static const proc * ChannelOutGetFunction(ChannelOut * out) {
-    return out->data->valueFunction;
+    return out->data.valueFunction;
 }
 
-static ObjectContainer * ChannelOutGetConnections(ChannelOut * out) {
-    return out->data->connections;
+static ConnectionList * ChannelOutGetConnections(ChannelOut * out) {
+    return &out->data.connList;
 }
 
-static int ChannelOutIsValid(Channel * channel) {
-    return (NULL != channel->data->internalValue);
+static int ChannelOutProvidesValue(Channel * channel) {
+    return (NULL != channel->internalValue);
 }
 
 static int ChannelOutIsConnected(Channel * channel) {
-    if (channel->data->info->connected) {
+    if (channel->info.connected) {
         return TRUE;
     } else {
         ChannelOut * out = (ChannelOut *) channel;
-        if (NULL != out->data->connections) {
-            if (out->data->connections->Size(out->data->connections)) {
-                return TRUE;
-            }
+        if (out->data.connList.numConnections) {
+            return TRUE;
         }
     }
 
     return FALSE;
 }
 
-static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference, ChannelType type) {
+static McxStatus ChannelOutSetIsFullyConnected(Channel * channel) {
+    ChannelOut * out = (ChannelOut *) channel;
+
+    if (ChannelTypeIsArray(channel->info.type)) {
+        ConnectionList * conns = &out->data.connList;
+        size_t i = 0;
+        size_t num_elems = ChannelDimensionNumElements(channel->info.dimension);
+
+        int * connected = (int *) mcx_calloc(num_elems, sizeof(int));
+        if (!connected) {
+            mcx_log(LOG_ERROR, "ChannelOutIsFullyConnected: Not enough memory");
+            return RETURN_ERROR;
+        }
+
+        for (i = 0; i < conns->numConnections; i++) {
+            Connection * conn = out->data.connList.connections[i];
+            ConnectionInfo * info = &conn->info;
+            size_t j = 0;
+
+            for (j = 0; j < ChannelDimensionNumElements(info->sourceDimension); j++) {
+                size_t idx = ChannelDimensionGetIndex(info->sourceDimension, j, channel->info.type->ty.a.dims);
+                connected[idx - info->sourceDimension->startIdxs[0]] = 1;
+            }
+        }
+
+        channel->isFullyConnected_ = CHANNEL_FULLY_CONNECTED;
+        for (i = 0; i < num_elems; i++) {
+            if (!connected[i]) {
+                channel->isFullyConnected_ = CHANNEL_ONLY_PARTIALLY_CONNETED;
+            }
+        }
+    } else {
+        channel->isFullyConnected_ = ChannelOutIsConnected(channel);
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference, ChannelType * type) {
     Channel * channel = (Channel *) out;
     ChannelInfo * info = NULL;
 
@@ -677,33 +857,33 @@ static McxStatus ChannelOutSetReference(ChannelOut * out, const void * reference
         mcx_log(LOG_ERROR, "Port: Set outport reference: Invalid port");
         return RETURN_ERROR;
     }
-    info = channel->GetInfo(channel);
+    info = &channel->info;
     if (!info) {
-        mcx_log(LOG_ERROR, "Port %s: Set outport reference: Port not set up", info->GetLogName(info));
+        mcx_log(LOG_ERROR, "Port %s: Set outport reference: Port not set up", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    if (channel->data->internalValue
-        && !(info->defaultValue && channel->data->internalValue == ChannelValueReference(info->defaultValue))) {
-        mcx_log(LOG_ERROR, "Port %s: Set outport reference: Reference already set", info->GetLogName(info));
+    if (channel->internalValue
+        && !(info->defaultValue && channel->internalValue == ChannelValueDataPointer(info->defaultValue))) {
+        mcx_log(LOG_ERROR, "Port %s: Set outport reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN != type) {
-        if (info->GetType(info) != type) {
-            if (info->IsBinary(info) && (type == CHANNEL_BINARY || type == CHANNEL_BINARY_REFERENCE)) {
+    if (ChannelTypeIsValid(type)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            if (ChannelInfoIsBinary(info) && ChannelTypeIsBinary(type)) {
                 // ok
             } else {
-                mcx_log(LOG_ERROR, "Port %s: Set outport reference: Mismatching types", info->GetLogName(info));
+                mcx_log(LOG_ERROR, "Port %s: Set outport reference: Mismatching types", ChannelInfoGetLogName(info));
                 return RETURN_ERROR;
             }
         }
     }
 
-    channel->data->internalValue = reference;
+    channel->internalValue = reference;
 
     return RETURN_OK;
 }
 
-static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * reference, ChannelType type) {
+static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * reference, ChannelType * type) {
     Channel * channel = (Channel *) out;
     ChannelInfo * info = NULL;
     if (!out) {
@@ -711,24 +891,27 @@ static McxStatus ChannelOutSetReferenceFunction(ChannelOut * out, const proc * r
         return RETURN_ERROR;
     }
 
-    info = channel->GetInfo(channel);
-    if (CHANNEL_UNKNOWN != type) {
-        if (info->type != type) {
-            mcx_log(LOG_ERROR, "Port %s: Set outport function: Mismatching types", info->GetLogName(info));
+    info = &channel->info;
+    if (ChannelTypeIsValid(type)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            mcx_log(LOG_ERROR, "Port %s: Set outport function: Mismatching types", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
     }
 
-    if (out->data->valueFunction) {
-        mcx_log(LOG_ERROR, "Port %s: Set outport function: Reference already set", info->GetLogName(info));
+    if (out->data.valueFunction) {
+        mcx_log(LOG_ERROR, "Port %s: Set outport function: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
 
     // Save channel procedure
-    out->data->valueFunction = (const proc *) reference;
+    out->data.valueFunction = (const proc *) reference;
+
+    // Initialize (and allocate necessary memory)
+    ChannelValueInit(&out->data.valueFunctionRes, ChannelTypeClone(type));
 
     // Setup value reference to point to internal value
-    channel->data->internalValue = ChannelValueReference(&channel->data->value);
+    channel->internalValue = ChannelValueDataPointer(&channel->value);
 
     return RETURN_OK;
 }
@@ -737,7 +920,7 @@ static void WarnAboutNaN(LogSeverity level, ChannelInfo * info, TimeInterval * t
     if (*max > 0) {
         if (*count < *max) {
             mcx_log(level, "Outport %s at time %f is not a number (NaN)",
-                   info->GetName(info), time->startTime);
+                   ChannelInfoGetName(info), time->startTime);
             *count += 1;
             if (*count == *max) {
                 mcx_log(level, "This warning will not be shown anymore");
@@ -745,15 +928,17 @@ static void WarnAboutNaN(LogSeverity level, ChannelInfo * info, TimeInterval * t
         }
     } else {
         mcx_log(level, "Outport %s at time %f is not a number (NaN)",
-               info->GetName(info), time->startTime);
+               ChannelInfoGetName(info), time->startTime);
     }
 }
 
 static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
     ChannelOut * out = (ChannelOut *)channel;
-    ChannelInfo * info = ((Channel *)out)->GetInfo((Channel *)out);
+    ChannelInfo * info = &channel->info;
 
-    ObjectContainer * conns = out->data->connections;
+    ConnectionList * conns = &out->data.connList;
+
+    ChannelValue * val = NULL;
 
     McxStatus retVal = RETURN_OK;
 
@@ -765,96 +950,104 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
         if (out->GetFunction(out)) {
             // function value
             proc * p = (proc *) out->GetFunction(out);
-            double val = p->fn(time, p->env);
+            if (RETURN_ERROR == p->fn(time, p->env, &out->data.valueFunctionRes)) {
+                mcx_log(LOG_ERROR, "Port %s: Update outport: Function failed", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
+            }
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
-                MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)", time->startTime, info->GetLogName(info), time->startTime, val);
+                MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)",
+                              time->startTime,
+                              ChannelInfoGetLogName(info),
+                              time->startTime,
+                              out->data.valueFunctionRes.value.d);
             }
 #endif // MCX_DEBUG
-            ChannelValueSetFromReference(&channel->data->value, &val);
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, ChannelValueDataPointer(&out->data.valueFunctionRes))) {
+                return RETURN_ERROR;
+            }
         } else {
 #ifdef MCX_DEBUG
             if (time->startTime < MCX_DEBUG_LOG_TIME) {
-                if (CHANNEL_DOUBLE == info->GetType(info)) {
+                if (ChannelTypeEq(&ChannelTypeDouble, info->type)) {
                     MCX_DEBUG_LOG("[%f] CH OUT (%s) (%f, %f)",
                                   time->startTime,
-                                  info->GetLogName(info),
+                                  ChannelInfoGetLogName(info),
                                   time->startTime,
-                                  * (double *) channel->data->internalValue);
+                                  * (double *) channel->internalValue);
                 } else {
-                    MCX_DEBUG_LOG("[%f] CH OUT (%s)", time->startTime, info->GetLogName(info));
+                    MCX_DEBUG_LOG("[%f] CH OUT (%s)", time->startTime, ChannelInfoGetLogName(info));
                 }
             }
 #endif // MCX_DEBUG
-            ChannelValueSetFromReference(&channel->data->value, channel->data->internalValue);
+            if (RETURN_OK != ChannelValueSetFromReference(&channel->value, channel->internalValue)) {
+                mcx_log(LOG_ERROR, "Port %s: Update outport: Setting value failed", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
+            }
         }
 
-        // Apply conversion
-        if (info->GetType(info) == CHANNEL_DOUBLE ||
-            info->GetType(info) == CHANNEL_INTEGER) {
-            ChannelValue * val = &channel->data->value;
+        val = &channel->value;
 
-            // range
-            if (out->data->rangeConversion) {
-                if (out->data->rangeConversionIsActive) {
-                    Conversion * conversion = (Conversion *) out->data->rangeConversion;
-                    retVal = conversion->convert(conversion, val);
-                    if (RETURN_OK != retVal) {
-                        mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute range conversion", info->GetLogName(info));
-                        return RETURN_ERROR;
-                    }
-                }
-            }
-
-            // linear
-            if (out->data->linearConversion) {
-                Conversion * conversion = (Conversion *) out->data->linearConversion;
+        // range conversion
+        if (out->data.rangeConversion) {
+            if (out->data.rangeConversionIsActive) {
+                Conversion * conversion = (Conversion *) out->data.rangeConversion;
                 retVal = conversion->convert(conversion, val);
                 if (RETURN_OK != retVal) {
-                    mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute linear conversion", info->GetLogName(info));
+                    mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute range conversion", ChannelInfoGetLogName(info));
                     return RETURN_ERROR;
                 }
             }
         }
 
+        // linear conversion
+        if (out->data.linearConversion) {
+            Conversion * conversion = (Conversion *) out->data.linearConversion;
+            retVal = conversion->convert(conversion, val);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Port %s: Update outport: Could not execute linear conversion", ChannelInfoGetLogName(info));
+                return RETURN_ERROR;
+            }
+        }
+
         // Notify connections of new values
-        for (j = 0; j < conns->Size(conns); j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
-            channel->SetDefinedDuringInit(channel);
+        channel->SetDefinedDuringInit(channel);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
             connection->UpdateFromInput(connection, time);
         }
     }
 
 
-    if (CHANNEL_DOUBLE == info->GetType(info)) {
+    if (ChannelTypeEq(&ChannelTypeDouble, info->type)) {
         const double * val = NULL;
 
         {
-            val = &channel->data->value.value.d;
+            val = &channel->value.value.d;
         }
 
         if (isnan(*val))
         {
-            switch (out->data->nanCheck) {
+            switch (out->data.nanCheck) {
 
             case NAN_CHECK_ALWAYS:
                 mcx_log(LOG_ERROR, "Outport %s at time %f is not a number (NaN)",
-                       info->GetName(info), time->startTime);
+                       ChannelInfoGetName(info), time->startTime);
                 return RETURN_ERROR;
 
             case NAN_CHECK_CONNECTED:
-                if (conns->Size(conns) > 0) {
+                if (conns->numConnections > 0) {
                     mcx_log(LOG_ERROR, "Outport %s at time %f is not a number (NaN)",
-                           info->GetName(info), time->startTime);
+                           ChannelInfoGetName(info), time->startTime);
                     return RETURN_ERROR;
                 } else {
-                    WarnAboutNaN(LOG_WARNING, info, time, &out->data->countNaNCheckWarning, &out->data->maxNumNaNCheckWarning);
+                    WarnAboutNaN(LOG_WARNING, info, time, &out->data.countNaNCheckWarning, &out->data.maxNumNaNCheckWarning);
                     break;
                 }
 
             case NAN_CHECK_NEVER:
-                WarnAboutNaN((conns->Size(conns) > 0) ? LOG_ERROR : LOG_WARNING,
-                             info, time, &out->data->countNaNCheckWarning, &out->data->maxNumNaNCheckWarning);
+                WarnAboutNaN((conns->numConnections > 0) ? LOG_ERROR : LOG_WARNING,
+                             info, time, &out->data.countNaNCheckWarning, &out->data.maxNumNaNCheckWarning);
                 break;
             }
         }
@@ -865,22 +1058,25 @@ static McxStatus ChannelOutUpdate(Channel * channel, TimeInterval * time) {
 }
 
 static void ChannelOutDestructor(ChannelOut * out) {
-    object_destroy(out->data);
+    ChannelOutDataDestructor(&out->data);
 }
 
 static ChannelOut * ChannelOutCreate(ChannelOut * out) {
     Channel * channel = (Channel *) out;
+    McxStatus retVal = RETURN_OK;
 
-    out->data = (ChannelOutData *) object_create(ChannelOutData);
-    if (!out->data) {
+    retVal = ChannelOutDataInit(&out->data);
+    if (RETURN_OK != retVal) {
+        mcx_log(LOG_ERROR, "ChannelOutCreate: ChannelOutDataInit failed");
         return NULL;
     }
 
     // virtual functions
     channel->GetValueReference = ChannelOutGetValueReference;
-    channel->IsValid           = ChannelOutIsValid;
+    channel->ProvidesValue     = ChannelOutProvidesValue;
     channel->Update            = ChannelOutUpdate;
     channel->IsConnected       = ChannelOutIsConnected;
+    channel->SetIsFullyConnected  = ChannelOutSetIsFullyConnected;
 
     out->Setup                = ChannelOutSetup;
     out->RegisterConnection   = ChannelOutRegisterConnection;
@@ -913,42 +1109,42 @@ static McxStatus ChannelLocalSetup(ChannelLocal * local, ChannelInfo * info) {
 }
 
 static const void * ChannelLocalGetValueReference(Channel * channel) {
-    return channel->data->internalValue;
+    return channel->internalValue;
 }
 
 static McxStatus ChannelLocalUpdate(Channel * channel, TimeInterval * time) {
     return RETURN_OK;
 }
 
-static int ChannelLocalIsValid(Channel * channel) {
-    return (channel->data->internalValue != NULL);
+static int ChannelLocalProvidesValue(Channel * channel) {
+    return (channel->internalValue != NULL);
 }
 
 // TODO: Unify with ChannelOutsetReference (similar code)
 static McxStatus ChannelLocalSetReference(ChannelLocal * local,
                                           const void * reference,
-                                          ChannelType type) {
+                                          ChannelType * type) {
     Channel * channel = (Channel *) local;
     ChannelInfo * info = NULL;
 
-    info = channel->GetInfo(channel);
+    info = &channel->info;
     if (!info) {
         mcx_log(LOG_ERROR, "Port: Set local value reference: Port not set up");
         return RETURN_ERROR;
     }
-    if (channel->data->internalValue
-        && !(info->defaultValue && channel->data->internalValue == ChannelValueReference(info->defaultValue))) {
-        mcx_log(LOG_ERROR, "Port %s: Set local value reference: Reference already set", info->GetLogName(info));
+    if (channel->internalValue
+        && !(info->defaultValue && channel->internalValue == ChannelValueDataPointer(info->defaultValue))) {
+        mcx_log(LOG_ERROR, "Port %s: Set local value reference: Reference already set", ChannelInfoGetLogName(info));
         return RETURN_ERROR;
     }
-    if (CHANNEL_UNKNOWN != type) {
-        if (info->GetType(info) != type) {
-            mcx_log(LOG_ERROR, "Port %s: Set local value reference: Mismatching types", info->GetLogName(info));
+    if (ChannelTypeIsValid(type)) {
+        if (!ChannelTypeEq(info->type, type)) {
+            mcx_log(LOG_ERROR, "Port %s: Set local value reference: Mismatching types", ChannelInfoGetLogName(info));
             return RETURN_ERROR;
         }
     }
 
-    channel->data->internalValue = reference;
+    channel->internalValue = reference;
 
     return RETURN_OK;
 }
@@ -968,9 +1164,9 @@ static ChannelLocal * ChannelLocalCreate(ChannelLocal * local) {
     // virtual functions
     channel->GetValueReference = ChannelLocalGetValueReference;
     channel->Update            = ChannelLocalUpdate;
-    channel->IsValid           = ChannelLocalIsValid;
+    channel->ProvidesValue     = ChannelLocalProvidesValue;
 
-    channel->IsConnected       = ChannelLocalIsValid;
+    channel->IsConnected       = ChannelLocalProvidesValue;
 
     local->Setup        = ChannelLocalSetup;
     local->SetReference = ChannelLocalSetReference;

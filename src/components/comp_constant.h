@@ -12,12 +12,27 @@
 #define MCX_COMPONENTS_COMP_CONSTANT_H
 
 #include "core/Component.h"
+#include "core/channels/ChannelValue.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+
+typedef struct CompConstant CompConstant;
+
 extern const struct ObjectClass _CompConstant;
+
+typedef ChannelValue * (*fCompConstantGetValue)(CompConstant * compConstant, size_t idx);
+
+struct CompConstant {
+    Component _;
+
+    fCompConstantGetValue GetValue;
+
+    ChannelValue ** values;
+};
+
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

@@ -25,10 +25,6 @@
         <xs:list itemType="xs:int"/>
     </xs:simpleType>
 
-    <xs:simpleType name="BooleanVectorT">
-        <xs:list itemType="xs:boolean"/>
-    </xs:simpleType>
-
     <!-- common attributes -->
     <xs:attributeGroup name="CommonScalarPortAttributes">
         <xs:attribute name="writeResults" type="xs:boolean"/>
@@ -38,7 +34,7 @@
         <xs:attribute name="startIndex" type="xs:unsignedInt" use="required"/>
         <xs:attribute name="endIndex" type="xs:unsignedInt" use="required"/>
 
-        <xs:attribute name="writeResults" type="mse:BooleanVectorT"/>
+        <xs:attribute name="writeResults" type="xs:boolean"/>
     </xs:attributeGroup>
 
     <!-- scalar ports -->

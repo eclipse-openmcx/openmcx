@@ -20,6 +20,17 @@ extern "C" {
 #endif /* __cplusplus */
 
 
+void * mcx_copy(void * object, size_t size) {
+    void * copy = mcx_malloc(size);
+    if (!copy) {
+        return NULL;
+    }
+
+    memcpy(copy, object, size);
+
+    return copy;
+}
+
 size_t mcx_filter(void * dst, void * base, size_t nmemb, size_t size, int (*pred)(const void *, void *), void * arg) {
     size_t i;
     size_t j = 0;

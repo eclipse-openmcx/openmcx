@@ -38,8 +38,10 @@ OBJECT_CLASS(ComponentType, Object);
 /*****************************************************************************/
 /*                        ComponentTypeConstant                               */
 /*****************************************************************************/
+const char * const compConstantTypeString = "CONSTANT";
+
 static const char * ComponentTypeConstantToString(ComponentType * type) {
-    return "CONSTANT";
+    return compConstantTypeString;
 }
 
 static void ComponentTypeConstantDestructor(ComponentTypeConstant * type) {

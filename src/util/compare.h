@@ -47,6 +47,14 @@ cmp double_cmp(double a, double b);
 cmp double_cmp_eps(double a, double b, double eps);
 
 /**
+ * Returns CMP_LT, CMP_EQ or CMP_GT if a < b, a == b, a > b within eps
+ * and CMP_IN if a and b are not comparable.
+ *
+ * The comparison is done in an absolute manner.
+ */
+cmp double_cmp_eps_abs(double a, double b, double eps);
+
+/**
  * Returns if a == b within an epsilon
  */
 int double_eq(double a, double b);
@@ -70,6 +78,11 @@ int double_leq(double a, double b);
  * Returns if a => b modulo an epsilon
  */
 int double_geq(double a, double b);
+
+/**
+ * Returns if a <= b modulo eps
+ */
+int double_leq_eps_abs(double a, double b, double eps);
 
 
 #ifdef __cplusplus

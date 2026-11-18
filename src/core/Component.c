@@ -17,7 +17,6 @@
 #include "core/Model.h"
 #include "core/channels/Channel.h"
 #include "core/channels/Channel_impl.h"
-#include "core/connections/Connection_impl.h"
 #include "steptypes/StepType.h"
 #include "storage/ComponentStorage.h"
 #include "storage/ResultsStorage.h"
@@ -57,7 +56,7 @@ void ComponentLog(const Component * comp, LogSeverity sev, const char * format, 
     }
 }
 
-McxStatus ComponentRead(Component * comp, ComponentInput * input) {
+McxStatus ComponentRead(Component * comp, ComponentInput * input, const struct Config * const config) {
     InputElement * inputElement = (InputElement *)input;
     McxStatus retVal = RETURN_OK;
 
@@ -149,6 +148,7 @@ McxStatus ComponentRead(Component * comp, ComponentInput * input) {
         if (input->results->rtFactor.defined) {
             comp->data->rtData.defined = TRUE;
             comp->data->rtData.enabled = input->results->rtFactor.value;
+            comp->data->rtData.funcTimings.profilingTimesEnabled = config->profilingMode;
         }
 
         retVal = comp->data->storage->Read(comp->data->storage, input->results);
@@ -180,6 +180,7 @@ McxStatus ComponentSetup(Component * comp) {
         if (comp->data->model->task) {
             if (!comp->data->rtData.defined) {
                 comp->data->rtData.enabled = comp->data->model->task->rtFactorEnabled;
+                comp->data->rtData.funcTimings.profilingTimesEnabled = comp->data->model->config->profilingMode;
             }
 
             if (comp->data->model->task->params) {
@@ -201,87 +202,139 @@ McxStatus ComponentSetup(Component * comp) {
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Could not setup real time factor");
         return RETURN_ERROR;
-   }
+    }
+
+    return RETURN_OK;
+}
+
+static McxStatus DefineTimingChannel(Component * comp, const char * chName, const char * unit, const void * reference) {
+    McxStatus retVal = RETURN_OK;
+
+    char * id = CreateChannelID(comp->GetName(comp), chName);
+    if (!id) {
+        ComponentLog(comp, LOG_ERROR, "Could not create ID for timing port %s", chName);
+        return RETURN_ERROR;
+    }
+
+    retVal = DatabusAddRTFactorChannel(comp->data->databus, chName, id, unit, reference, &ChannelTypeDouble);
+
+    mcx_free(id);
+
+    if (retVal == RETURN_ERROR) {
+        ComponentLog(comp, LOG_ERROR, "Could not add timing port %s", chName);
+        return RETURN_ERROR;
+    }
 
     return RETURN_OK;
 }
 
 static McxStatus ComponentSetupRTFactor(Component * comp) {
-    // Add rt factor
     if (comp->data->rtData.enabled) {
-        char * id = NULL;
+        McxStatus retVal = RETURN_OK;
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Clock");
-        if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Clock");
+        // RealTime channels
+        retVal = DefineTimingChannel(comp, "RealTime Clock", GetTimeUnitString(), &comp->data->rtData.rtTotalSum_s);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Clock", id, GetTimeUnitString(), &comp->data->rtData.simTimeTotal, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Clock");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
-        mcx_free(id);
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Clock Calc");
-        if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Clock Calc");
+        retVal = DefineTimingChannel(comp, "RealTime Clock Calc", GetTimeUnitString(), &comp->data->rtData.rtCalcSum_s);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Clock Calc", id, GetTimeUnitString(), &comp->data->rtData.simTime, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Clock Calc");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
-        mcx_free(id);
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor Calc");
-        if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Factor Calc");
+        retVal = DefineTimingChannel(comp, "RealTime Factor Calc", "-", &comp->data->rtData.rtFactorCalc);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor Calc", id, "-", &comp->data->rtData.rtFactor, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Factor Calc");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
-        mcx_free(id);
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor Calc (Avg)");
-        if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Factor Calc (Avg)");
+        retVal = DefineTimingChannel(comp, "RealTime Factor Calc (Avg)", "-", &comp->data->rtData.rtFactorCalcAvg);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor Calc (Avg)", id, "-", &comp->data->rtData.rtFactorAvg, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Factor Calc (Avg)");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
-        mcx_free(id);
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor");
-        if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Factor");
+        retVal = DefineTimingChannel(comp, "RealTime Factor", "-", &comp->data->rtData.rtFactorTotal);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor", id, "-", &comp->data->rtData.totalRtFactor, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Factor");
-            mcx_free(id);
-            return RETURN_ERROR;
-        }
-        mcx_free(id);
 
-        id = CreateChannelID(comp->GetName(comp), "RealTime Factor (Avg)");
-        if (!id) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not create ID for port %s", "RealTime Clock Calc");
+        retVal = DefineTimingChannel(comp, "RealTime Factor (Avg)", "-", &comp->data->rtData.rtFactorTotalAvg);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        if (RETURN_ERROR == DatabusAddRTFactorChannel(comp->data->databus, "RealTime Factor (Avg)", id, "-", &comp->data->rtData.totalRtFactorAvg, CHANNEL_DOUBLE)) {
-            ComponentLog(comp, LOG_ERROR, "Setup real time factor: Could not add port %s", "RealTime Clock Calc");
-            mcx_free(id);
+
+        // Scheduling channels
+        retVal = DefineTimingChannel(comp, "CalcStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtCalc.startTime);
+        if (RETURN_ERROR == retVal) {
             return RETURN_ERROR;
         }
-        mcx_free(id);
+
+        retVal = DefineTimingChannel(comp, "CalcEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtCalc.endTime);
+        if (RETURN_ERROR == retVal) {
+            return RETURN_ERROR;
+        }
+
+        retVal = DefineTimingChannel(comp, "SyncStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtSync.startTime);
+        if (RETURN_ERROR == retVal) {
+            return RETURN_ERROR;
+        }
+
+        retVal = DefineTimingChannel(comp, "SyncEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtSync.endTime);
+        if (RETURN_ERROR == retVal) {
+            return RETURN_ERROR;
+        }
+
+        if (comp->data->rtData.funcTimings.profilingTimesEnabled) {
+            retVal = DefineTimingChannel(comp, "InputStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtInput.startTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "InputEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtInput.endTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "OutputStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtOutput.startTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "OutputEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtOutput.endTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "StoreStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtStore.snapshot.startTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "StoreEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtStore.snapshot.endTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "StoreInStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtStoreIn.snapshot.startTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "StoreInEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtStoreIn.snapshot.endTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "TriggerInStartWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtTriggerIn.startTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+
+            retVal = DefineTimingChannel(comp, "TriggerInEndWallClockTime", "time~mys", &comp->data->rtData.funcTimings.rtTriggerIn.endTime);
+            if (RETURN_ERROR == retVal) {
+                return RETURN_ERROR;
+            }
+        }
     }
 
     return RETURN_OK;
@@ -331,7 +384,7 @@ McxStatus ComponentRegisterStorage(Component * comp, ResultsStorage * storage) {
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *) DatabusGetInChannel(db, i);
 
-        if (channel->IsValid(channel)) {
+        if (channel->ProvidesValue(channel)) {
             retVal = compStore->RegisterChannel(compStore, CHANNEL_STORE_IN, channel);
             if (RETURN_OK != retVal) {
                 ComponentLog(comp, LOG_ERROR, "Could not register inport %d at storage", i);
@@ -386,10 +439,17 @@ static McxStatus ComponentStore(Component * comp, ChannelStoreType chType, doubl
 McxStatus ComponentInitialize(Component * comp, size_t group, double startTime) {
     comp->data->time = startTime;
 
-    comp->data->rtData.startTime = startTime;
-    mcx_time_get(&comp->data->rtData.startClock);
-    comp->data->rtData.lastDoStepClock = comp->data->rtData.startClock;
-    comp->data->rtData.lastCommDoStepClock = comp->data->rtData.startClock;
+    comp->data->rtData.simStartTime = startTime;
+
+    return RETURN_OK;
+}
+
+McxStatus ComponentBeforeDoSteps(Component * comp, void * param) {
+    FunctionTimingsSetGlobalSimStart(&comp->data->rtData.funcTimings, (McxTime *)param);
+
+    mcx_time_get(&comp->data->rtData.rtCompStart);
+    comp->data->rtData.rtLastEndCalc = comp->data->rtData.rtCompStart;
+    comp->data->rtData.rtLastCompEnd = comp->data->rtData.rtCompStart;
 
     return RETURN_OK;
 }
@@ -430,25 +490,28 @@ McxStatus ComponentUpdateOutChannels(Component * comp, TimeInterval * time) {
 
 McxStatus ComponentDoStep(Component * comp, size_t group, double time, double deltaTime, double endTime, int isNewStep) {
     McxStatus retVal = RETURN_OK;
-    McxTime start, end, diff; /* of this DoStep call */
     double startTime;
-    McxTime totalDiff, totalDiffAvg;
+    McxTime rtTotal, rtTotalSum;
 
     if (comp->data->rtData.enabled) {
         /* data for local rt factor */
         startTime = comp->GetTime(comp);
-        mcx_time_get(&start);
+        TimeSnapshotStart(&comp->data->rtData.funcTimings.rtCalc);
     }
 
     MCX_DEBUG_LOG("DoStep: %.16f -> %.16f", time, endTime);
 
     if (comp->DoStep) {
         mcx_signal_handler_set_name(comp->GetName(comp));
+        mcx_signal_handler_set_this_function();
         retVal = comp->DoStep(comp, group, time, deltaTime, endTime, isNewStep);
+        mcx_signal_handler_unset_function();
         mcx_signal_handler_unset_name();
-        if (RETURN_OK != retVal) {
-            ComponentLog(comp, LOG_DEBUG, "Component specific DoStep failed");
+        if (RETURN_ERROR == retVal) {
+            ComponentLog(comp, LOG_ERROR, "Component specific DoStep failed");
             return RETURN_ERROR;
+        } else if (RETURN_WARNING == retVal) {
+            ComponentLog(comp, LOG_DEBUG, "Component specific DoStep returned with a warning");
         }
     }
 
@@ -484,43 +547,39 @@ McxStatus ComponentDoStep(Component * comp, size_t group, double time, double de
     }
 
     if (comp->data->rtData.enabled) {
+        McxTime rtDeltaCalc;
         ComponentRTFactorData * rtData = &comp->data->rtData;
-        double timeDiff = endTime - rtData->startTime;
+        double simCalcSum = endTime - rtData->simStartTime;
 
-        /* wall time of this DoStep */
-        mcx_time_get(&end);
+        TimeSnapshotEnd(&rtData->funcTimings.rtCalc);
+        mcx_time_diff(&rtData->funcTimings.rtCalc.start, &rtData->funcTimings.rtCalc.end, &rtDeltaCalc); // data for local rt factor
 
-        /* data for local rt factor */
-        mcx_time_diff(&start, &end, &diff);
+        mcx_time_diff(&rtData->rtLastCompEnd, &rtData->funcTimings.rtCalc.end, &rtTotal);  // data for total rt factor and avg rt factor
+        mcx_time_diff(&rtData->rtCompStart, &rtData->funcTimings.rtCalc.end, &rtTotalSum);
 
-        /* data for total rt factor and avg rt factor */
-        mcx_time_diff(&rtData->lastCommDoStepClock, &end, &totalDiff);
-        mcx_time_diff(&rtData->startClock, &end, &totalDiffAvg);
+        rtData->rtLastEndCalc = rtData->funcTimings.rtCalc.end; // udpate wall clock for next dostep
 
-        /* udpate wall clock for next dostep */
-        rtData->lastDoStepClock = end;
-
-        /* ticks of all DoSteps of this component since start */
-        mcx_time_add(&rtData->simClock, &diff, &rtData->simClock);
-
-        /* ticks of all DoSteps of this component for the current communication step */
-        mcx_time_add(&rtData->stepClock, &diff, &rtData->stepClock);
+        mcx_time_add(&rtData->rtCalcSum, &rtDeltaCalc, &rtData->rtCalcSum); // ticks of all DoSteps of this component since start
+        mcx_time_add(&rtData->rtCommStepTime, &rtDeltaCalc, &rtData->rtCommStepTime); // ticks of all DoSteps of this component for the current communication step
 
         /* time of all DoSteps of this component since start/for the current communication step */
-        rtData->simTime = mcx_time_to_seconds(&rtData->simClock);
-        rtData->simTimeTotal = mcx_time_to_seconds(&totalDiffAvg);
-        rtData->stepTime = mcx_time_to_seconds(&rtData->stepClock);
+        rtData->rtCalcSum_s = mcx_time_to_seconds(&rtData->rtCalcSum);
+        rtData->rtTotalSum_s = mcx_time_to_seconds(&rtTotalSum);
 
-        /* simulation time of the current communication time step */
-        rtData->commTime += comp->GetTime(comp) - startTime;
+        rtData->rtCommStepTime_s = mcx_time_to_seconds(&rtData->rtCommStepTime);
 
-        /* local (only this component) rt factor */
-        rtData->rtFactor = rtData->stepTime / rtData->commTime;
-        rtData->rtFactorAvg = rtData->simTime / timeDiff;
+        rtData->simCommStepTime += comp->GetTime(comp) - startTime; // simulation time of the current communication time step
 
-        /* total (all components + framework) rt factor */
-        rtData->totalRtFactor = mcx_time_to_seconds(&totalDiff) / rtData->commTime;
-        rtData->totalRtFactorAvg = mcx_time_to_seconds(&totalDiffAvg) / timeDiff;
+        rtData->rtFactorCalc = rtData->rtCommStepTime_s / rtData->simCommStepTime;
+        rtData->rtFactorCalcAvg = rtData->rtCalcSum_s / simCalcSum;
+
+        // Total = (all components + framework) rt factor
+        // Sum  = from simulation begin
+
+        rtData->rtFactorTotal = mcx_time_to_seconds(&rtTotal) / rtData->simCommStepTime;
+        rtData->rtFactorTotalAvg = rtData->rtTotalSum_s / simCalcSum;
+
+        FunctionTimingsCalculateTimeDiffs(&rtData->funcTimings);
     }
 
     return RETURN_OK;
@@ -558,13 +617,80 @@ static size_t ComponentGetNumWriteRTFactorChannels(const Component * comp) {
     return DatabusInfoGetNumWriteChannels(DatabusGetRTFactorInfo(comp->data->databus));
 }
 
+static size_t ComponentGetNumObservableChannels(const Component * comp) {
+    size_t num = 0;
+
+    num += DatabusGetOutChannelsNum(comp->data->databus);
+    num += DatabusGetInChannelsNum(comp->data->databus);
+    num += DatabusGetLocalChannelsNum(comp->data->databus);
+    num += DatabusGetRTFactorChannelsNum(comp->data->databus);
+
+    return num;
+}
+
+static McxStatus AddObservableChannels(const Component * comp, StringContainer * container, size_t * count) {
+    size_t numOut = comp->GetNumOutChannels(comp);
+    size_t numIn = comp->GetNumInChannels(comp);
+    size_t numLocal = comp->GetNumLocalChannels(comp);
+    size_t numRTFactor = comp->GetNumRTFactorChannels(comp);
+
+    size_t i = 0;
+    Databus * db = comp->GetDatabus(comp);
+
+    for (i = 0; i < numOut; i++) {
+        Channel * channel = (Channel *) DatabusGetOutChannel(db, i);
+        char * id = channel->info.id;
+
+        if (NULL != id) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    for (i = 0; i < numIn; i++) {
+        Channel * channel = (Channel *) DatabusGetInChannel(db, i);
+        char * id = channel->info.id;
+        int isValid = channel->IsConnected(channel) || channel->info.defaultValue;
+
+        if (NULL != id && isValid) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    for (i = 0; i < numLocal; i++) {
+        Channel * channel = (Channel *) DatabusGetLocalChannel(db, i);
+        char * id = channel->info.id;
+        int isValid = channel->ProvidesValue(channel);
+
+        if (NULL != id && isValid) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    for (i = 0; i < numRTFactor; i++) {
+        Channel * channel = (Channel *) DatabusGetRTFactorChannel(db, i);
+        char * id = channel->info.id;
+        int isValid = channel->ProvidesValue(channel);
+
+        if (NULL != id && isValid) {
+            StringContainerSetKeyValue(container, *count, id, channel);
+            (*count)++;
+        }
+    }
+
+    return RETURN_OK;
+}
+
+
 static size_t ComponentGetNumConnectedOutChannels(const Component * comp) {
     size_t count = 0;
     size_t i = 0;
 
     for (i = 0; (int) i < DatabusInfoGetChannelNum(DatabusGetOutInfo(comp->data->databus)); i++) {
         Channel * channel = (Channel *) DatabusGetOutChannel(comp->data->databus, i);
-        if (channel->IsValid(channel)) {
+        if (channel->IsConnected(channel)) {
             count++;
         }
     }
@@ -670,32 +796,38 @@ struct Dependencies * ComponentGetInOutGroupsNoDependency(const Component * comp
 
 McxStatus ComponentEnterCommunicationPoint(Component * comp, TimeInterval * time) {
     McxStatus retVal = RETURN_OK;
+    ComponentRTFactorData * rtData = &comp->data->rtData;
 
-    mcx_time_init(&comp->data->rtData.stepClock);
-    comp->data->rtData.commTime = 0;
-    comp->data->rtData.lastCommDoStepClock = comp->data->rtData.lastDoStepClock;
+    mcx_time_init(&rtData->rtCommStepTime);
+    rtData->simCommStepTime = 0;
+    rtData->rtLastCompEnd = rtData->rtLastEndCalc;
+
+    TimeSnapshotStart(&rtData->funcTimings.rtSync);
     retVal = DatabusEnterCommunicationMode(comp->data->databus, time->startTime);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Cannot enter communication mode at time %.17g s", time->startTime);
         return RETURN_ERROR;
     }
-    ComponentUpdateOutChannels(comp, time);
+    TimeSnapshotEnd(&rtData->funcTimings.rtSync);
 
     return RETURN_OK;
 }
 
-McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectContainer * connections, TimeInterval * time) {
+McxStatus ComponentEnterCommunicationPointForConnections(Component * comp, ObjectList * connections, TimeInterval * time) {
     McxStatus retVal = RETURN_OK;
+    ComponentRTFactorData * rtData = &comp->data->rtData;
 
-    mcx_time_init(&comp->data->rtData.stepClock);
-    comp->data->rtData.commTime = 0;
-    comp->data->rtData.lastCommDoStepClock = comp->data->rtData.lastDoStepClock;
+    mcx_time_init(&rtData->rtCommStepTime);
+    rtData->simCommStepTime = 0;
+    rtData->rtLastCompEnd = rtData->rtLastEndCalc;
+
+    TimeSnapshotStart(&rtData->funcTimings.rtSync);
     retVal = DatabusEnterCommunicationModeForConnections(comp->data->databus, connections, time->startTime);
     if (RETURN_OK != retVal) {
         ComponentLog(comp, LOG_ERROR, "Cannot enter communication mode for connections at time %.17g s", time->startTime);
         return RETURN_ERROR;
     }
-    ComponentUpdateOutChannels(comp, time);
+    TimeSnapshotEnd(&rtData->funcTimings.rtSync);
 
     return RETURN_OK;
 }
@@ -708,22 +840,22 @@ static void ComponentSetModel(Component * comp, Model * model) {
     comp->data->model = model;
 }
 
-ConnectionInfo * GetInConnectionInfo(const Component * comp, size_t channelID) {
+Vector * GetInConnectionInfos(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
 
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
-        return in->GetConnectionInfo(in);
+        return in->GetConnectionInfos(in);
     }
 
     return NULL;
 }
 
-Connection * GetInConnection(const Component * comp, size_t channelID) {
+ConnectionList * GetInConnections(const Component * comp, size_t channelID) {
     size_t channelNum = DatabusInfoGetChannelNum(DatabusGetInInfo(comp->data->databus));
     if (channelID < channelNum) {
         ChannelIn * in = DatabusGetInChannel(comp->data->databus, channelID);
-        return in->GetConnection(in);
+        return in->GetConnections(in);
     }
 
     return NULL;
@@ -826,13 +958,13 @@ static int ComponentGetSequenceNumber(const Component * comp) {
     return comp->data->triggerSequence;
 }
 
-static ObjectContainer * ComponentGetConnections(Component * fromComp, Component * toComp) {
+static ObjectList * ComponentGetConnections(Component * fromComp, Component * toComp) {
     size_t i = 0;
     size_t j = 0;
     McxStatus retVal = RETURN_OK;
 
     struct Databus * db = fromComp->GetDatabus(fromComp);
-    ObjectContainer * connections = (ObjectContainer *) object_create(ObjectContainer);
+    ObjectList * connections = (ObjectList *) object_create(ObjectList);
 
     if (!connections) {
         return NULL;
@@ -840,13 +972,13 @@ static ObjectContainer * ComponentGetConnections(Component * fromComp, Component
 
     for (i = 0; i < DatabusGetOutChannelsNum(db); i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < conns->Size(conns); j++) {
-            Connection * conn = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * conn = conns->connections[j];
             ConnectionInfo * info = conn->GetInfo(conn);
 
-            if (info->GetTargetComponent(info) == toComp) {
+            if (info->targetComponent == toComp) {
                 retVal = connections->PushBack(connections, (Object *) conn);
                 if (RETURN_OK != retVal) {
                     ComponentLog(fromComp, LOG_ERROR, "Could not collect connections");
@@ -881,10 +1013,10 @@ McxStatus ComponentOutConnectionsEnterInitMode(Component * comp) {
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < conns->Size(conns); j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
             retVal = connection->EnterInitializationMode(connection);
             if (RETURN_OK != retVal) { // error message in calling function
                 return RETURN_ERROR;
@@ -901,10 +1033,10 @@ McxStatus ComponentDoOutConnectionsInitialization(Component * comp, int onlyIfDe
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < conns->Size(conns); j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
 
             if (!onlyIfDecoupled || connection->IsDecoupled(connection)) {
                 McxStatus retVal = connection->UpdateInitialValue(connection);
@@ -928,10 +1060,10 @@ McxStatus ComponentOutConnectionsExitInitMode(Component * comp, double time) {
 
     for (i = 0; i < numOutChannels; i++) {
         ChannelOut * out = DatabusGetOutChannel(db, i);
-        ObjectContainer * conns = out->GetConnections(out);
+        ConnectionList * conns = out->GetConnections(out);
 
-        for (j = 0; j < conns->Size(conns); j++) {
-            Connection * connection = (Connection *) conns->At(conns, j);
+        for (j = 0; j < conns->numConnections; j++) {
+            Connection * connection = conns->connections[j];
             retVal = connection->ExitInitializationMode(connection, time);
             if (RETURN_OK != retVal) { // error message in calling function
                 return RETURN_ERROR;
@@ -1015,7 +1147,7 @@ Component * CreateComponentFromComponentInput(ComponentFactory * factory,
     }
 
     // General Data
-    retVal = ComponentRead(comp, componentInput);
+    retVal = ComponentRead(comp, componentInput, config);
     if (RETURN_OK != retVal) {
         mcx_log(LOG_ERROR, "Model: Could not create element data");
         object_destroy(comp);
@@ -1073,6 +1205,7 @@ static Component * ComponentCreate(Component * comp) {
     comp->Store = ComponentStore;
 
     comp->DoStep = NULL;
+    comp->PostDoStep = NULL;
     comp->Finish = NULL;
 
     comp->GetNumInChannels = ComponentGetNumInChannels;
@@ -1105,6 +1238,8 @@ static Component * ComponentCreate(Component * comp) {
     comp->UpdateTime = ComponentUpdateTime;
 
     comp->SetModel = ComponentSetModel;
+
+    comp->ContainsComponent = NULL;
 
     comp->GetDatabus = ComponentGetDatabus;
     comp->GetName    = ComponentGetName;
@@ -1153,7 +1288,117 @@ static Component * ComponentCreate(Component * comp) {
 
     comp->data->typeString = NULL;
 
+    StepTypeSynchronizationInit(&comp->syncHints);
+
+    comp->GetNumObservableChannels = ComponentGetNumObservableChannels;
+    comp->AddObservableChannels = AddObservableChannels;
+
+    comp->OnConnectionsDone = NULL;
+
     return comp;
+}
+
+void TimeSnapshotStart(TimeSnapshot * snapshot) {
+    if (!snapshot->enabled) {
+        return;
+    }
+
+    mcx_time_get(&snapshot->start);
+}
+
+void TimeSnapshotEnd(TimeSnapshot * snapshot) {
+    if (!snapshot->enabled) {
+        return;
+    }
+
+    mcx_time_get(&snapshot->end);
+}
+
+static void TimeSnapshotDiffToMicroSeconds(TimeSnapshot * snapshot, McxTime * startTimePoint) {
+    McxTime start;
+    McxTime end;
+
+    mcx_time_diff(startTimePoint, &snapshot->start, &start);
+    mcx_time_diff(startTimePoint, &snapshot->end, &end);
+
+    snapshot->startTime = mcx_time_to_micro_s(&start);
+    snapshot->endTime = mcx_time_to_micro_s(&end);
+
+    snapshot->startTime = snapshot->startTime < 0.0 ? 0.0 : snapshot->startTime;
+    snapshot->endTime = snapshot->endTime < 0.0 ? 0.0 : snapshot->endTime;
+}
+
+static void TimeSnapshotInit(TimeSnapshot * snapshot) {
+    snapshot->enabled = FALSE;
+
+    mcx_time_init(&snapshot->start);
+    mcx_time_init(&snapshot->end);
+
+    snapshot->startTime = 0.0;
+    snapshot->endTime = 0.0;
+}
+
+static void DelayedTimeSnapshotInit(DelayedTimeSnapshot * snapshot) {
+    TimeSnapshotInit(&snapshot->snapshot);
+
+    snapshot->startTimePre = 0.0;
+    snapshot->endTimePre = 0.0;
+}
+
+static void DelayedTimeSnapshotDiffToMicroSeconds(DelayedTimeSnapshot * snapshot, McxTime * startTimePoint) {
+    McxTime start;
+    McxTime end;
+
+    snapshot->snapshot.startTime = snapshot->startTimePre;
+    snapshot->snapshot.endTime = snapshot->endTimePre;;
+
+    mcx_time_diff(startTimePoint, &snapshot->snapshot.start, &start);
+    mcx_time_diff(startTimePoint, &snapshot->snapshot.end, &end);
+
+    snapshot->startTimePre = mcx_time_to_micro_s(&start);
+    snapshot->endTimePre = mcx_time_to_micro_s(&end);
+}
+
+void FunctionTimingsCalculateTimeDiffs(FunctionTimings * timings) {
+    TimeSnapshotDiffToMicroSeconds(&timings->rtCalc, &timings->rtGlobalSimStart);
+    TimeSnapshotDiffToMicroSeconds(&timings->rtSync, &timings->rtGlobalSimStart);
+
+    TimeSnapshotDiffToMicroSeconds(&timings->rtInput, &timings->rtGlobalSimStart);
+    TimeSnapshotDiffToMicroSeconds(&timings->rtOutput, &timings->rtGlobalSimStart);
+    TimeSnapshotDiffToMicroSeconds(&timings->rtTriggerIn, &timings->rtGlobalSimStart);
+
+    DelayedTimeSnapshotDiffToMicroSeconds(&timings->rtStore, &timings->rtGlobalSimStart);
+    DelayedTimeSnapshotDiffToMicroSeconds(&timings->rtStoreIn, &timings->rtGlobalSimStart);
+}
+
+void FunctionTimingsSetGlobalSimStart(FunctionTimings * timings, McxTime * simStart) {
+    timings->rtGlobalSimStart = *simStart;
+
+    timings->rtCalc.enabled = TRUE;
+    timings->rtSync.enabled = TRUE;
+
+    timings->rtInput.enabled = TRUE;
+    timings->rtOutput.enabled = TRUE;
+    timings->rtTriggerIn.enabled = TRUE;
+
+    timings->rtStore.snapshot.enabled = TRUE;
+    timings->rtStoreIn.snapshot.enabled = TRUE;
+}
+
+static void FunctionTimingsInit(FunctionTimings * timings) {
+    mcx_time_init(&timings->rtGlobalSimStart);
+
+    timings->profilingTimesEnabled = FALSE;
+
+    TimeSnapshotInit(&timings->rtCalc);
+    TimeSnapshotInit(&timings->rtSync);
+
+    TimeSnapshotInit(&timings->rtInput);
+    TimeSnapshotInit(&timings->rtOutput);
+    TimeSnapshotInit(&timings->rtTriggerIn);
+
+    DelayedTimeSnapshotInit(&timings->rtStore);
+    DelayedTimeSnapshotInit(&timings->rtStoreIn);
 }
 
 static void ComponentDataDestructor(ComponentData * data) {
@@ -1200,24 +1445,28 @@ static ComponentData * ComponentDataCreate(ComponentData * data) {
     rtData->defined = FALSE;
     rtData->enabled = FALSE;
 
-    mcx_time_init(&rtData->simClock);
-    mcx_time_init(&rtData->stepClock);
+    mcx_time_init(&rtData->rtCalcSum);
+    mcx_time_init(&rtData->rtCommStepTime);
 
-    rtData->simTime = 0.;
-    rtData->simTimeTotal = 0.;
-    rtData->stepTime = 0.;
-    rtData->startTime = 0.;
-    rtData->commTime = 0.;
+    rtData->rtCalcSum_s = 0.;
+    rtData->rtTotalSum_s = 0.;
 
-    rtData->rtFactor = 0.;
-    rtData->rtFactorAvg = 0.;
+    rtData->rtCommStepTime_s = 0.;
 
-    mcx_time_init(&rtData->startClock);
-    mcx_time_init(&rtData->lastDoStepClock);
-    mcx_time_init(&rtData->lastCommDoStepClock);
+    rtData->simStartTime = 0.;
+    rtData->simCommStepTime = 0.;
 
-    rtData->totalRtFactor = 0.;
-    rtData->totalRtFactorAvg = 0.;
+    rtData->rtFactorCalc = 0.;
+    rtData->rtFactorCalcAvg = 0.;
+
+    mcx_time_init(&rtData->rtCompStart);
+    mcx_time_init(&rtData->rtLastEndCalc);
+    mcx_time_init(&rtData->rtLastCompEnd);
+
+    FunctionTimingsInit(&rtData->funcTimings);
+
+    rtData->rtFactorTotal = 0.;
+    rtData->rtFactorTotalAvg = 0.;
 
     data->hasOwnInputEvaluationTime = FALSE;
     data->useInputsAtCouplingStepEndTime = FALSE;

@@ -14,6 +14,7 @@
 #include "steptypes/StepType.h"
 #include "tarjan.h"
 #include "components/ComponentFactory.h"
+#include "components/comp_constant.h"
 #include "reader/model/ModelInput.h"
 #include "reader/model/components/ComponentsInput.h"
 #include "reader/model/components/ComponentInput.h"
@@ -23,8 +24,9 @@
 
 #include "core/Databus.h"
 #include "core/channels/Channel.h"
+#include "core/channels/ChannelValueReference.h"
+#include "core/channels/ChannelInfo.h"
 #include "core/connections/Connection.h"
-#include "core/connections/ConnectionInfo_impl.h"
 #include "core/connections/FilteredConnection.h"
 #include "core/SubModel.h"
 
@@ -42,43 +44,44 @@ extern "C" {
 
 
 static ChannelInfo * GetTargetChannelInfo(ConnectionInfo * info) {
-    Component * trg = info->GetTargetComponent(info);
+    Component * trg = info->targetComponent;
     struct Databus * trgDb = trg->GetDatabus(trg);
-    int trgId = info->GetTargetChannelID(info);
+    int trgId = info->targetChannel;
 
     return DatabusGetInChannelInfo(trgDb, trgId);
 }
 
 static ChannelInfo * GetSourceChannelInfo(ConnectionInfo * info) {
-    Component * src = info->GetSourceComponent(info);
+    Component * src = info->sourceComponent;
     struct Databus * srcDb = src->GetDatabus(src);
-    int srcId = info->GetSourceChannelID(info);
+    int srcId = info->sourceChannel;
 
     return DatabusGetOutChannelInfo(srcDb, srcId);
 }
 
-static int ConnInfoWithSrc(Object * obj, void * ctx) {
+static int ConnInfoWithSrc(void * elem, void * arg) {
     /*
      * TRUE if obj (ConnectionInfo) has ctx as its source ChannelInfo
      */
-    ConnectionInfo * info = (ConnectionInfo *)obj;
+    ChannelInfo * chInfo = (ChannelInfo *) arg;
+    ConnectionInfo * info = *((ConnectionInfo **) elem);
     ChannelInfo * srcInfo = GetSourceChannelInfo(info);
 
-    return srcInfo == (ChannelInfo *)ctx;
+    return srcInfo == chInfo;
 }
 
-static int IsBinaryConn(Object * obj) {
+static int IsBinaryConn(void * elem, void * args) {
     /*
      * TRUE if both source and target channel infos of obj (ConnectionInfo) are binary
      */
-    ConnectionInfo * info = (ConnectionInfo *)obj;
+    ConnectionInfo * info = (ConnectionInfo *) elem;
     ChannelInfo * srcInfo = GetSourceChannelInfo(info);
     ChannelInfo * trgInfo = GetTargetChannelInfo(info);
 
-    return srcInfo->IsBinary(srcInfo) && trgInfo->IsBinary(trgInfo);
+    return ChannelInfoIsBinary(srcInfo) && ChannelInfoIsBinary(trgInfo);
 }
 
-static int CanMakeChannelsBinReferences(ObjectContainer * connInfos, Task * task) {
+static int CanMakeChannelsBinReferences(Vector * connInfos, Task * task) {
     /*
      * Checks whether all binary connections in connInfos satisfy the condition
      * to use CHANNEL_BINARY_REFERENCE instead of CHANNEL_BINARY.
@@ -93,10 +96,10 @@ static int CanMakeChannelsBinReferences(ObjectContainer * connInfos, Task * task
     size_t num = connInfos->Size(connInfos);
 
     for (i = 0; i < num; i++) {
-        ConnectionInfo * info = (ConnectionInfo *)connInfos->At(connInfos, i);
+        ConnectionInfo * info = *(ConnectionInfo **)connInfos->At(connInfos, i);
 
-        Component * trg = info->GetTargetComponent(info);
-        Component * src = info->GetSourceComponent(info);
+        Component * trg = info->targetComponent;
+        Component * src = info->sourceComponent;
 
         ChannelInfo * trgInfo = GetTargetChannelInfo(info);
         ChannelInfo * srcInfo = GetSourceChannelInfo(info);
@@ -114,7 +117,7 @@ static int CanMakeChannelsBinReferences(ObjectContainer * connInfos, Task * task
     return TRUE;
 }
 
-static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
+static void UpdateBinaryChannelTypes(Vector * connInfos, Task * task) {
     /*
      * Updates the channel types of binary connections in connInfos according to the
      * result of `CanMakeChannelsBinReferences` (see function for more info)
@@ -124,35 +127,185 @@ static void UpdateBinaryChannelTypes(ObjectContainer * connInfos, Task * task) {
     int canMakeReference = CanMakeChannelsBinReferences(connInfos, task);
 
     for (i = 0; i < connInfos->Size(connInfos); i++) {
-        ConnectionInfo * info = (ConnectionInfo *)connInfos->At(connInfos, i);
+        ConnectionInfo * info = *(ConnectionInfo **)connInfos->At(connInfos, i);
 
         ChannelInfo * srcInfo = GetSourceChannelInfo(info);
         ChannelInfo * trgInfo = GetTargetChannelInfo(info);
 
         if (canMakeReference) {
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "Fast binary channel requirements fulfilled for connection %s", buffer);
             mcx_free(buffer);
 
-            trgInfo->type = CHANNEL_BINARY_REFERENCE;
-            srcInfo->type = CHANNEL_BINARY_REFERENCE;
+            trgInfo->type = &ChannelTypeBinaryReference;
+            srcInfo->type = &ChannelTypeBinaryReference;
         } else {
-            char * buffer = info->ConnectionString(info);
+            char * buffer = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "Using binary channels for connection %s", buffer);
             mcx_free(buffer);
 
-            trgInfo->type = CHANNEL_BINARY;
-            srcInfo->type = CHANNEL_BINARY;
+            trgInfo->type = &ChannelTypeBinary;
+            srcInfo->type = &ChannelTypeBinary;
         }
     }
 }
 
+/**
+ * Remove connections to Constant elements from the model
+ * For each such connection, the value of the Constant shall be taken
+ * and set as the default value of the corresponding input.
+ * Necessary value/type conversions are done as well.
+ */
+static McxStatus ModelPreprocessConstConnections(Model * model) {
+    Vector * conns = model->connections;
+    Vector * filteredConns = NULL;
+
+    size_t i = 0;
+    McxStatus retVal = RETURN_OK;
+
+    filteredConns = (Vector*)object_create(Vector);
+    if (!filteredConns) {
+        mcx_log(LOG_ERROR, "Not enough memory to filter out constant connections");
+        return RETURN_ERROR;
+    }
+    filteredConns->Setup(filteredConns, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
+
+    for (i = 0; i < conns->Size(conns); i++) {
+        ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
+        ChannelValue * src = NULL;
+
+        Component * srcComp = info->sourceComponent;
+        CompConstant * srcCompConst = NULL;
+        Databus * srcDb = srcComp->GetDatabus(srcComp);
+        ChannelInfo * srcChannelInfo = DatabusGetOutChannelInfo(srcDb, info->sourceChannel);
+        ChannelDimension * srcDim = NULL;
+
+        Component * trgComp = info->targetComponent;
+        Databus * trgDb = trgComp->GetDatabus(trgComp);
+        ChannelInfo * trgChannelInfo = DatabusGetInChannelInfo(trgDb, info->targetChannel);
+        ChannelDimension * trgDim = NULL;
+
+        // if not a const conn, add to the filtered conns
+        if (0 != strcmp(compConstantTypeString, srcComp->GetType(srcComp))) {
+            filteredConns->PushBack(filteredConns, info);
+            continue;
+        }
+
+        if (!ChannelDimensionEq(trgChannelInfo->dimension, info->targetDimension)) {
+            filteredConns->PushBack(filteredConns, info);
+            continue;
+        }
+
+        // else kick the connection and update the channel default value
+        srcCompConst = (CompConstant *) srcComp;
+        src = (ChannelValue *) mcx_calloc(1, sizeof(ChannelValue));
+
+        if (!src) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Not enough memory");
+            goto cleanup_1;
+        }
+
+        ChannelValueInit(src, ChannelTypeClone(srcChannelInfo->type));
+        retVal = ChannelValueSet(src, srcCompConst->GetValue(srcCompConst, info->sourceChannel));
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        if (!trgChannelInfo->defaultValue) {
+            trgChannelInfo->defaultValue = (ChannelValue *) mcx_calloc(1, sizeof(ChannelValue));
+            ChannelValueInit(trgChannelInfo->defaultValue, ChannelTypeClone(trgChannelInfo->type));
+        }
+
+        // prepare slice dimensions
+        srcDim = CloneChannelDimension(info->sourceDimension);
+        if (info->sourceDimension && !srcDim) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension slice allocation failed");
+            goto cleanup_1;
+        }
+
+        retVal = ChannelDimensionAlignIndicesWithZero(srcDim, srcChannelInfo->dimension);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Source dimension normalization failed");
+            goto cleanup_1;
+        }
+
+        trgDim = CloneChannelDimension(info->targetDimension);
+        if (info->targetDimension && !trgDim) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension slice allocation failed");
+            goto cleanup_1;
+        }
+
+        retVal = ChannelDimensionAlignIndicesWithZero(trgDim, trgChannelInfo->dimension);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "ModelPreprocessConstConnections: Target dimension normalization failed");
+            goto cleanup_1;
+        }
+
+        // out channel range and linear conversions
+        retVal = ConvertRange(srcChannelInfo->min, srcChannelInfo->max, src, srcDim);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        retVal = ConvertLinear(srcChannelInfo->scale, srcChannelInfo->offset, src, srcDim);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        // type conversion
+        retVal = ConvertType(trgChannelInfo->defaultValue, trgDim, src, srcDim);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        // unit conversion
+        retVal = ConvertUnit(srcChannelInfo->unitString, trgChannelInfo->unitString, trgChannelInfo->defaultValue, trgDim);
+        if (retVal == RETURN_ERROR) {
+            goto cleanup_1;
+        }
+
+        object_destroy(srcDim);
+        object_destroy(trgDim);
+
+        continue;
+
+cleanup_1:
+        if (src) {
+            ChannelValueDestructor(src);
+            mcx_free(src);
+        }
+
+        object_destroy(srcDim);
+        object_destroy(trgDim);
+
+        retVal = RETURN_ERROR;
+        goto cleanup;
+    }
+
+cleanup:
+    if (retVal == RETURN_ERROR) {
+        object_destroy(filteredConns);
+
+        return RETURN_ERROR;
+    }
+
+    object_destroy(conns);
+    model->connections = filteredConns;
+
+    return RETURN_OK;
+}
+
+static int ConnInfoContained(void * elem, void * arg) {
+    ConnectionInfo * info = *(ConnectionInfo **) elem;
+    return info == (ConnectionInfo *) arg;
+}
+
 static McxStatus ModelPreprocessBinaryConnections(Model * model) {
-    ObjectContainer * conns = model->connections;
+    Vector * conns = model->connections;
     size_t connsSize = conns->Size(conns);
 
-    ObjectContainer * binConnInfos = NULL;
-    ObjectContainer * processedConnInfos = NULL;
+    Vector * binConnInfos = NULL;
+    Vector * processedConnInfos = NULL;
 
     size_t i = 0;
 
@@ -164,30 +317,32 @@ static McxStatus ModelPreprocessBinaryConnections(Model * model) {
         return RETURN_OK;
     }
 
-    // filter all binary connection
-    binConnInfos = conns->Filter(conns, IsBinaryConn);
+    binConnInfos = conns->FilterRef(conns, IsBinaryConn, NULL);
     if (!binConnInfos) {
         mcx_log(LOG_ERROR, "Not enough memory for binary connections");
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
-    processedConnInfos = (ObjectContainer *)object_create(ObjectContainer);
+    processedConnInfos = (Vector*)object_create(Vector);
     if (!processedConnInfos) {
         mcx_log(LOG_ERROR, "Not enough memory for processed binary connections");
         retVal = RETURN_ERROR;
         goto cleanup;
     }
 
-    for (i = 0; i < binConnInfos->Size(binConnInfos); i++) {
-        ConnectionInfo * info = (ConnectionInfo *)binConnInfos->At(binConnInfos, i);
+    processedConnInfos->Setup(processedConnInfos, sizeof(ConnectionInfo*), NULL, NULL, NULL);
 
-        if (processedConnInfos->Contains(processedConnInfos, (Object *)info)) {
+    for (i = 0; i < binConnInfos->Size(binConnInfos); i++) {
+        ConnectionInfo * info = *(ConnectionInfo **)binConnInfos->At(binConnInfos, i);
+        ChannelInfo * srcInfo = GetSourceChannelInfo(info);
+        Vector* connInfos = NULL;
+
+        if (processedConnInfos->FindIdx(processedConnInfos, ConnInfoContained, info) != SIZE_T_ERROR) {
             continue;
         }
 
-        ChannelInfo * srcInfo = GetSourceChannelInfo(info);
-        ObjectContainer * connInfos = binConnInfos->FilterCtx(binConnInfos, ConnInfoWithSrc, srcInfo);
+        connInfos = binConnInfos->Filter(binConnInfos, ConnInfoWithSrc, srcInfo);
         if (!connInfos) {
             mcx_log(LOG_ERROR, "Not enough memory for filtered binary connections");
             retVal = RETURN_ERROR;
@@ -213,7 +368,7 @@ cleanup:
 }
 
 static int ComponentIsBoundaryCondition(const Component * comp) {
-    if (0 == strcmp("CONSTANT", comp->GetType(comp))
+    if (0 == strcmp(compConstantTypeString, comp->GetType(comp))
         )
     {
         return TRUE;
@@ -221,18 +376,18 @@ static int ComponentIsBoundaryCondition(const Component * comp) {
     return FALSE;
 }
 
-static ObjectContainer * GetAllSourceConnInfos(Model * model, Component * comp) {
-    ObjectContainer * conns = model->connections;
-    ObjectContainer * comps = model->components;
+static Vector * GetAllSourceConnInfoRefs(Model * model, Component * comp) {
+    Vector * conns = model->connections;
     size_t numConnections = conns->Size(conns);
-    ObjectContainer * sources = (ObjectContainer *) object_create(ObjectContainer);
+    Vector * sources = (Vector*) object_create(Vector);
     size_t i = 0;
 
+    sources->Setup(sources, sizeof(ConnectionInfo*), NULL, NULL, NULL);
     for (i = 0; i < numConnections; i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
-        Component * target = info->GetTargetComponent(info);
+        Component * target = info->targetComponent;
         if (target == comp) {
-            sources->PushBack(sources, (Object *) info);
+            sources->PushBack(sources, &info);
         }
     }
 
@@ -240,17 +395,16 @@ static ObjectContainer * GetAllSourceConnInfos(Model * model, Component * comp) 
 }
 
 static ObjectContainer * GetAllSourceElements(Model * model, Component * comp) {
-    ObjectContainer * conns = model->connections;
-    ObjectContainer * comps = model->components;
+    Vector * conns = model->connections;
     size_t numConnections = conns->Size(conns);
     ObjectContainer * sources = (ObjectContainer *) object_create(ObjectContainer);
     size_t i = 0;
 
     for (i = 0; i < numConnections; i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
-        Component * target = info->GetTargetComponent(info);
+        Component * target = info->targetComponent;
         if (target == comp) {
-            Component * source = info->GetSourceComponent(info);
+            Component * source = info->sourceComponent;
             if (!sources->Contains(sources, (Object *) source)) {
                 sources->PushBack(sources, (Object *) source);
             }
@@ -262,6 +416,12 @@ static ObjectContainer * GetAllSourceElements(Model * model, Component * comp) {
 
 static McxStatus ModelPreprocess(Model * model) {
     McxStatus retVal = RETURN_OK;
+
+    retVal = ModelPreprocessConstConnections(model);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Preprocessing const connections failed");
+        return RETURN_ERROR;
+    }
 
     retVal = ModelPreprocessBinaryConnections(model);
     if (RETURN_ERROR == retVal) {
@@ -287,13 +447,13 @@ static McxStatus ModelInsertAllFilters(Model * model) {
 
         for (j = 0; j < numOutChannels; j++) {
             ChannelOut * out = DatabusGetOutChannel(db, j);
-            ObjectContainer * conns = out->GetConnections(out);
+            ConnectionList * conns = out->GetConnections(out);
 
-            for (k = 0; k < conns->Size(conns); k++) {
-                Connection * connection = (Connection *) conns->At(conns, k);
+            for (k = 0; k < conns->numConnections; k++) {
+                Connection * connection = conns->connections[k];
                 ConnectionInfo * info = connection->GetInfo(connection);
                     if (connection->AddFilter) {
-                        char * connStr = info->ConnectionString(info);
+                        char * connStr = ConnectionInfoConnectionString(info);
                         mcx_log(LOG_DEBUG, "  Adding filter to connection: %s", connStr);
                         if (connStr) {
                             mcx_free(connStr);
@@ -355,6 +515,65 @@ cleanup:
     return retVal;
 }
 
+McxStatus ModelInitInConnectedList(ObjectContainer * comps) {
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * comp = (Component *)comps->At(comps, i);
+        McxStatus retVal = DatabusUpdateInConnected(comp->GetDatabus(comp));
+        if (RETURN_ERROR == retVal) {
+            ComponentLog(comp, LOG_ERROR, "Could not initialize the In-Connection list");
+            return RETURN_ERROR;
+        }
+    }
+    return RETURN_OK;
+}
+
+static McxStatus ModelSignalConnectionsDone(ObjectContainer * comps) {
+    size_t i = 0;
+
+    for (i = 0; i < comps->Size(comps); i++) {
+        Component * comp = (Component *)comps->At(comps, i);
+        if (NULL != comp->OnConnectionsDone) {
+            if (RETURN_ERROR == comp->OnConnectionsDone(comp)) {
+                ComponentLog(comp, LOG_ERROR, "OnConnectionsDone callback failed");
+                return RETURN_ERROR;
+            }
+        }
+    }
+
+    return RETURN_OK;
+}
+
+int ComponentsHaveVectorChannels(ObjectContainer * components) {
+    size_t numComps = components->Size(components);
+    size_t i = 0;
+
+    for (i = 0; i < numComps; i++) {
+        Component * comp = (Component *) components->At(components, i);
+        Databus * db = comp->GetDatabus(comp);
+        size_t numIns = DatabusGetInChannelsNum(db);
+        size_t numOuts = DatabusGetOutChannelsNum(db);
+        size_t j = 0;
+
+        for (j = 0; j < numIns; j++) {
+            ChannelInfo * info = DatabusGetInChannelInfo(db, j);
+            if (ChannelTypeIsArray(info->type)) {
+                return TRUE;
+            }
+        }
+
+        for (j = 0; j < numOuts; j++) {
+            ChannelInfo* info = DatabusGetOutChannelInfo(db, j);
+            if (ChannelTypeIsArray(info->type)) {
+                return TRUE;
+            }
+        }
+    }
+
+    return FALSE;
+}
+
 static McxStatus ModelConnectionsDone(Model * model) {
     OrderedNodes * orderedNodes = NULL;
     McxStatus retVal = RETURN_OK;
@@ -365,10 +584,30 @@ static McxStatus ModelConnectionsDone(Model * model) {
         goto cleanup;
     }
 
+    retVal = ModelInitInConnectedList(model->components);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: In-Connection lists could not be initialized");
+        goto cleanup;
+    }
+
+    retVal = ModelSignalConnectionsDone(model->components);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Components could not be notified about connection completion");
+        goto cleanup;
+    }
+
     // determine initialization evaluation order
     if (model->config->cosimInitEnabled) {
+        // separate triggering of array elements is not supported at the moment
+        // therefore some models with array ports might not work
+        if (ComponentsHaveVectorChannels(model->components)) {
+            mcx_log(LOG_ERROR, "Co-Simulation initialization: Components with vector ports are not supported");
+            return RETURN_ERROR;
+        }
+
         retVal = ModelCreateInitSubModel(model);
-        if (retVal != RETURN_OK) {
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: InitSubModel could not be created");
             goto cleanup;
         }
     }
@@ -435,6 +674,11 @@ static McxStatus ModelConnectionsDone(Model * model) {
         goto cleanup;
     }
 
+    retVal = model->subModel->LoopComponents(model->subModel, CompCollectModeSwitchData, NULL);
+    if (RETURN_ERROR == retVal) {
+        return retVal;
+    }
+
 cleanup:
     if (orderedNodes) {
         tarjan_ordered_nodes_cleanup(orderedNodes);
@@ -456,10 +700,10 @@ static Connection * ModelGetConnectionFromInfo(Model * model, ConnectionInfo * i
 
         for (j = 0; j < numOutChannels; j++) {
             ChannelOut * out = DatabusGetOutChannel(db, j);
-            ObjectContainer * conns = out->GetConnections(out);
+            ConnectionList * conns = out->GetConnections(out);
 
-            for (k = 0; k < conns->Size(conns); k++) {
-                Connection * connection = (Connection *) conns->At(conns, k);
+            for (k = 0; k < conns->numConnections; k++) {
+                Connection * connection = conns->connections[k];
                 if (connection->GetInfo(connection) == info) {
                     return connection;
                 }
@@ -507,7 +751,6 @@ static void ModelDestructor(void * self) {
     object_destroy(model->initialSubModelGenerator);
     object_destroy(model->subModel);
     object_destroy(model->initialSubModel);
-
 }
 
 static McxStatus ModelReadComponents(void * self, ComponentsInput * input) {
@@ -549,13 +792,13 @@ static McxStatus ModelReadComponents(void * self, ComponentsInput * input) {
         }
     }
 
-    mcx_log(LOG_INFO, "Read %d elements", numComps);
+    mcx_log(LOG_INFO, "Read %zu elements", numComps);
     mcx_log(LOG_INFO, " ");
 
     return RETURN_OK;
 }
 
-McxStatus ReadConnections(ObjectContainer * connections,
+McxStatus ReadConnections(Vector * connections,
                           ConnectionsInput * connectionsInput,
                           ObjectContainer * components,
                           Component * sourceComp,
@@ -566,7 +809,7 @@ McxStatus ReadConnections(ObjectContainer * connections,
     // loop over all connections here
     for (i = 0; i < connInputs->Size(connInputs); i++) {
         ConnectionInput * connInput = (ConnectionInput*)connInputs->At(connInputs, i);
-        ObjectContainer * conns = NULL;
+        Vector * conns = NULL;
         size_t connsSize = 0;
         size_t j = 0;
 
@@ -581,7 +824,7 @@ McxStatus ReadConnections(ObjectContainer * connections,
             ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, j);
             char * connStr = NULL;
 
-            connStr = info->ConnectionString(info);
+            connStr = ConnectionInfoConnectionString(info);
             mcx_log(LOG_DEBUG, "  Connection: %s", connStr);
             mcx_free(connStr);
         }
@@ -590,7 +833,7 @@ McxStatus ReadConnections(ObjectContainer * connections,
         object_destroy(conns);
     }
 
-    mcx_log(LOG_INFO, "Read %d connections", connections->Size(connections));
+    mcx_log(LOG_INFO, "Read %zu connections", connections->Size(connections));
     mcx_log(LOG_INFO, " ");
 
     return RETURN_OK;
@@ -609,13 +852,10 @@ static McxStatus ModelReadConnections(void * self, ConnectionsInput * input) {
 }
 
 static McxStatus ModelCheckConnectivity(Model * model) {
-    ObjectContainer * connections = model->connections;
-    McxStatus retVal = RETURN_OK;
-
-    return CheckConnectivity(connections);
+    return CheckConnectivity(model->connections);
 }
 
-McxStatus MakeConnections(ObjectContainer * connections, InterExtrapolatingType isInterExtrapolating) {
+McxStatus MakeConnections(Vector * connections, InterExtrapolatingType isInterExtrapolating) {
     ConnectionInfo * info = NULL;
     McxStatus retVal = RETURN_OK;
     size_t i = 0;
@@ -648,7 +888,7 @@ static McxStatus ModelMakeConnections(Model * model) {
 
     retVal = MakeConnections(model->connections, isInterExtrapolating);
     if (RETURN_ERROR == retVal) {
-        mcx_log(LOG_ERROR, "Model: Creating connection %d failed", i);
+        mcx_log(LOG_ERROR, "Model: Creating connection %zu failed", i);
         return RETURN_ERROR;
     }
     mcx_log(LOG_DEBUG, "Creating connections done");
@@ -689,7 +929,7 @@ static McxStatus ModelRead(void * self, ModelInput * input) {
 static McxStatus ModelDoComponentNameCheck(Component * comp, void * param) {
     Component * comp2 = (Component *) param;
     if (! strcmp(comp->GetName(comp), comp2->GetName(comp2)) && (comp != comp2)) {
-        mcx_log(LOG_ERROR, "Model: Elements %d and %d have the same name", comp->GetID(comp), comp2->GetID(comp2));
+        mcx_log(LOG_ERROR, "Model: Elements %zu and %zu have the same name", comp->GetID(comp), comp2->GetID(comp2));
         return RETURN_ERROR;
     }
 
@@ -715,24 +955,21 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 
     for (i = 0; i < numInChannels; i++) {
         Channel * channel = (Channel *)DatabusGetInChannel(db, i);
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelIn * in = (ChannelIn *) channel;
+        ChannelInfo * info = &channel->info;
 
-        if ((info->GetMode(info) == CHANNEL_MANDATORY)
-            && !channel->IsValid(channel)) {
-            mcx_log(LOG_ERROR, "Model: %d. inport (%s) of element %s not connected"
-                , i+1, info->GetName(info), comp->GetName(comp));
+        if (info->mode == CHANNEL_MANDATORY && !channel->ProvidesValue(channel)) {
+            mcx_log(LOG_ERROR, "Model: %zu. inport (%s) of element %s not connected", i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }
 
     for (i = 0; i < numOutChannels; i++) {
         Channel * channel = (Channel *)DatabusGetOutChannel(db, i);
-        ChannelInfo * info = channel->GetInfo(channel);
+        ChannelInfo * info = &channel->info;
 
-        if ((info->GetMode(info) == CHANNEL_MANDATORY)
-            && !channel->IsValid(channel)) {
-            mcx_log(LOG_ERROR, "Model: %d. outport (%s) of element %s not connected"
-                , i+1, info->GetName(info), comp->GetName(comp));
+        if (info->mode == CHANNEL_MANDATORY && !channel->ProvidesValue(channel)) {
+            mcx_log(LOG_ERROR, "Model: %zu. outport (%s) of element %s not connected", i+1, ChannelInfoGetName(info), comp->GetName(comp));
             return RETURN_ERROR;
         }
     }
@@ -743,7 +980,7 @@ static McxStatus ModelDoComponentConsistencyChecks(Component * comp, void * para
 static McxStatus ModelDoConsistencyChecks(Model * model) {
     SubModel * subModel = model->subModel;
 
-    ObjectContainer * conns = model->connections;
+    Vector * conns = model->connections;
     ObjectContainer * comps = model->components;
 
     Task * task = model->task;
@@ -760,8 +997,7 @@ static McxStatus ModelDoConsistencyChecks(Model * model) {
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
 
-        if ((info->GetDecouplePriority(info) > 0)
-            || (info->GetDecoupleType(info) != DECOUPLE_DEFAULT)) {
+        if (info->decouplePriority > 0 || info->decoupleType != DECOUPLE_DEFAULT) {
             hasDecoupleInfos = 1;
         }
     }
@@ -1027,6 +1263,38 @@ static McxStatus ModelSetup(void * self) {
     }
     mcx_log(LOG_DEBUG, " ");
 
+    // Set isFullyConnected status on all channels
+    size_t i = 0;
+    size_t j = 0;
+    Component * comp = NULL;
+    Databus * db = NULL;
+    size_t inNum = 0;
+    size_t outNum = 0;
+    Channel * channel = NULL;
+    ObjectContainer * comps = model->components;
+    for (i = 0; i < comps->Size(comps); i++) {
+        comp = (Component *)comps->At(comps, i);
+        db = comp->GetDatabus(comp);
+        inNum = DatabusGetInChannelsNum(db);
+        for (j = 0; j < inNum; j++) {
+            channel = (Channel *) DatabusGetInChannel(db, j);
+            retVal = channel->SetIsFullyConnected(channel);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Model: Setting IsFullyConnected state for input %s failed", channel->info.name);
+                return RETURN_ERROR;
+            }
+        }
+        outNum = DatabusGetOutChannelsNum(db);
+        for (j = 0; j < outNum; j++) {
+            channel = (Channel *) DatabusGetOutChannel(db, j);
+            retVal = channel->SetIsFullyConnected(channel);
+            if (RETURN_OK != retVal) {
+                mcx_log(LOG_ERROR, "Model: Setting IsFullyConnected state for output %s failed", channel->info.name);
+                return RETURN_ERROR;
+            }
+        }
+    }
+
     if (model->config->outputModel) {
         retVal = ModelPrint(model);
         if (RETURN_OK != retVal) {
@@ -1127,6 +1395,35 @@ static McxStatus CompUpdateInitOutputs(CompAndGroup * compGroup, void * param) {
     return retVal;
 }
 
+static McxStatus CompUpdateInAndOutputs(CompAndGroup * compGroup, void * param) {
+    Component * comp = compGroup->comp;
+    double startTime = comp->GetTime(comp);
+    TimeInterval time = { startTime, startTime };
+    McxStatus retVal = RETURN_OK;
+
+    retVal = DatabusTriggerInConnections(comp->GetDatabus(comp), &time);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating inports after initialization loop failed");
+        return RETURN_ERROR;
+    }
+
+    if (comp->UpdateInChannels) {
+        retVal = comp->UpdateInChannels(comp);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Updating inports failed");
+            return RETURN_ERROR;
+        }
+    }
+
+    retVal = ComponentUpdateOutChannels(comp, &time);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "Model: Updating outports after initialization loop failed");
+        return RETURN_ERROR;
+    }
+
+    return retVal;
+}
+
 static McxStatus CompUpdateOutputs(CompAndGroup * compGroup, void * param) {
     Component  * comp  = compGroup->comp;
     const Task * task  = (const Task *) param;
@@ -1181,6 +1478,17 @@ static McxStatus ModelInitialize(Model * model) {
         return retVal;
     }
 
+    if (model->config->patchWrongInitBehavior) {
+        // Additional step for faulty elements which return zeroes as out channel values during initialization.
+        // This makes sure that after the element exits initialization (CompExitInit),
+        // the output channels contain good values before they get forwarded to the filters (ModelConnectionsExitInitMode)
+        retVal = subModel->LoopEvaluationList(subModel, CompUpdateInAndOutputs, (void*)model->task);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Updating element channels failed");
+            return RETURN_ERROR;
+        }
+    }
+
     retVal = ModelConnectionsExitInitMode(model->components, model->task->params->time);
     if (RETURN_ERROR == retVal) {
         mcx_log(LOG_ERROR, "Model: Exiting initialization mode failed");
@@ -1194,11 +1502,22 @@ static McxStatus ModelInitialize(Model * model) {
             return RETURN_ERROR;
     }
 
+    {
+        McxTime rtGlobalSimStart;
+        mcx_time_get(&rtGlobalSimStart);
+
+        retVal = subModel->LoopComponents(subModel, ComponentBeforeDoSteps, &rtGlobalSimStart);
+        if (RETURN_ERROR == retVal) {
+            mcx_log(LOG_ERROR, "Model: Initialization of elements failed");
+            return retVal;
+        }
+    }
+
     return RETURN_OK;
 }
 
 static const char * GetComponentAbbrev(const char * type) {
-    if (!strcmp(type, "CONSTANT")) {
+    if (!strcmp(type, compConstantTypeString)) {
         return "C";
     } else if (!strcmp(type, "INTEGRATOR")) {
         return "INT";
@@ -1238,7 +1557,7 @@ McxStatus PrintComponentGraph(Component * comp,
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; j < GetDependencyNumIn(A); j++) {
             mcx_os_fprintf(dotFile, "        <tr>\n");
-            mcx_os_fprintf(dotFile, "          <td port=\"in%d\">%d</td>\n", j, j);
+            mcx_os_fprintf(dotFile, "          <td port=\"in%zu\">%zu</td>\n", j, j);
             mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1256,7 +1575,7 @@ McxStatus PrintComponentGraph(Component * comp,
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; j < DatabusGetOutChannelsNum(db); j++) {
             mcx_os_fprintf(dotFile, "        <tr>\n");
-            mcx_os_fprintf(dotFile, "          <td port=\"out%d\">%d</td>\n", j, j);
+            mcx_os_fprintf(dotFile, "          <td port=\"out%zu\">%zu</td>\n", j, j);
             mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1280,7 +1599,7 @@ McxStatus PrintComponentGraph(Component * comp,
             }
             GetDependency(A, i, grp, &dep);
             if (dep != DEP_INDEPENDENT) {
-                mcx_os_fprintf(dotFile, "in:in%d -> out:out%d;\n", i, j);
+                mcx_os_fprintf(dotFile, "in:in%zu -> out:out%zu;\n", i, j);
             }
         }
     }
@@ -1298,7 +1617,7 @@ McxStatus PrintComponentGraph(Component * comp,
     return RETURN_OK;
 }
 
-McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Component * inComp, Component * outComp, const char * title, const char * filename) {
+McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * inComp, Component * outComp, const char * title, const char * filename) {
     size_t i = 0;
     size_t j = 0;
 
@@ -1322,14 +1641,14 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetOutChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"out%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"out%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
         }
         mcx_os_fprintf(dotFile, "    </td>\n");
         mcx_os_fprintf(dotFile, "  </tr>\n");
-        mcx_os_fprintf(dotFile, "</table>>] comp%d;\n", comps->Size(comps));
+        mcx_os_fprintf(dotFile, "</table>>] comp%zu;\n", comps->Size(comps));
     }
 
     for (i = 0; i < comps->Size(comps); i++) {
@@ -1345,7 +1664,7 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetInChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"in%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"in%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1359,14 +1678,14 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetOutChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"out%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"out%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
         }
         mcx_os_fprintf(dotFile, "    </td>\n");
         mcx_os_fprintf(dotFile, "  </tr>\n");
-        mcx_os_fprintf(dotFile, "</table>>] comp%d;\n", c->GetID(c));
+        mcx_os_fprintf(dotFile, "</table>>] comp%zu;\n", c->GetID(c));
     }
 
     if (outComp) {
@@ -1381,7 +1700,7 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         mcx_os_fprintf(dotFile, "      <table %s>\n", tableArgs);
         for (j = 0; (int) j < DatabusGetInChannelsNum(db); j++) {
         mcx_os_fprintf(dotFile, "        <tr>\n");
-        mcx_os_fprintf(dotFile, "          <td port=\"in%d\">%d</td>\n", j, j);
+        mcx_os_fprintf(dotFile, "          <td port=\"in%zu\">%zu</td>\n", j, j);
         mcx_os_fprintf(dotFile, "        </tr>\n");
         }
         mcx_os_fprintf(dotFile, "      </table>\n");
@@ -1389,21 +1708,21 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         mcx_os_fprintf(dotFile, "    </td>\n");
         mcx_os_fprintf(dotFile, "    <td>out</td>\n");
         mcx_os_fprintf(dotFile, "  </tr>\n");
-        mcx_os_fprintf(dotFile, "</table>>] comp%d;\n", comps->Size(comps) + 1);
+        mcx_os_fprintf(dotFile, "</table>>] comp%zu;\n", comps->Size(comps) + 1);
     }
 
     mcx_os_fprintf(dotFile, "{\n");
 
     if (inComp && outComp) {
-        mcx_os_fprintf(dotFile, "comp%d -> comp%d [style=invis];\n",
+        mcx_os_fprintf(dotFile, "comp%zu -> comp%zu [style=invis];\n",
                 comps->Size(comps),
                 comps->Size(comps) + 1);
     }
     for (i = 0; i < conns->Size(conns); i++) {
         ConnectionInfo * info = (ConnectionInfo *) conns->At(conns, i);
 
-        Component * src = info->GetSourceComponent(info);
-        Component * trg = info->GetTargetComponent(info);
+        Component * src = info->sourceComponent;
+        Component * trg = info->targetComponent;
 
         size_t srcID = src->GetID(src);
         size_t trgID = trg->GetID(trg);
@@ -1416,8 +1735,8 @@ McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Comp
         }
 
         mcx_os_fprintf(dotFile, "comp%zu:out%d -> comp%zu:in%d;\n",
-                srcID, info->GetSourceChannelID(info),
-                trgID, info->GetTargetChannelID(info));
+                srcID, info->sourceChannel,
+                trgID, info->targetChannel);
     }
 
     mcx_os_fprintf(dotFile, "}\n");
@@ -1468,7 +1787,8 @@ static Model * ModelCreate(Model * model) {
 
     // set to default values
     model->components = (ObjectContainer *) object_create(ObjectContainer);
-    model->connections = (ObjectContainer *) object_create(ObjectContainer);
+    model->connections = (Vector *) object_create(Vector);
+    model->connections->Setup(model->connections, sizeof(ConnectionInfo), ConnectionInfoInit, ConnectionInfoSetFrom, DestroyConnectionInfo);
     model->factory = NULL;
 
     model->config = NULL;

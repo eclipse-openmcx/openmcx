@@ -9,9 +9,13 @@
  ********************************************************************************/
 
 #include "fmu/common_fmu2.h"
+#include "core/channels/ChannelValue.h"
 #include "fmu/common_fmu.h" /* for jm callbacks */
 
 #include "fmu/Fmu2Value.h"
+
+#include "core/channels/ChannelInfo.h"
+#include "core/parameters/ParameterProxies.h"
 
 #include "reader/model/parameters/ArrayParameterDimensionInput.h"
 #include "reader/model/parameters/ParameterInput.h"
@@ -19,6 +23,9 @@
 
 #include "util/string.h"
 #include "util/stdlib.h"
+#include "util/signals.h"
+
+#include "objects/Map.h"
 
 #include "fmilib.h"
 
@@ -27,8 +34,8 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType type) {
-    switch (type) {
+fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType * type) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
         return fmi2_base_type_real;
     case CHANNEL_INTEGER:
@@ -42,22 +49,39 @@ fmi2_base_type_enu_t ChannelTypeToFmi2Type(ChannelType type) {
     }
 }
 
-ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
+ChannelType * Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
     switch (type) {
     case fmi2_base_type_real:
-        return CHANNEL_DOUBLE;
+        return &ChannelTypeDouble;
     case fmi2_base_type_int:
-        return CHANNEL_INTEGER;
+        return &ChannelTypeInteger;
     case fmi2_base_type_bool:
-        return CHANNEL_BOOL;
+        return &ChannelTypeBool;
     case fmi2_base_type_str:
-        return CHANNEL_STRING;
+        return &ChannelTypeString;
     case fmi2_base_type_enum:
-        return CHANNEL_INTEGER;
+        return &ChannelTypeInteger;
     default:
-        return CHANNEL_UNKNOWN;
+        return &ChannelTypeUnknown;
     }
 }
+
+const char * Fmi2TypeToString(fmi2_base_type_enu_t type) {
+    switch (type) {
+    case fmi2_base_type_real:
+        return "fmi2Real";
+    case fmi2_base_type_int:
+        return "fmi2Integer";
+    case fmi2_base_type_bool:
+        return "fmi2Bool";
+    case fmi2_base_type_str:
+        return "fmi2String";
+    case fmi2_base_type_enum:
+        return "fmi2Enum";
+    }
+    return "fmi2Unknown";
+}
+
 
 McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->fmiImport = NULL;
@@ -72,6 +96,10 @@ McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->localValues = (ObjectContainer *) object_create(ObjectContainer);
     fmu->tunableParams = (ObjectContainer *) object_create(ObjectContainer);
     fmu->initialValues = (ObjectContainer *) object_create(ObjectContainer);
+
+    fmu->arrayParams = (ObjectContainer *) object_create(ObjectContainer);
+
+    fmu->connectedIn = (ObjectContainer *) object_create(ObjectContainer);
 
     fmu->numLogCategories = 0;
     fmu->logCategories = NULL;
@@ -170,11 +198,13 @@ McxStatus Fmu2CommonStructSetup(FmuCommon * common, Fmu2CommonStruct * fmu2, fmi
     }
 
     mcx_log(LOG_DEBUG, "%s: instantiatefn: %x", common->instanceName, fmi2_import_instantiate);
+    mcx_signal_handler_set_function("fmi2_import_instantiate"),
     jmStatus = fmi2_import_instantiate(fmu2->fmiImport,
                                        common->instanceName,
                                        fmu_type,
                                        NULL,
                                        fmi2_false /* visible */);
+    mcx_signal_handler_unset_function();
     if (jm_status_error == jmStatus) {
         mcx_log(LOG_ERROR, "%s: Instantiate failed", common->instanceName);
         return RETURN_ERROR;
@@ -219,6 +249,11 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
         object_destroy(fmu->params);
     }
 
+    if (fmu->arrayParams) {
+        fmu->arrayParams->DestroyObjects(fmu->arrayParams);
+        object_destroy(fmu->arrayParams);
+    }
+
     if (fmu->initialValues) {
         fmu->initialValues->DestroyObjects(fmu->initialValues);
         object_destroy(fmu->initialValues);
@@ -232,6 +267,10 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
     if (fmu->tunableParams) {
         fmu->tunableParams->DestroyObjects(fmu->tunableParams);
         object_destroy(fmu->tunableParams);
+    }
+
+    if (fmu->connectedIn) {
+        object_destroy(fmu->connectedIn);
     }
 
     if (fmu->fmiImport) {
@@ -262,8 +301,10 @@ Fmu2Value * Fmu2ReadParamValue(ScalarParameterInput * input,
         return NULL;
     }
 
-    ChannelValueInit(&chVal, input->type);
-    ChannelValueSetFromReference(&chVal, &input->value.value);
+    ChannelValueInit(&chVal, ChannelTypeClone(input->type));
+    if (RETURN_OK != ChannelValueSetFromReference(&chVal, &input->value.value)) {
+        return NULL;
+    }
 
     var = fmi2_import_get_variable_by_name(import, input->name);
     if (!var) {
@@ -320,8 +361,8 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
         end2 = input->dims[1]->end;
     }
 
-    for (k = start2; k <= end2; k++) {
-        for (j = start1; j <= end1; j++, index++) {
+    for (k = start1; k <= end1; k++) {
+        for (j = start2; j <= end2; j++, index++) {
             Fmu2Value * val = NULL;
             char * varName = (char *) mcx_calloc(stringBufferLength, sizeof(char));
             fmi2_import_variable_t * var = NULL;
@@ -335,7 +376,7 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
             if (input->numDims == 2) {
                 snprintf(varName, stringBufferLength, "%s[%zu,%zu]", name, k, j);
             } else {
-                snprintf(varName, stringBufferLength, "%s[%zu]", name, j);
+                snprintf(varName, stringBufferLength, "%s[%zu]", name, k);
             }
 
             var = fmi2_import_get_variable_by_name(import, varName);
@@ -351,12 +392,18 @@ static ObjectContainer* Fmu2ReadArrayParamValues(const char * name,
                 goto fmu2_read_array_param_values_for_cleanup;
             }
 
-            if (input->type == CHANNEL_DOUBLE) {
-                ChannelValueInit(&chVal, CHANNEL_DOUBLE);
-                ChannelValueSetFromReference(&chVal, &((double *)input->values)[index]);
+            if (ChannelTypeEq(input->type, &ChannelTypeDouble)) {
+                ChannelValueInit(&chVal, ChannelTypeClone(&ChannelTypeDouble));
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((double *)input->values)[index])) {
+                    retVal = RETURN_ERROR;
+                    goto fmu2_read_array_param_values_for_cleanup;
+                }
             } else { // integer
-                ChannelValueInit(&chVal, CHANNEL_INTEGER);
-                ChannelValueSetFromReference(&chVal, &((int *)input->values)[index]);
+                ChannelValueInit(&chVal, ChannelTypeClone(&ChannelTypeInteger));
+                if (RETURN_OK != ChannelValueSetFromReference(&chVal, &((int *)input->values)[index])) {
+                    retVal = RETURN_ERROR;
+                    goto fmu2_read_array_param_values_for_cleanup;
+                }
             }
 
             retVal = val->SetFromChannelValue(val, &chVal);
@@ -423,98 +470,131 @@ fmu2_read_array_param_values_cleanup:
 }
 
 // Reads parameters from the input file (both scalar and array).
-//
+// If arrayParams is given, creates proxy views to array elements.
 // Ignores parameters provided via the `ignore` argument.
-ObjectContainer * Fmu2ReadParams(ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore) {
-    ObjectContainer * params = (ObjectContainer *) object_create(ObjectContainer);
-    ObjectContainer * ret = params;                  // used for unified cleanup via goto
+McxStatus Fmu2ReadParams(ObjectContainer * params, ObjectContainer * arrayParams, ParametersInput * input, fmi2_import_t * import, ObjectContainer * ignore) {
+    McxStatus retVal = RETURN_OK;
 
     size_t i = 0;
     size_t num = 0;
-    McxStatus retVal = RETURN_OK;
 
     if (!params) {
-        return NULL;
+        return RETURN_ERROR;
     }
 
     num = input->parameters->Size(input->parameters);
     for (i = 0; i < num; i++) {
         ParameterInput * parameterInput = (ParameterInput *) input->parameters->At(input->parameters, i);
-
         char * name = NULL;
-        Fmu2Value * val = NULL;
-        ObjectContainer * vals = NULL;
-
 
         name = mcx_string_copy(parameterInput->parameter.arrayParameter->name);
         if (!name) {
-            ret = NULL;
-            goto fmu2_read_params_for_cleanup;
+            retVal = RETURN_ERROR;
+            goto cleanup_0;
         }
 
         // ignore the parameter if it is in the `ignore` container
         if (ignore && ignore->GetNameIndex(ignore, name) >= 0) {
-            goto fmu2_read_params_for_cleanup;
+            goto cleanup_0;
         }
 
         if (parameterInput->type == PARAMETER_ARRAY) {
-            // read parameter dimensions (if any) - should only be defined for array parameters
-            if (parameterInput->parameter.arrayParameter->numDims >=2 &&
-                parameterInput->parameter.arrayParameter->dims[1] &&
-                !parameterInput->parameter.arrayParameter->dims[0]) {
-                mcx_log(LOG_ERROR, "FMU: Array parameter %s: Missing definition for the first dimension "
-                        "while the second dimension is defined.", parameterInput->parameter.arrayParameter->name);
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
-            }
+            ObjectContainer * vals = NULL;
+            ArrayParameterProxy * proxy = NULL;
+            size_t j = 0;
 
             // array - split it into scalars
             vals = Fmu2ReadArrayParamValues(name, parameterInput->parameter.arrayParameter, import, params);
             if (vals == NULL) {
                 mcx_log(LOG_ERROR, "FMU: Could not read array parameter %s", name);
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                retVal = RETURN_ERROR;
+                goto cleanup_1;
+            }
+
+            if (arrayParams) {
+                // set up a proxy that will reference the individual scalars
+                proxy = (ArrayParameterProxy *) object_create(ArrayParameterProxy);
+                if (!proxy) {
+                    mcx_log(LOG_ERROR, "FMU: Creating an array proxy failed: No memory");
+                    retVal = RETURN_ERROR;
+                    goto cleanup_1;
+                }
+
+                retVal = proxy->Setup(proxy, name, parameterInput->parameter.arrayParameter->numDims, parameterInput->parameter.arrayParameter->dims);
+                if (RETURN_ERROR == retVal) {
+                    mcx_log(LOG_ERROR, "FMU Array parameter %s: Array proxy setup failed", name);
+                    goto cleanup_1;
+                }
             }
 
             // store the scalar values
-            size_t j = 0;
             for (j = 0; j < vals->Size(vals); j++) {
-                Object * v = vals->At(vals, j);
-                retVal = params->PushBackNamed(params, v, ((Fmu2Value*)v)->name);
+                Fmu2Value * v = (Fmu2Value *) vals->At(vals, j);
+                retVal = params->PushBackNamed(params, (Object *) v, v->name);
                 if (RETURN_OK != retVal) {
-                    ret = NULL;
-                    goto fmu2_read_params_for_cleanup;
+                    mcx_log(LOG_ERROR, "FMU: Adding element #%zu of parameter %s failed", j, name);
+                    goto cleanup_1;
+                }
+
+                vals->SetAt(vals, j, NULL);
+
+                if (arrayParams) {
+                    retVal = proxy->AddValue(proxy, v);
+                    if (RETURN_ERROR == retVal) {
+                        mcx_log(LOG_ERROR, "FMU: Adding proxy to element #%zu of parameter %s failed", j, name);
+                        goto cleanup_1;
+                    }
+                }
+            }
+
+            if (arrayParams) {
+                retVal = arrayParams->PushBackNamed(arrayParams, (Object *) proxy, proxy->GetName(proxy));
+                if (RETURN_ERROR == retVal) {
+                    mcx_log(LOG_ERROR, "FMU: Adding proxy for %s failed", name);
+                    goto cleanup_1;
+                }
+            }
+
+cleanup_1:
+            if (RETURN_ERROR == retVal) {
+                object_destroy(proxy);
+                if (vals) {
+                    vals->DestroyObjects(vals);
                 }
             }
 
             object_destroy(vals);
+
+            if (RETURN_ERROR == retVal) {
+                goto cleanup_0;
+            }
         } else {
+            Fmu2Value * val = NULL;
+
             // read the scalar value
             val = Fmu2ReadParamValue(parameterInput->parameter.scalarParameter, import);
             if (val == NULL) {
                 mcx_log(LOG_ERROR, "FMU: Could not read parameter value of parameter %s", name);
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                retVal = RETURN_ERROR;
+                goto cleanup_2;
             }
 
             // store the read value
             retVal = params->PushBackNamed(params, (Object * ) val, name);
             if (RETURN_OK != retVal) {
-                ret = NULL;
-                goto fmu2_read_params_for_cleanup;
+                goto cleanup_2;
+            }
+
+cleanup_2:
+            if (RETURN_ERROR == retVal) {
+                object_destroy(val);
             }
         }
 
-fmu2_read_params_for_cleanup:
+cleanup_0:
         if (name) { mcx_free(name); }
-        if (ret == NULL) {
-            if (val)  { object_destroy(val); }
-            if (vals) {
-                vals->DestroyObjects(vals);
-                object_destroy(vals);
-            }
-
-            goto cleanup;
+        if (retVal == RETURN_ERROR) {
+            return RETURN_ERROR;
         }
     }
 
@@ -527,30 +607,22 @@ fmu2_read_params_for_cleanup:
             status = params->Sort(params, NaturalComp, NULL);
             if (RETURN_OK != status) {
                 mcx_log(LOG_ERROR, "FMU: Unable to sort parameters");
-                ret = NULL;
-                goto cleanup;
+                return RETURN_ERROR;
             }
 
             for (i = 0; i < n - 1; i++) {
                 Fmu2Value * a = (Fmu2Value *) params->At(params, i);
                 Fmu2Value * b = (Fmu2Value *) params->At(params, i + 1);
 
-                if (! strcmp(a->name, b->name)) {
+                if (!strcmp(a->name, b->name)) {
                     mcx_log(LOG_ERROR, "FMU: Duplicate definition of parameter %s", a->name);
-                    ret = NULL;
-                    goto cleanup;
+                    return RETURN_ERROR;
                 }
             }
         }
     }
 
-cleanup:
-    if (ret == NULL) {
-        params->DestroyObjects(params);
-        object_destroy(params);
-    }
-
-    return ret;
+    return retVal;
 }
 
 
@@ -589,11 +661,357 @@ McxStatus Fmu2UpdateTunableParamValues(ObjectContainer * tunableParams, ObjectCo
     return retVal;
 }
 
+typedef struct ConnectedElems{
+    int is_connected;
+    size_t num_elems;
+    size_t * elems;
+} ConnectedElems;
 
-McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
-    fmi2_status_t status = fmi2_status_ok;
+typedef struct ChannelElement {
+    size_t channel_idx;
+    size_t elem_idx;
+} ChannelElement;
 
-    char * const name = fmuVal->name;
+static Vector * GetAllElems(ChannelElement * elems, size_t num, size_t channel_idx) {
+    size_t i = 0;
+    Vector * indices = (Vector *) object_create(Vector);
+
+    if (!indices) {
+        mcx_log(LOG_ERROR, "GetAllElems: Not enough memory");
+        return NULL;
+    }
+
+    indices->Setup(indices, sizeof(size_t), NULL, NULL, NULL);
+
+    for (i = 0; i < num; i++) {
+        if (elems[i].channel_idx == channel_idx) {
+            if (RETURN_ERROR == indices->PushBack(indices, &elems[i].elem_idx)) {
+                mcx_log(LOG_ERROR, "GetAllElems: Collecting element indices failed");
+                object_destroy(indices);
+                return NULL;
+            }
+        }
+    }
+
+    return indices;
+}
+
+McxStatus Fmu2SetDependencies(Fmu2CommonStruct * fmu2, Databus * db, Dependencies * deps, int init) {
+    McxStatus ret_val = RETURN_OK;
+
+    size_t *start_index = NULL;
+    size_t *dependency = NULL;
+    char   *factor_kind = NULL;
+
+    size_t i = 0, j = 0, k = 0;
+    size_t num_dependencies = 0;
+    size_t dep_idx = 0;
+
+    // mapping between dependency indices (from the modelDescription file) and the dependency <-> channel mapping
+    SizeTSizeTMap *dependencies_to_in_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
+    // mapping between unknown indices (from the modelDescription file) and the unknowns <-> channel list
+    SizeTSizeTMap *unknowns_to_out_channels = (SizeTSizeTMap*)object_create(SizeTSizeTMap);
+
+    // get dependency information via the fmi library
+    fmi2_import_variable_list_t * init_unknowns = NULL;
+
+    if (init) {
+        init_unknowns = fmi2_import_get_initial_unknowns_list(fmu2->fmiImport);
+        fmi2_import_get_initial_unknowns_dependencies(fmu2->fmiImport, &start_index, &dependency, &factor_kind);
+    } else {
+        init_unknowns = fmi2_import_get_outputs_list(fmu2->fmiImport);
+        fmi2_import_get_outputs_dependencies(fmu2->fmiImport, &start_index, &dependency, &factor_kind);
+    }
+
+    size_t num_init_unknowns = fmi2_import_get_variable_list_size(init_unknowns);
+
+    // the dependency information in <InitialUnknowns> is encoded via variable indices in modelDescription.xml
+    // our dependency matrix uses channel indices
+    // to align those 2 index types we use helper dictionaries which store the mapping between them
+
+    // map each dependency index to an input channel index
+    ObjectContainer *in_vars = fmu2->in;
+    size_t num_in_vars = in_vars->Size(in_vars);
+
+    DatabusInfo * db_info = DatabusGetInInfo(db);
+    size_t num_in_channels = DatabusInfoGetChannelNum(db_info);
+
+    // list describing for each channel which channel elements are connected
+    ConnectedElems * in_channel_connectivity = (ConnectedElems *) mcx_calloc(num_in_channels, sizeof(ConnectedElems));
+    if (!in_channel_connectivity) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity map allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    // List which for each dependency describes which channel and element index it corresponds to
+    // The index of elements in this list doesn't correspond to the dependency index from the modelDescription file
+    ChannelElement * dependencies_to_inputs = (ChannelElement *) mcx_calloc(DatabusGetInChannelsElemNum(db), sizeof(ChannelElement));
+    if (!dependencies_to_inputs) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Dependencies to inputs map allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    // list used to know the mapping between unknowns and channels/elements
+    ChannelElement * unknowns_to_outputs = (ChannelElement *) mcx_calloc(DatabusGetOutChannelsElemNum(db), sizeof(ChannelElement));
+    if (!unknowns_to_outputs) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Unknowns to outputs map allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    // List used to later find ommitted <Unknown> elements
+    ChannelElement * processed_output_elems = (ChannelElement *) mcx_calloc(DatabusGetOutChannelsElemNum(db), sizeof(ChannelElement));
+    if (!processed_output_elems) {
+        mcx_log(LOG_ERROR, "SetDependenciesFMU2: Processed output elements allocation failed");
+        ret_val = RETURN_ERROR;
+        goto cleanup;
+    }
+
+    for (i = 0; i < num_in_vars; ++i) {
+        Fmu2Value *val = (Fmu2Value *)in_vars->At(in_vars, i);
+        Channel * ch = (Channel *) DatabusGetInChannel(db, i);
+        ChannelIn * in = (ChannelIn *) ch;
+        ChannelInfo * info = DatabusInfoGetChannel(db_info, i);
+        if (ch->IsConnected(ch)) {
+            if (ChannelTypeIsArray(info->type)) {
+                in_channel_connectivity[i].is_connected = TRUE;
+                in_channel_connectivity[i].num_elems = 0;
+                in_channel_connectivity[i].elems = (int *) mcx_calloc(ChannelDimensionNumElements(info->dimension), sizeof(size_t));
+                if (!in_channel_connectivity[i].elems) {
+                    mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element container allocation failed");
+                    ret_val = RETURN_ERROR;
+                    goto cleanup;
+                }
+
+                // if an element index appears in elems, it means that element is connected
+                Vector * connInfos = in->GetConnectionInfos(in);
+                for (j = 0; j < connInfos->Size(connInfos); j++) {
+                    ConnectionInfo * connInfo = *(ConnectionInfo**) connInfos->At(connInfos, j);
+                    size_t k = 0;
+
+                    for (k = 0; k < ChannelDimensionNumElements(connInfo->targetDimension); k++) {
+                        size_t idx = ChannelDimensionGetIndex(connInfo->targetDimension, k, info->type->ty.a.dims) - info->dimension->startIdxs[0];
+                        in_channel_connectivity[i].elems[in_channel_connectivity[i].num_elems++] = idx;
+                    }
+                }
+                object_destroy(connInfos);
+            } else {
+                in_channel_connectivity[i].is_connected = TRUE;
+                // scalar channels are treated like they have 1 element (equal to zero)
+                in_channel_connectivity[i].num_elems = 1;
+                in_channel_connectivity[i].elems = (int*)mcx_calloc(1, sizeof(size_t));
+                if (!in_channel_connectivity[i].elems) {
+                    mcx_log(LOG_ERROR, "SetDependenciesFMU2: Input connectivity element allocation failed");
+                    ret_val = RETURN_ERROR;
+                    goto cleanup;
+                }
+                in_channel_connectivity[i].elems[0] = 0;
+            }
+        }
+
+        if (val->data->type == FMU2_VALUE_SCALAR) {
+            fmi2_import_variable_t *var = val->data->data.scalar;
+            size_t idx = fmi2_import_get_variable_original_order(var) + 1;
+            dependencies_to_in_channels->Add(dependencies_to_in_channels, idx, dep_idx);
+
+            dependencies_to_inputs[dep_idx].channel_idx = i;
+            dep_idx++;
+        } else if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                fmi2_import_variable_t * var = val->data->data.array.values[j];
+                size_t idx = fmi2_import_get_variable_original_order(var) + 1;
+                dependencies_to_in_channels->Add(dependencies_to_in_channels, idx, dep_idx);
+
+                dependencies_to_inputs[dep_idx].channel_idx = i;
+                dependencies_to_inputs[dep_idx].elem_idx = j;
+                dep_idx++;
+            }
+        }
+    }
+
+    // <InitialUnknowns> element is not present in modelDescription.xml
+    // The dependency matrix consists of only 1 (if input is connected)
+    if (start_index == NULL) {
+        for (i = 0; i < GetDependencyNumOut(deps); ++i) {
+            for (j = 0; j < GetDependencyNumIn(deps); ++j) {
+                if (in_channel_connectivity[j].is_connected) {
+                    ret_val = SetDependency(deps, j, i, DEP_DEPENDENT);
+                    if (RETURN_OK != ret_val) {
+                        goto cleanup;
+                    }
+                }
+            }
+        }
+
+        goto cleanup;
+    }
+
+    // map each initial_unkown index to an output channel index
+    // for array channels, there might be multiple entries initial_unknown_idx -> channel_idx
+    ObjectContainer *out_vars = fmu2->out;
+    size_t num_out_vars = out_vars->Size(out_vars);
+    size_t unknown_idx = 0;
+    for (i = 0; i < num_out_vars; ++i) {
+        Fmu2Value *val = (Fmu2Value *)out_vars->At(out_vars, i);
+
+        if (val->data->type == FMU2_VALUE_SCALAR) {
+            fmi2_import_variable_t *var = val->data->data.scalar;
+            size_t idx = fmi2_import_get_variable_original_order(var) + 1;
+            unknowns_to_out_channels->Add(unknowns_to_out_channels, idx, unknown_idx);
+
+            unknowns_to_outputs[unknown_idx].channel_idx = i;
+            unknown_idx++;
+        } else if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                fmi2_import_variable_t * var = val->data->data.array.values[j];
+                size_t idx = fmi2_import_get_variable_original_order(var) + 1;
+                unknowns_to_out_channels->Add(unknowns_to_out_channels, idx, unknown_idx);
+
+                unknowns_to_outputs[unknown_idx].channel_idx = i;
+                unknowns_to_outputs[unknown_idx].elem_idx = j;
+                unknown_idx++;
+            }
+        }
+    }
+
+    // fill up the dependency matrix
+    size_t processed_elems = 0;
+    for (i = 0; i < num_init_unknowns; ++i) {
+        fmi2_import_variable_t *init_unknown = fmi2_import_get_variable(init_unknowns, i);
+        size_t init_unknown_idx = fmi2_import_get_variable_original_order(init_unknown) + 1;
+
+        SizeTSizeTElem * out_pair = unknowns_to_out_channels->Get(unknowns_to_out_channels, init_unknown_idx);
+        if (out_pair == NULL) {
+            continue;      // in case some variables are ommitted from the input file
+        }
+
+        ChannelElement * out_elem = &unknowns_to_outputs[out_pair->value];
+
+        processed_output_elems[processed_elems].channel_idx = out_elem->channel_idx;
+        processed_output_elems[processed_elems].elem_idx = out_elem->elem_idx;
+        processed_elems++;
+
+        num_dependencies = start_index[i + 1] - start_index[i];
+        for (j = 0; j < num_dependencies; ++j) {
+            dep_idx = dependency[start_index[i] + j];
+            if (dep_idx == 0) {
+                // The <Unknown> element does not explicitly define a `dependencies` attribute
+                // In this case it depends on all inputs
+                for (k = 0; k < num_in_channels; ++k) {
+                    if (in_channel_connectivity[k].is_connected) {
+                        ret_val = SetDependency(deps, k, out_elem->channel_idx, DEP_DEPENDENT);
+                        if (RETURN_OK != ret_val) {
+                            goto cleanup;
+                        }
+                    }
+                }
+            } else {
+                // The <Unknown> element explicitly defines its dependencies
+                SizeTSizeTElem * in_pair = dependencies_to_in_channels->Get(dependencies_to_in_channels, dep_idx);
+                if (in_pair) {
+                    ChannelElement * dep = &dependencies_to_inputs[in_pair->value];
+
+                    ConnectedElems * elems = &in_channel_connectivity[dep->channel_idx];
+                    if (elems->is_connected) {
+                        size_t k = 0;
+                        for (k = 0; k < elems->num_elems; k++) {
+                            if (elems->elems[k] == dep->elem_idx) {
+                                ret_val = SetDependency(deps, dep->channel_idx, out_elem->channel_idx, DEP_DEPENDENT);
+                                if (RETURN_OK != ret_val) {
+                                    goto cleanup;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Initial unknowns which are ommitted from the <InitialUnknowns> element in
+    // modelDescription.xml file depend on all inputs
+    for (i = 0; i < num_out_vars; ++i) {
+        Fmu2Value * val = (Fmu2Value *) out_vars->At(out_vars, i);
+
+        Vector * elems = GetAllElems(processed_output_elems, processed_elems, i);
+
+        if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                if (!elems->Contains(elems, &j)) {
+                    if (fmi2_import_get_initial(val->data->data.array.values[j]) != fmi2_initial_enu_exact) {
+                        for (k = 0; k < num_in_channels; ++k) {
+                            if (in_channel_connectivity[k].is_connected) {
+                                ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
+                                if (RETURN_OK != ret_val) {
+                                    goto cleanup;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            if (elems->Size(elems) == 0) {
+                if (fmi2_import_get_initial(val->data->data.scalar) != fmi2_initial_enu_exact) {
+                    for (k = 0; k < num_in_channels; ++k) {
+                        if (in_channel_connectivity[k].is_connected) {
+                            ret_val = SetDependency(deps, k, i, DEP_DEPENDENT);
+                            if (RETURN_OK != ret_val) {
+                                goto cleanup_1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        object_destroy(elems);
+        continue;
+
+cleanup_1:
+        object_destroy(elems);
+        goto cleanup;
+    }
+
+cleanup:    // free dynamically allocated objects
+    object_destroy(dependencies_to_in_channels);
+    object_destroy(unknowns_to_out_channels);
+    if (in_channel_connectivity) { mcx_free(in_channel_connectivity); }
+    if (dependencies_to_inputs) { mcx_free(dependencies_to_inputs); }
+    if (unknowns_to_outputs) { mcx_free(unknowns_to_outputs); }
+    if (processed_output_elems) { mcx_free(processed_output_elems); }
+    fmi2_import_free_variable_list(init_unknowns);
+
+    return ret_val;
+}
+
+
+McxStatus Fmu2SetVariableInitialize(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
+    McxStatus status = RETURN_OK;
 
     Channel * channel = fmuVal->channel;
     if (channel && FALSE == channel->IsDefinedDuringInit(channel)) {
@@ -601,17 +1019,24 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         return RETURN_OK;
     }
 
-    ChannelValue * const chVal = &fmuVal->val;
-    ChannelType type = ChannelValueType(chVal);
+    return Fmu2SetVariable(fmu, fmuVal);
+}
 
-    switch (type) {
+// TODO: move into fmu2value?
+McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
+    fmi2_status_t status = fmi2_status_ok;
+
+    ChannelValue * const chVal = &fmuVal->val;
+    ChannelType * type = ChannelValueType(chVal);
+
+    switch (type->con) {
     case CHANNEL_DOUBLE:
     {
         fmi2_value_reference_t vr[] = {fmuVal->data->vr.scalar};
 
-        status = fmi2_import_set_real(fmu->fmiImport, vr, 1, (const fmi2_real_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_real(fmu->fmiImport, vr, 1, (const fmi2_real_t *) ChannelValueDataPointer(chVal));
 
-        MCX_DEBUG_LOG("Set %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueReference(chVal));
+        MCX_DEBUG_LOG("Set %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -619,9 +1044,9 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, (const fmi2_integer_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_integer(fmu->fmiImport, vr, 1, (const fmi2_integer_t *) ChannelValueDataPointer(chVal));
 
-        MCX_DEBUG_LOG("Set %s(%d)=%d", fmuVal->name, vr[0], *(int*)ChannelValueReference(chVal));
+        MCX_DEBUG_LOG("Set %s(%d)=%d", fmuVal->name, vr[0], *(int*)ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -629,7 +1054,7 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, (const fmi2_boolean_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_boolean(fmu->fmiImport, vr, 1, (const fmi2_boolean_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -637,14 +1062,14 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_set_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) ChannelValueReference(chVal));
+        status = fmi2_import_set_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
     case CHANNEL_BINARY:
     case CHANNEL_BINARY_REFERENCE:
     {
-        binary_string * binary = (binary_string *) ChannelValueReference(chVal);
+        binary_string * binary = (binary_string *) ChannelValueDataPointer(chVal);
 
         fmi2_value_reference_t vrs [] = { fmuVal->data->vr.binary.lo
                                         , fmuVal->data->vr.binary.hi
@@ -660,21 +1085,40 @@ McxStatus Fmu2SetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
 
         break;
     }
+    case CHANNEL_ARRAY:
+    {
+        fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&fmuVal->val);
+
+        size_t num = mcx_array_num_elements(a);
+        void * vals = a->data;
+
+        if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
+            status = fmi2_import_set_real(fmu->fmiImport, vrs, num, vals);
+        } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
+            status = fmi2_import_set_integer(fmu->fmiImport, vrs, num, vals);
+        } else {
+            mcx_log(LOG_ERROR, "FMU: Unsupported array variable type: %s", ChannelTypeToString(a->type));
+            return RETURN_ERROR;
+        }
+
+        break;
+    }
     default:
-        mcx_log(LOG_ERROR, "FMU: Unknown variable type");
+        mcx_log(LOG_ERROR, "FMU: Unknown variable type: %s", ChannelTypeToString(type));
         return RETURN_ERROR;
     }
 
     if (fmi2_status_ok != status) {
         if (fmi2_status_error == status || fmi2_status_fatal == status) {
             fmu->runOk = fmi2_false;
-            mcx_log(LOG_ERROR, "FMU: Setting of variable %s failed", name);
+            mcx_log(LOG_ERROR, "FMU: Setting of variable %s failed", fmuVal->name);
             return RETURN_ERROR;
         } else {
             if (fmi2_status_warning == status) {
-                mcx_log(LOG_WARNING, "FMU: Setting of variable %s return with a warning", name);
+                mcx_log(LOG_WARNING, "FMU: Setting of variable %s return with a warning", fmuVal->name);
             } else if (fmi2_status_discard == status) {
-                mcx_log(LOG_WARNING, "FMU: Setting of variable %s discarded", name);
+                mcx_log(LOG_WARNING, "FMU: Setting of variable %s discarded", fmuVal->name);
             }
         }
     }
@@ -688,14 +1132,42 @@ McxStatus Fmu2SetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
 
     McxStatus retVal = RETURN_OK;
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2SetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
+
+    return RETURN_OK;
+}
+
+McxStatus Fmu2SetVariableArrayInitialize(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
+    size_t i = 0;
+    size_t numVars = vals->Size(vals);
+
+    McxStatus retVal = RETURN_OK;
+
+    mcx_signal_handler_set_this_function();
+
+    for (i = 0; i < numVars; i++) {
+        Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
+
+        retVal = Fmu2SetVariableInitialize(fmu, fmuVal);
+        if (RETURN_ERROR == retVal) {
+            mcx_signal_handler_unset_function();
+            return RETURN_ERROR;
+        }
+    }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }
@@ -706,16 +1178,16 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     char * const name = fmuVal->name;
     ChannelValue * const chVal = &fmuVal->val;
 
-    ChannelType type = ChannelValueType(chVal);
+    ChannelType * type = ChannelValueType(chVal);
 
-    switch (type) {
+    switch (type->con) {
     case CHANNEL_DOUBLE:
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_real(fmu->fmiImport, vr, 1, (fmi2_real_t *) ChannelValueReference(chVal));
+        status = fmi2_import_get_real(fmu->fmiImport, vr, 1, (fmi2_real_t *) ChannelValueDataPointer(chVal));
 
-        MCX_DEBUG_LOG("Get %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueReference(chVal));
+        MCX_DEBUG_LOG("Get %s(%d)=%f", fmuVal->name, vr[0], *(double*)ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -723,7 +1195,7 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, (fmi2_integer_t *) ChannelValueReference(chVal));
+        status = fmi2_import_get_integer(fmu->fmiImport, vr, 1, (fmi2_integer_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -731,7 +1203,7 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
     {
         fmi2_value_reference_t vr[] = { fmuVal->data->vr.scalar };
 
-        status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, (fmi2_boolean_t *) ChannelValueReference(chVal));
+        status = fmi2_import_get_boolean(fmu->fmiImport, vr, 1, (fmi2_boolean_t *) ChannelValueDataPointer(chVal));
 
         break;
     }
@@ -742,7 +1214,9 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
         char * buffer = NULL;
 
         status = fmi2_import_get_string(fmu->fmiImport, vr, 1, (fmi2_string_t *) &buffer);
-        ChannelValueSetFromReference(chVal, &buffer);
+        if (RETURN_OK != ChannelValueSetFromReference(chVal, &buffer)) {
+            return RETURN_ERROR;
+        }
 
         break;
     }
@@ -760,10 +1234,31 @@ McxStatus Fmu2GetVariable(Fmu2CommonStruct * fmu, Fmu2Value * fmuVal) {
 
         status = fmi2_import_get_integer(fmu->fmiImport, vrs, 3, vs);
 
-    binary.len = vs[2];
-    binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
+        binary.len = vs[2];
+        binary.data = (char *) ((((long long)vs[1] & 0xffffffff) << 32) | (vs[0] & 0xffffffff));
 
-        ChannelValueSetFromReference(chVal, &binary);
+        if (RETURN_OK != ChannelValueSetFromReference(chVal, &binary)) {
+            return RETURN_ERROR;
+        }
+
+        break;
+    }
+    case CHANNEL_ARRAY:
+    {
+        fmi2_value_reference_t * vrs = fmuVal->data->vr.array.values;
+        mcx_array * a = (mcx_array *) ChannelValueDataPointer(&fmuVal->val);
+
+        size_t num = mcx_array_num_elements(a);
+        void * vals = a->data;
+
+        if (ChannelTypeEq(a->type, &ChannelTypeDouble)) {
+            status = fmi2_import_get_real(fmu->fmiImport, vrs, num, vals);
+        } else if (ChannelTypeEq(a->type, &ChannelTypeInteger)) {
+            status = fmi2_import_get_integer(fmu->fmiImport, vrs, num, vals);
+        } else {
+            // TODO: log message
+            return RETURN_ERROR;
+        }
 
         break;
     }
@@ -795,15 +1290,20 @@ McxStatus Fmu2GetVariableArray(Fmu2CommonStruct * fmu, ObjectContainer * vals) {
 
     McxStatus retVal = RETURN_OK;
 
+    mcx_signal_handler_set_this_function();
+
     for (i = 0; i < numVars; i++) {
         Fmu2Value * const fmuVal = (Fmu2Value *) vals->At(vals, i);
 
         retVal = Fmu2GetVariable(fmu, fmuVal);
         if (RETURN_ERROR == retVal) {
             mcx_log(LOG_ERROR, "FMU: Getting of variable array failed at element %u", i);
+            mcx_signal_handler_unset_function();
             return RETURN_ERROR;
         }
     }
+
+    mcx_signal_handler_unset_function();
 
     return RETURN_OK;
 }
@@ -840,9 +1340,9 @@ McxStatus Fmi2RegisterLocalChannelsAtDatabus(ObjectContainer * vals, const char 
         const char * name = val->name;
         fmi2_import_unit_t * unit = NULL;
         const char * unitName;
-        ChannelType type = ChannelValueType(&val->val);
+        ChannelType * type = ChannelValueType(&val->val);
 
-        if (CHANNEL_DOUBLE == type) {
+        if (ChannelTypeEq(&ChannelTypeDouble, type)) {
             unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(val->data->data.scalar));
         }
         if (unit) {
@@ -857,7 +1357,7 @@ McxStatus Fmi2RegisterLocalChannelsAtDatabus(ObjectContainer * vals, const char 
             return RETURN_ERROR;
         }
 
-        retVal = DatabusAddLocalChannel(db, name, buffer, unitName, ChannelValueReference(&val->val), ChannelValueType(&val->val));
+        retVal = DatabusAddLocalChannel(db, name, buffer, unitName, ChannelValueDataPointer(&val->val), ChannelValueType(&val->val));
         if (RETURN_OK != retVal) {
             mcx_log(LOG_ERROR, "%s: Adding channel %s to databus failed", compName, name);
             return RETURN_ERROR;
@@ -881,11 +1381,20 @@ ObjectContainer * Fmu2ValueScalarListFromVarList(fmi2_import_variable_list_t * v
     for (i = 0; i < num; i++) {
         fmi2_import_variable_t * var = fmi2_import_get_variable(vars, i);
         char * name = (char *)fmi2_import_get_variable_name(var);
-        ChannelType type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
+        ChannelType * type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
+        fmi2_import_unit_t * unit = NULL;
+        const char * unitName = NULL;
 
-        Fmu2Value * value = Fmu2ValueScalarMake(name, var, NULL, NULL);
+        if (ChannelTypeEq(&ChannelTypeDouble, type)) {
+            unit = fmi2_import_get_real_variable_unit(fmi2_import_get_variable_as_real(var));
+            if (unit) {
+                unitName = fmi2_import_get_unit_name(unit);
+            }
+        }
+
+        Fmu2Value * value = Fmu2ValueScalarMake(name, var, unitName, NULL);
         if (value) {
-            list->PushBack(list, (Object *) value);
+            list->PushBackNamed(list, (Object *) value, name);
         } else {
             list->DestroyObjects(list);
             object_destroy(list);
@@ -914,7 +1423,7 @@ ObjectContainer * Fmu2ValueScalarListFromValVarList(ObjectContainer * vals, fmi2
     for (i = 0; i < num; i++) {
         fmi2_import_variable_t * var = fmi2_import_get_variable(vars, i);
         char * name = (char *)fmi2_import_get_variable_name(var);
-        ChannelType type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
+        ChannelType * type = Fmi2TypeToChannelType(fmi2_import_get_variable_base_type(var));
         ChannelValue * chVal = (ChannelValue *) vals->At(vals, i);
         Fmu2Value * value = NULL;
 
@@ -1030,8 +1539,33 @@ void Fmu2MarkTunableParamsAsInputAsDiscrete(ObjectContainer * in) {
 
             if (fmi2_causality_enu_input != causality) {
                 ChannelIn * in = (ChannelIn *) val->channel;
-                ChannelInfo * info = ((Channel*)in)->GetInfo((Channel*)in);
-                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", info->GetLogName(info));
+                ChannelInfo * info = &((Channel*)in)->info;
+                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
+                in->SetDiscrete(in);
+            }
+        } else if (val->data->type == FMU2_VALUE_ARRAY) {
+            size_t num_elems = 1;
+            size_t j = 0;
+            int all_tunable = TRUE;
+
+            for (j = 0; j < val->data->data.array.numDims; j++) {
+                num_elems *= val->data->data.array.dims[j];
+            }
+
+            for (j = 0; j < num_elems; j++) {
+                fmi2_import_variable_t * var = val->data->data.array.values[j];
+                fmi2_causality_enu_t causality = fmi2_import_get_causality(var);
+
+                if (fmi2_causality_enu_input == causality) {
+                    all_tunable = FALSE;
+                    break;
+                }
+            }
+
+            if (all_tunable) {
+                ChannelIn * in = (ChannelIn *) val->channel;
+                ChannelInfo * info = &((Channel *) in)->info;
+                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
                 in->SetDiscrete(in);
             }
         }
