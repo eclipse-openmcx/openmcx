@@ -19,6 +19,7 @@
 #include "core/SubModel.h"
 #include "reader/model/ModelInput.h"
 #include "components/ComponentFactory.h"
+#include "objects/Vector.h"
 
 #ifdef __cplusplus
     extern "C" {
@@ -63,7 +64,7 @@ struct Model {
     Config * config;
     Task * task;
 
-    ObjectContainer * connections;
+    Vector * connections;
 
     ObjectContainer * components;
 
@@ -77,7 +78,7 @@ struct Model {
 
 } ;
 
-McxStatus ReadConnections(ObjectContainer * connections,
+McxStatus ReadConnections(Vector * connections,
                           ConnectionsInput * connectionsInput,
                           ObjectContainer * components,
                           Component * sourceComp,
@@ -86,9 +87,9 @@ McxStatus ReadConnections(ObjectContainer * connections,
 McxStatus SetupComponents(ObjectContainer * components, Component * leaveOutComponent);
 McxStatus SetupDatabusComponents(ObjectContainer * components);
 
-McxStatus MakeConnections(ObjectContainer * connections, InterExtrapolatingType isInterExtrapolating);
+McxStatus MakeConnections(Vector * connections, InterExtrapolatingType isInterExtrapolating);
 
-McxStatus PrintModelGraph(ObjectContainer * comps, ObjectContainer * conns, Component * inComp, Component * outComp, const char * title, const char * filename);
+McxStatus PrintModelGraph(ObjectContainer * comps, Vector * conns, Component * inComp, Component * outComp, const char * title, const char * filename);
 McxStatus PrintComponentGraph(Component * comp, const char * filename,
                               struct Dependencies * A, DependencyType depType);
 

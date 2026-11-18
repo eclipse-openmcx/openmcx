@@ -66,8 +66,8 @@ void mcx_time_diff(McxTime * start, McxTime * end, McxTime * result) {
     timersub(end, start, result);
 }
 
-double mcx_time_to_seconds(McxTime * time) {
-    return time->tv_sec + time->tv_usec / 1000000.0;
+double mcx_time_to_micro_s(McxTime * time) {
+    return time->tv_sec*1000000.0 + time->tv_usec;
 }
 
 McxTime mcx_seconds_to_time(int seconds) {

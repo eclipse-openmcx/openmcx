@@ -18,10 +18,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
-// ----------------------------------------------------------------------
-// ChannelInfo
 
-static const char * ChannelInfoGetLogName(const ChannelInfo * info) {
+const char * ChannelInfoGetLogName(const ChannelInfo * info) {
     if (info->id) {
         return info->id;
     } else {
@@ -29,15 +27,7 @@ static const char * ChannelInfoGetLogName(const ChannelInfo * info) {
     }
 }
 
-static ChannelType ChannelInfoType(const ChannelInfo * info) {
-    return info->type;
-}
-
-static ChannelMode ChannelInfoMode(const ChannelInfo * info) {
-    return info->mode;
-}
-
-static const char * ChannelInfoName(const ChannelInfo * info) {
+const char * ChannelInfoGetName(const ChannelInfo * info) {
     if (info->name) {
         return info->name;
     } else {
@@ -45,57 +35,11 @@ static const char * ChannelInfoName(const ChannelInfo * info) {
     }
 }
 
-static const char * ChannelInfoNameInTool(const ChannelInfo * info) {
-    return info->nameInTool;
+int ChannelInfoIsBinary(const ChannelInfo * info) {
+    return info->type == CHANNEL_BINARY || info->type == CHANNEL_BINARY_REFERENCE;
 }
 
-static const char * ChannelInfoDescription(const ChannelInfo * info) {
-    return info->description;
-}
-
-static const char * ChannelInfoID(const ChannelInfo * info) {
-    return info->id;
-}
-
-static const char * ChannelInfoUnit(const ChannelInfo * info) {
-    return info->unitString;
-}
-
-static ChannelValue * ChannelGetMin(const ChannelInfo * info) {
-    return info->min;
-}
-
-static ChannelValue * ChannelGetMax(const ChannelInfo * info) {
-    return info->max;
-}
-
-static ChannelValue * ChannelInfoGetInitialValue(const ChannelInfo * info) {
-    return info->initialValue;
-}
-
-static ChannelValue * ChannelInfoScale(const ChannelInfo * info) {
-    return info->scale;
-}
-
-static ChannelValue * ChannelInfoOffset(const ChannelInfo * info) {
-    return info->offset;
-}
-
-static ChannelValue * ChannelInfoDefault(const ChannelInfo * info) {
-    return info->defaultValue;
-}
-
-static int ChannelInfoIsBinary(const ChannelInfo * info) {
-    return info->type == CHANNEL_BINARY
-        || info->type == CHANNEL_BINARY_REFERENCE;
-}
-
-static int ChannelInfoGetWriteResultFlag(const ChannelInfo * info) {
-    return info->writeResult;
-}
-
-
-static McxStatus ChannelInfoSetString(char * * dst, const char * src) {
+static McxStatus ChannelInfoSetString(char ** dst, const char * src) {
     if (*dst) {
         mcx_free(*dst);
     }
@@ -110,7 +54,43 @@ static McxStatus ChannelInfoSetString(char * * dst, const char * src) {
     return RETURN_OK;
 }
 
-static McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector) {
+McxStatus ChannelInfoSetName(ChannelInfo * info, const char * name) {
+    return ChannelInfoSetString(&info->name, name);
+}
+
+McxStatus ChannelInfoSetNameInTool(ChannelInfo * info, const char * name) {
+    return ChannelInfoSetString(&info->nameInTool, name);
+}
+
+McxStatus ChannelInfoSetID(ChannelInfo * info, const char * name) {
+    return ChannelInfoSetString(&info->id, name);
+}
+
+McxStatus ChannelInfoSetDescription(ChannelInfo * info, const char * name) {
+    return ChannelInfoSetString(&info->description, name);
+}
+
+McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name) {
+    return ChannelInfoSetString(&info->unitString, name);
+}
+
+McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type) {
+    if (info->type != CHANNEL_UNKNOWN) {
+        mcx_log(LOG_ERROR, "Port %s: Type already set", ChannelInfoGetLogName(info));
+        return RETURN_ERROR;
+    }
+
+    info->type = type;
+
+    if (ChannelInfoIsBinary(info)) {
+        // the default for binary is off
+        info->writeResult = FALSE;
+    }
+
+    return RETURN_OK;
+}
+
+McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * vector) {
     if (info->vector) {
         object_destroy(info->vector);
     }
@@ -120,238 +100,29 @@ static McxStatus ChannelInfoSetVector(ChannelInfo * info, VectorChannelInfo * ve
     return RETURN_OK;
 }
 
-static McxStatus ChannelInfoSetName(ChannelInfo * info, const char * name) {
-    return ChannelInfoSetString(&info->name, name);
-}
-
-static McxStatus ChannelInfoSetNameInTool(ChannelInfo * info, const char * name) {
-    return ChannelInfoSetString(&info->nameInTool, name);
-}
-
-static McxStatus ChannelInfoSetID(ChannelInfo * info, const char * name) {
-    return ChannelInfoSetString(&info->id, name);
-}
-
-static McxStatus ChannelInfoSetDescription(ChannelInfo * info, const char * name) {
-    return ChannelInfoSetString(&info->description, name);
-}
-
-static McxStatus ChannelInfoSetUnit(ChannelInfo * info, const char * name) {
-    return ChannelInfoSetString(&info->unitString, name);
-}
-
-static McxStatus ChannelInfoSetType(ChannelInfo * info, ChannelType type) {
-    if (info->type != CHANNEL_UNKNOWN) {
-        mcx_log(LOG_ERROR, "Port %s: Type already set", info->GetLogName(info));
-        return RETURN_ERROR;
-    }
-
-    info->type = type;
-
-    if (info->IsBinary(info)) {
-        // the default for binary is off
-        info->SetWriteResult(info, FALSE);
-    }
-
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetMode(ChannelInfo * info, ChannelMode mode) {
-    info->mode = mode;
-
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetMin(ChannelInfo * info, ChannelValue * min) {
-    info->min = min;
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetMax(ChannelInfo * info, ChannelValue * max) {
-    info->max = max;
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetScale(ChannelInfo * info, ChannelValue * scale) {
-    info->scale = scale;
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetOffset(ChannelInfo * info, ChannelValue * offset) {
-    info->offset = offset;
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetDefault(ChannelInfo * info, ChannelValue * defaultValue) {
-    info->defaultValue = defaultValue;
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetInitial(ChannelInfo * info, ChannelValue * initialValue) {
-    info->initialValue = initialValue;
-    return RETURN_OK;
-}
-
-static McxStatus ChannelInfoSetWriteResult(ChannelInfo * info, int writeResult) {
-    info->writeResult = writeResult;
-    return RETURN_OK;
-}
-
-
-static void ChannelInfoSet(
-    ChannelInfo *       info,
-    VectorChannelInfo * vector,
-    char *              name,
-    char *              nameInTool,
-    char *              description,
-    char *              unit,
-    ChannelType         type,
-    ChannelMode         mode,
-    char *              id,
-    ChannelValue *      min,
-    ChannelValue *      max,
-    ChannelValue *      scale,
-    ChannelValue *      offset,
-    ChannelValue *      defaultValue,
-    ChannelValue *      initialValue,
-    int                 writeResult)
-{
-    info->vector       = vector;
-    info->name         = name;
-    info->nameInTool   = nameInTool;
-    info->description  = description;
-    info->unitString   = unit;
-    info->type         = type;
-    info->mode         = mode;
-    info->id           = id;
-    info->min          = min;
-    info->max          = max;
-    info->scale        = scale;
-    info->offset       = offset;
-    info->defaultValue = defaultValue;
-    info->initialValue = initialValue;
-    info->writeResult  = writeResult;
-}
-
-static void ChannelInfoGet(
-    const ChannelInfo *  info,
-    VectorChannelInfo ** vector,
-    char **              name,
-    char **              nameInTool,
-    char **              description,
-    char **              unit,
-    ChannelType *        type,
-    ChannelMode *        mode,
-    char **              id,
-    ChannelValue **      min,
-    ChannelValue **      max,
-    ChannelValue **      scale,
-    ChannelValue **      offset,
-    ChannelValue **      defaultValue,
-    ChannelValue **      initialValue,
-    int *                writeResult)
-{
-    * vector       = info->vector;
-    * name         = info->name;
-    * nameInTool   = info->nameInTool;
-    * description  = info->description;
-    * unit         = info->unitString;
-    * type         = info->type;
-    * mode         = info->mode;
-    * id           = info->id;
-    * min          = info->min;
-    * max          = info->max;
-    * scale        = info->scale;
-    * offset       = info->offset;
-    * defaultValue = info->defaultValue;
-    * initialValue = info->initialValue;
-    * writeResult  = info->writeResult;
-}
-
-static ChannelInfo * ChannelInfoClone(const ChannelInfo * info) {
-    ChannelInfo * clone = (ChannelInfo *) object_create(ChannelInfo);
-
-    if (!clone) {
-        return NULL;
-    }
-
-    if (info->name        && !(clone->name        = mcx_string_copy(info->name)))        { return NULL; }
-    if (info->nameInTool  && !(clone->nameInTool  = mcx_string_copy(info->nameInTool)))  { return NULL; }
-    if (info->description && !(clone->description = mcx_string_copy(info->description))) { return NULL; }
-    if (info->unitString  && !(clone->unitString  = mcx_string_copy(info->unitString)))  { return NULL; }
-    if (info->id          && !(clone->id          = mcx_string_copy(info->id)))          { return NULL; }
-
-    clone->type = info->type;
-    clone->mode = info->mode;
-
-    if (info->min) {
-        if (!(clone->min = ChannelValueClone(info->min))) { return NULL; }
-    }
-    if (info->max) {
-        if (!(clone->max = ChannelValueClone(info->max))) { return NULL; }
-    }
-    if (info->scale) {
-        if (!(clone->scale = ChannelValueClone(info->scale))) { return NULL; }
-    }
-    if (info->offset) {
-        if (!(clone->offset = ChannelValueClone(info->offset))) { return NULL; }
-    }
-    if (info->defaultValue) {
-        if (!(clone->defaultValue = ChannelValueClone(info->defaultValue))) { return NULL; }
-    }
-    if (info->initialValue) {
-        if (!(clone->initialValue = ChannelValueClone(info->initialValue))) { return NULL; }
-    }
-
-    clone->writeResult = info->writeResult;
-
-    return clone;
-}
-
-static ChannelInfo * ChannelInfoCopy(
-    const ChannelInfo * info,
-    char        * name,
-    char        * nameInTool,
-    char        * id) {
-
-    ChannelInfo * copy = info->Clone(info);
-
-    if (!copy) {
-        return NULL;
-    }
-
-    copy->SetName(copy, name);
-    copy->SetNameInTool(copy, nameInTool);
-    copy->SetID(copy, id);
-
-    return copy;
-}
-
-static McxStatus ChannelInfoInit(ChannelInfo * info,
-                                const char * name,
-                                const char * descr,
-                                const char * unit,
-                                ChannelType  type,
-                                const char * id) {
-
-
-    if (name  && RETURN_OK != info->SetName(info, name)) {
+McxStatus ChannelInfoSetup(ChannelInfo * info,
+                           const char * name,
+                           const char * descr,
+                           const char * unit,
+                           ChannelType  type,
+                           const char * id) {
+    if (name && RETURN_OK != ChannelInfoSetName(info, name)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set name", name);
         return RETURN_ERROR;
     }
-    if (descr && RETURN_OK != info->SetDescription(info, descr)) {
+    if (descr && RETURN_OK != ChannelInfoSetDescription(info, descr)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set description", name);
         return RETURN_ERROR;
     }
-    if (unit  && RETURN_OK != info->SetUnit(info, unit)) {
+    if (unit && RETURN_OK != ChannelInfoSetUnit(info, unit)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set unit", name);
         return RETURN_ERROR;
     }
-    if (id    && RETURN_OK != info->SetID(info, id)) {
+    if (id && RETURN_OK != ChannelInfoSetID(info, id)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set ID", name);
         return RETURN_ERROR;
     }
-    if (RETURN_OK != info->SetType(info, type)) {
+    if (RETURN_OK != ChannelInfoSetType(info, type)) {
         mcx_log(LOG_DEBUG, "Port %s: Could not set type", name);
         return RETURN_ERROR;
     }
@@ -359,6 +130,120 @@ static McxStatus ChannelInfoInit(ChannelInfo * info,
     return RETURN_OK;
 }
 
+static void FreeChannelValue(ChannelValue ** value) {
+    if (*value) {
+        ChannelValueDestructor(*value);
+        mcx_free(*value);
+        *value = NULL;
+    }
+}
+
+McxStatus ChannelInfoSetFrom(ChannelInfo * info, const ChannelInfo * other) {
+    McxStatus retVal = RETURN_OK;
+
+    retVal = ChannelInfoSetName(info, other->name);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set name");
+        return RETURN_ERROR;
+    }
+
+    retVal = ChannelInfoSetNameInTool(info, other->nameInTool);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set name in model");
+        return RETURN_ERROR;
+    }
+
+    retVal = ChannelInfoSetDescription(info, other->description);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set description");
+        return RETURN_ERROR;
+    }
+
+    retVal = ChannelInfoSetUnit(info, other->unitString);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set unit");
+        return RETURN_ERROR;
+    }
+
+    retVal = ChannelInfoSetID(info, other->id);
+    if (RETURN_ERROR == retVal) {
+        mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set name");
+        return RETURN_ERROR;
+    }
+
+    info->type = other->type;
+    info->mode = other->mode;
+    info->writeResult = other->writeResult;
+    info->connected = other->connected;
+    info->initialValueIsExact = other->initialValueIsExact;
+
+    info->channel = other->channel;  // weak reference
+
+    FreeChannelValue(&info->min);
+    FreeChannelValue(&info->max);
+    FreeChannelValue(&info->scale);
+    FreeChannelValue(&info->offset);
+    FreeChannelValue(&info->defaultValue);
+    FreeChannelValue(&info->initialValue);
+
+    if (other->min) {
+        info->min = ChannelValueClone(other->min);
+        if (!info->min) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set min");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (other->max) {
+        info->max = ChannelValueClone(other->max);
+        if (!info->max) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set max");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (other->scale) {
+        info->scale = ChannelValueClone(other->scale);
+        if (!info->scale) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set scale");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (other->offset) {
+        info->offset = ChannelValueClone(other->offset);
+        if (!info->offset) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set offset");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (other->defaultValue) {
+        info->defaultValue = ChannelValueClone(other->defaultValue);
+        if (!info->defaultValue) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set default value");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (other->initialValue) {
+        info->initialValue = ChannelValueClone(other->initialValue);
+        if (!info->initialValue) {
+            mcx_log(LOG_ERROR, "ChannelInfoSetFrom: Failed to set initial value");
+            return RETURN_ERROR;
+        }
+    }
+
+    if (info->vector) {
+        object_destroy(info->vector);
+    }
+
+    if (other->vector) {
+        info->vector = (VectorChannelInfo *) object_strong_reference(other->vector);
+    }
+
+    return RETURN_OK;
+}
 
 static void FreeStr(char ** str) {
     if (*str) {
@@ -367,75 +252,32 @@ static void FreeStr(char ** str) {
     }
 }
 
-static void ChannelInfoDestructor(ChannelInfo * info) {
+void ChannelInfoDestroy(ChannelInfo * info) {
     FreeStr(&info->name);
     FreeStr(&info->nameInTool);
     FreeStr(&info->description);
     FreeStr(&info->unitString);
     FreeStr(&info->id);
 
-    if (info->defaultValue) {
-        ChannelValueDestructor(info->defaultValue);
-        mcx_free(info->defaultValue);
-        info->defaultValue = NULL;
-    }
-    if (info->initialValue) {
-        ChannelValueDestructor(info->initialValue);
-        mcx_free(info->initialValue);
-        info->initialValue = NULL;
-    }
+    FreeChannelValue(&info->min);
+    FreeChannelValue(&info->max);
+    FreeChannelValue(&info->scale);
+    FreeChannelValue(&info->offset);
+    FreeChannelValue(&info->defaultValue);
+    FreeChannelValue(&info->initialValue);
+
     if (info->vector) {
         object_destroy(info->vector);
     }
+
+    info->channel = NULL;
+    info->initialValueIsExact = FALSE;
+    info->type = CHANNEL_UNKNOWN;
+    info->connected = FALSE;
+    info->writeResult = TRUE;
 }
 
-static ChannelInfo * ChannelInfoCreate(ChannelInfo * info) {
-    info->Set  = ChannelInfoSet;
-    info->Get  = ChannelInfoGet;
-    info->Clone = ChannelInfoClone;
-    info->Copy = ChannelInfoCopy;
-
-    info->Init = ChannelInfoInit;
-
-    info->SetVector = ChannelInfoSetVector;
-    info->SetName = ChannelInfoSetName;
-    info->SetNameInTool = ChannelInfoSetNameInTool;
-    info->SetID = ChannelInfoSetID;
-    info->SetDescription = ChannelInfoSetDescription;
-    info->SetUnit = ChannelInfoSetUnit;
-    info->SetType = ChannelInfoSetType;
-    info->SetMode = ChannelInfoSetMode;
-
-    info->SetMin = ChannelInfoSetMin;
-    info->SetMax = ChannelInfoSetMax;
-    info->SetScale = ChannelInfoSetScale;
-    info->SetOffset = ChannelInfoSetOffset;
-    info->SetDefault = ChannelInfoSetDefault;
-    info->SetInitial = ChannelInfoSetInitial;
-    info->SetWriteResult = ChannelInfoSetWriteResult;
-
-    info->GetType = ChannelInfoType;
-    info->GetMode = ChannelInfoMode;
-    info->GetName = ChannelInfoName;
-    info->GetNameInTool = ChannelInfoNameInTool;
-    info->GetDescription = ChannelInfoDescription;
-    info->GetID = ChannelInfoID;
-    info->GetUnit = ChannelInfoUnit;
-    info->GetMin = ChannelGetMin;
-    info->GetMax = ChannelGetMax;
-
-    info->GetInitialValue = ChannelInfoGetInitialValue;
-
-    info->GetScale = ChannelInfoScale;
-    info->GetOffset = ChannelInfoOffset;
-    info->GetDefault = ChannelInfoDefault;
-
-    info->IsBinary = ChannelInfoIsBinary;
-
-    info->GetWriteResultFlag = ChannelInfoGetWriteResultFlag;
-
-    info->GetLogName = ChannelInfoGetLogName;
-
+McxStatus ChannelInfoInit(ChannelInfo * info) {
     info->vector = NULL;
 
     info->name        = NULL;
@@ -461,10 +303,9 @@ static ChannelInfo * ChannelInfoCreate(ChannelInfo * info) {
 
     info->channel = NULL;
 
-    return info;
+    return RETURN_OK;
 }
 
-OBJECT_CLASS(ChannelInfo, Object);
 
 #ifdef __cplusplus
 } /* closing brace for extern "C" */

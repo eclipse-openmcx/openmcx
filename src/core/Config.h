@@ -56,12 +56,24 @@ struct Config {
     char * executable;
 
     int flushEveryStore;
+
     int sumTime;
     int sumTimeDefined;
 
     int writeAllLogFile;
 
+    size_t interpolationBuffSize;
+    size_t overrideInterpolationBuffSize;
+    size_t interpolationBuffSizeLimit;
+    size_t interpolationBuffSizeSafetyExt;
+
+    int useMemFilter;
+    size_t memFilterHistoryLimit;
+    size_t memFilterHistoryExtra;
+
     int cosimInitEnabled;
+
+    int profilingMode;
 
     size_t maxNumTimeSnapWarnings;
 

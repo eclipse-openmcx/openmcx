@@ -104,8 +104,8 @@ static McxStatus IntExtFilterEnterCommunicationMode(ChannelFilter * filter, doub
     return RETURN_OK;
 }
 
-static McxStatus IntExtFilterSetup(IntExtFilter * intExtFilter, int degreeExtrapolation, int degreeInterpolation) {
-    if (RETURN_ERROR == intExtFilter->filterInt->Setup(intExtFilter->filterInt, degreeInterpolation)) {
+static McxStatus IntExtFilterSetup(IntExtFilter * intExtFilter, int degreeExtrapolation, int degreeInterpolation, size_t buffSize) {
+    if (RETURN_ERROR == intExtFilter->filterInt->Setup(intExtFilter->filterInt, degreeInterpolation, buffSize)) {
         mcx_log(LOG_ERROR, "Connection: IntExtFilter: Setup of interpolation filter failed");
         return RETURN_ERROR;
     }

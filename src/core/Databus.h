@@ -246,10 +246,14 @@ struct Connection * DatabusCreateConnection(struct Databus * db, struct Connecti
  * \return \c RETURN_OK on success, or \c RETURN_ERROR otherwise.
  */
 McxStatus DatabusTriggerInConnections(struct Databus * db, TimeInterval * consumerTime);
+McxStatus DatabusTriggerConnectedInConnections(struct Databus * db, TimeInterval * consumerTime);
 
+McxStatus DatabusUpdateInConnected(Databus * db);
+
+McxStatus DatabusCollectModeSwitchData(Databus * db);
 McxStatus DatabusEnterCouplingStepMode(struct Databus * db, double timeStepSize);
 McxStatus DatabusEnterCommunicationMode(struct Databus * db, double time);
-McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectContainer * connections, double time);
+McxStatus DatabusEnterCommunicationModeForConnections(Databus * db, ObjectList * connections, double time);
 
 /* private interface for Component, Model, Task */
 
@@ -288,6 +292,9 @@ size_t DatabusInfoGetNumWriteChannels(DatabusInfo * dbInfo);
 
 /* internal */
 
+int DatabusInChannelsDefined(Databus * db);
+int DatabusOutChannelsDefined(Databus * db);
+
 /**
  * Accessor function for the \a i-th in channel of \a db.
  *
@@ -318,10 +325,20 @@ struct Channel * DatabusGetRTFactorChannel(Databus * db, size_t i);
 
 extern const struct ObjectClass _Databus;
 
+
+typedef struct {
+    Connection * connection;
+    double sourceTimeStepSize;
+    double targetTimeStepSize;
+} ModeSwitchData;
+
 typedef struct Databus {
     Object _; // base class
 
     struct DatabusData * data;
+
+    ModeSwitchData * modeSwitchData;
+    size_t modeSwitchDataSize;
 } Databus;
 
 char * CreateIndexedName(const char * name, unsigned i);

@@ -251,7 +251,7 @@ static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
 
             for (chIdx = 0; chIdx < chNum; chIdx++) {
                 ChannelInfo * info = chStore->GetChannelInfo(chStore, chIdx);
-                const char * channelName = info->GetName(info);
+                const char * channelName = ChannelInfoGetName(info);
                 char * quotedChannelName = QuoteString(channelName);
                 const char * sep = textBackend->separator;
 
@@ -270,7 +270,7 @@ static McxStatus SetupComponentFilesCsv(StorageBackend * backend) {
 
             for (chIdx = 0; chIdx < chNum; chIdx++) {
                 ChannelInfo * info = chStore->GetChannelInfo(chStore, chIdx);
-                const char * channelUnit = info->GetUnit(info);
+                const char * channelUnit = info->unitString;
                 const char * sep = textBackend->separator;
                 if (chIdx == 0) {
                     sep = "";

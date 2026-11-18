@@ -9,6 +9,7 @@
  ********************************************************************************/
 
 #include "core/channels/VectorChannelInfo.h"
+#include "core/channels/ChannelInfo.h"
 #include "util/string.h"
 #include "objects/ObjectContainer.h"
 
@@ -61,9 +62,8 @@ static McxStatus VectorChannelInfoSetup(
 static McxStatus VectorChannelInfoAddElement(
     VectorChannelInfo * info,
     ChannelInfo       * channel,
-    size_t              index) {
-
-    ChannelInfo * oldChannel = NULL;
+    size_t              index)
+{
     McxStatus retVal = RETURN_OK;
 
     if (index < info->startIndex || index > info->endIndex) {
@@ -71,14 +71,9 @@ static McxStatus VectorChannelInfoAddElement(
         return RETURN_ERROR;
     }
 
-    oldChannel = (ChannelInfo *) info->channels->At(info->channels, index - info->startIndex);
-    if (oldChannel) {
-        object_destroy(oldChannel);
-    }
-
-    retVal = info->channels->SetAt(info->channels, index - info->startIndex, (Object *) channel);
+    retVal = info->channels->SetAt(info->channels, index - info->startIndex, &channel);
     if (RETURN_OK != retVal) {
-        mcx_log(LOG_ERROR, "Vector port: %s: Could not add port info with index %d", info->GetName(info));
+        mcx_log(LOG_ERROR, "Vector port: %s: Could not add port info with index %zu", info->GetName(info), index);
         return RETURN_ERROR;
     }
 
@@ -102,7 +97,7 @@ static const char * VectorChannelInfoGetNameInTool(VectorChannelInfo * info) {
 }
 
 static ChannelInfo * VectorChannelInfoGetElement(VectorChannelInfo * info, size_t index) {
-    return (ChannelInfo *) info->channels->At(info->channels, index - info->startIndex);
+    return *(ChannelInfo **) info->channels->At(info->channels, index - info->startIndex);
 }
 
 static int VectorChannelInfoIsScalar(VectorChannelInfo * info) {
@@ -139,10 +134,12 @@ static VectorChannelInfo * VectorChannelInfoCreate(VectorChannelInfo * info) {
     info->startIndex = SIZE_T_ERROR;
     info->endIndex = SIZE_T_ERROR;
 
-    info->channels = (ObjectContainer *) object_create(ObjectContainer);
+    info->channels = (Vector *) object_create(Vector);
     if (!info->channels) {
         return NULL;
     }
+
+    info->channels->Setup(info->channels, sizeof(ChannelInfo *), NULL, NULL, NULL);
 
     return info;
 }

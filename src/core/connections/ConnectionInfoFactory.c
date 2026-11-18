@@ -11,6 +11,7 @@
 #include "core/connections/ConnectionInfoFactory.h"
 #include "core/connections/ConnectionInfo.h"
 #include "core/Databus.h"
+#include "objects/Vector.h"
 
 #include "util/string.h"
 
@@ -18,214 +19,190 @@
 extern "C" {
 #endif /* __cplusplus */
 
-static ConnectionInfo * ConnectionInfoFactoryCreateConnectionInfo(ObjectContainer * components,
-                                                                  ConnectionInput * connInput,
-                                                                  Component * sourceCompOverride,
-                                                                  Component * targetCompOverride) {
+
+static McxStatus ConnectionInfoFactoryInitConnectionInfo(
+    ConnectionInfo * info,
+    ObjectContainer * components,
+    ConnectionInput * connInput,
+    Component * sourceCompOverride,
+    Component * targetCompOverride)
+{
     McxStatus retVal = RETURN_OK;
-    ConnectionInfo * info = NULL;
 
-    Component * sourceComp = NULL;
-    Component * targetComp = NULL;
-
-    int sourceChannel = 0;
-    int targetChannel = 0;
     int id = 0;
-
     int connectionInverted = 0;
-
-    int isDecoupled = FALSE;
-    InterExtrapolatingType isInterExtrapolating = INTERPOLATING;
-
-    InterExtrapolationType interExtrapolationType;
-    InterExtrapolationParams * interExtrapolationParams = NULL;
-
-    DecoupleType decoupleType;
-    int decouplePriority = 0;
-
-    // temporary data for reading not used in info->Set()
-    char * strFromChannel = NULL;
     char * strToChannel = NULL;
+    char * strFromChannel = NULL;
 
-    // weak pointers to endpoint data
-    char * inputToChannel = NULL;
-    char * inputToComponent = NULL;
-    char * inputFromChannel = NULL;
-    char * inputFromComponent = NULL;
-
-    Databus     * databus     = NULL;
-    DatabusInfo * databusInfo = NULL;
-
-    info = (ConnectionInfo *)object_create(ConnectionInfo);
-    if (NULL == info) {
-        return NULL;
-    }
-
-    // get default values
-    info->Get(
-        info,
-        &sourceComp,
-        &targetComp,
-        &sourceChannel,
-        &targetChannel,
-        &isDecoupled,
-        &isInterExtrapolating,
-        &interExtrapolationType,
-        &interExtrapolationParams,
-        &decoupleType,
-        &decouplePriority
-    );
-
-    // use conn endpoints from caller if they are not in components
-    sourceComp = sourceCompOverride;
-    targetComp = targetCompOverride;
-
-    // source component
-    if (sourceComp == NULL) {
-        inputFromComponent = connInput->fromType == ENDPOINT_SCALAR ? connInput->from.scalarEndpoint->component :
-                                                                      connInput->from.vectorEndpoint->component;
-        if (inputFromComponent == NULL) {
-            retVal = input_element_error((InputElement*)connInput, "Source element is not specified");
-            goto cleanup;
-        }
-
-        if (0 == strlen(inputFromComponent)) {
-            retVal = input_element_error((InputElement*)connInput, "Source element name is empty");
-            goto cleanup;
-        }
-
-        id = components->GetNameIndex(components, inputFromComponent);
-        if (id < 0) {
-            retVal = input_element_error((InputElement*)connInput, "Source element %s does not exist",
-                                         inputFromComponent);
-            goto cleanup;
-        }
-
-        sourceComp = (Component *) components->elements[id];
-    }
-
-    // source channel
-    inputFromChannel = connInput->fromType == ENDPOINT_SCALAR ? connInput->from.scalarEndpoint->channel :
-                                                                connInput->from.vectorEndpoint->channel;
-    strFromChannel = mcx_string_copy(inputFromChannel);
-    if (0 == strlen(strFromChannel)) {
-        retVal = input_element_error((InputElement*)connInput, "Source port name is empty");
+    retVal = ConnectionInfoInit(info);
+    if (retVal == RETURN_ERROR) {
+        mcx_log(LOG_ERROR, "Initializing the ConnectionInfo object failed");
         goto cleanup;
     }
 
-    if (connInput->fromType == ENDPOINT_VECTOR) {
-        mcx_free(strFromChannel);
-        strFromChannel = CreateIndexedName(inputFromChannel, connInput->from.vectorEndpoint->startIndex);
-        if (!strFromChannel) {
-            retVal = RETURN_ERROR;
-            goto cleanup;
+    // source component
+    {
+        // use conn endpoints from caller if they are not in components
+        info->sourceComponent = sourceCompOverride;
+
+        if (info->sourceComponent == NULL) {
+            char * inputFromComponent = connInput->fromType == ENDPOINT_SCALAR ? connInput->from.scalarEndpoint->component :
+                                                                                 connInput->from.vectorEndpoint->component;
+            if (inputFromComponent == NULL) {
+                retVal = input_element_error((InputElement*)connInput, "Source element is not specified");
+                goto cleanup;
+            }
+
+            if (0 == strlen(inputFromComponent)) {
+                retVal = input_element_error((InputElement*)connInput, "Source element name is empty");
+                goto cleanup;
+            }
+
+            id = components->GetNameIndex(components, inputFromComponent);
+            if (id < 0) {
+                retVal = input_element_error((InputElement*)connInput, "Source element %s does not exist",
+                                             inputFromComponent);
+                goto cleanup;
+            }
+
+            info->sourceComponent = (Component *) components->elements[id];
         }
     }
 
     // target component
-    if (targetComp == NULL) {
-        inputToComponent = connInput->toType == ENDPOINT_SCALAR ? connInput->to.scalarEndpoint->component :
-                                                                  connInput->to.vectorEndpoint->component;
-        if (inputToComponent == NULL) {
-            retVal = input_element_error((InputElement*)connInput, "Target element is not specified");
+    {
+        // use conn endpoints from caller if they are not in components
+        info->targetComponent = targetCompOverride;
+
+        if (info->targetComponent == NULL) {
+            char * inputToComponent = connInput->toType == ENDPOINT_SCALAR ? connInput->to.scalarEndpoint->component :
+                                                                             connInput->to.vectorEndpoint->component;
+            if (inputToComponent == NULL) {
+                retVal = input_element_error((InputElement*)connInput, "Target element is not specified");
+                goto cleanup;
+            }
+
+            if (0 == strlen(inputToComponent)) {
+                retVal = input_element_error((InputElement*)connInput, "Target element name is empty");
+                goto cleanup;
+            }
+
+            id = components->GetNameIndex(components, inputToComponent);
+            if (id < 0) {
+                retVal = input_element_error((InputElement*)connInput, "Target element %s does not exist",
+                                             inputToComponent);
+                goto cleanup;
+            }
+
+            info->targetComponent = (Component *) components->elements[id];
+        }
+    }
+
+    // source channel
+    {
+        Databus * databus = info->sourceComponent->GetDatabus(info->sourceComponent);
+        DatabusInfo * databusInfo = DatabusGetOutInfo(databus);
+
+        char * inputFromChannel = connInput->fromType == ENDPOINT_SCALAR ? connInput->from.scalarEndpoint->channel :
+                                                                           connInput->from.vectorEndpoint->channel;
+        strFromChannel = mcx_string_copy(inputFromChannel);
+        if (0 == strlen(strFromChannel)) {
+            retVal = input_element_error((InputElement*)connInput, "Source port name is empty");
             goto cleanup;
         }
 
-        if (0 == strlen(inputToComponent)) {
-            retVal = input_element_error((InputElement*)connInput, "Target element name is empty");
-            goto cleanup;
+        if (connInput->fromType == ENDPOINT_VECTOR) {
+            mcx_free(strFromChannel);
+            strFromChannel = CreateIndexedName(inputFromChannel, connInput->from.vectorEndpoint->startIndex);
+            if (!strFromChannel) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
         }
 
-        id = components->GetNameIndex(components, inputToComponent);
-        if (id < 0) {
-            retVal = input_element_error((InputElement*)connInput, "Target element %s does not exist",
-                                         inputToComponent);
-            goto cleanup;
-        }
+        info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
+        if (info->sourceChannel < 0) {
+            // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
 
-        targetComp = (Component *) components->elements[id];
+            databusInfo = DatabusGetInInfo(databus);
+            info->sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
+
+            if (info->sourceChannel < 0) {
+                mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
+                    strFromChannel, info->sourceComponent->GetName(info->sourceComponent));
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            } else {
+                connectionInverted = 1;
+            }
+        }
     }
 
     // target channel
-    inputToChannel = connInput->toType == ENDPOINT_SCALAR ? connInput->to.scalarEndpoint->channel :
-                                                            connInput->to.vectorEndpoint->channel;
-    strToChannel = mcx_string_copy(inputToChannel);
-    if (0 == strlen(strToChannel)) {
-        retVal = input_element_error((InputElement*)connInput, "Target port name is empty");
-        goto cleanup;
-    }
+    {
+        Databus * databus = info->targetComponent->GetDatabus(info->targetComponent);
+        DatabusInfo * databusInfo = NULL;
 
-    if (connInput->toType == ENDPOINT_VECTOR) {
-        mcx_free(strToChannel);
-        strToChannel = CreateIndexedName(inputToChannel, connInput->to.vectorEndpoint->startIndex);
-        if (!strToChannel) {
-            retVal = RETURN_ERROR;
+        char * inputToChannel = connInput->toType == ENDPOINT_SCALAR ? connInput->to.scalarEndpoint->channel :
+                                                                       connInput->to.vectorEndpoint->channel;
+        strToChannel = mcx_string_copy(inputToChannel);
+        if (0 == strlen(strToChannel)) {
+            retVal = input_element_error((InputElement*)connInput, "Target port name is empty");
             goto cleanup;
         }
-    }
 
-    databus = sourceComp->GetDatabus(sourceComp);
-    databusInfo = DatabusGetOutInfo(databus);
-    sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
-    if (sourceChannel < 0) {
-        // the connection might be inverted, see SSP 1.0 specification (section 5.3.2.1, page 47)
-
-        databusInfo = DatabusGetInInfo(databus);
-        sourceChannel = DatabusInfoGetChannelID(databusInfo, strFromChannel);
-
-        if (sourceChannel < 0) {
-            mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
-                strFromChannel, sourceComp->GetName(sourceComp));
-            retVal = RETURN_ERROR;
-            goto cleanup;
-        } else {
-            connectionInverted = 1;
+        if (connInput->toType == ENDPOINT_VECTOR) {
+            mcx_free(strToChannel);
+            strToChannel = CreateIndexedName(inputToChannel, connInput->to.vectorEndpoint->startIndex);
+            if (!strToChannel) {
+                retVal = RETURN_ERROR;
+                goto cleanup;
+            }
         }
-    }
 
-    databus = targetComp->GetDatabus(targetComp);
-
-    if (0 == connectionInverted) {
-        databusInfo = DatabusGetInInfo(databus);
-    } else {
-        databusInfo = DatabusGetOutInfo(databus);
-    }
-
-    targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
-    if (targetChannel < 0) {
         if (0 == connectionInverted) {
-            mcx_log(LOG_ERROR, "Connection: Target port %s of element %s does not exist",
-                strToChannel, targetComp->GetName(targetComp));
+            databusInfo = DatabusGetInInfo(databus);
         } else {
-            mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
-                strToChannel, targetComp->GetName(targetComp));
+            databusInfo = DatabusGetOutInfo(databus);
         }
-        retVal = RETURN_ERROR;
-        goto cleanup;
+
+        info->targetChannel = DatabusInfoGetChannelID(databusInfo, strToChannel);
+        if (info->targetChannel < 0) {
+            if (0 == connectionInverted) {
+                mcx_log(LOG_ERROR, "Connection: Target port %s of element %s does not exist",
+                    strToChannel, info->targetComponent->GetName(info->targetComponent));
+            } else {
+                mcx_log(LOG_ERROR, "Connection: Source port %s of element %s does not exist",
+                    strToChannel, info->targetComponent->GetName(info->targetComponent));
+            }
+            retVal = RETURN_ERROR;
+            goto cleanup;
+        }
     }
 
+    // swap endpoints if connection is inverted
     if (connectionInverted) {
-        int tmp = sourceChannel;
-        Component * tmpCmp = sourceComp;
+        int tmp = info->sourceChannel;
+        Component * tmpCmp = info->sourceComponent;
 
-        sourceChannel = targetChannel;
-        targetChannel = tmp;
+        info->sourceChannel = info->targetChannel;
+        info->targetChannel = tmp;
 
-        sourceComp = targetComp;
-        targetComp = tmpCmp;
+        info->sourceComponent = info->targetComponent;
+        info->targetComponent = tmpCmp;
 
         mcx_log(LOG_DEBUG, "Connection: Inverted connection (%s, %s) -- (%s, %s)",
-            targetComp->GetName(targetComp), strFromChannel, sourceComp->GetName(sourceComp), strToChannel);
+            info->targetComponent->GetName(info->targetComponent), strFromChannel, info->sourceComponent->GetName(info->sourceComponent), strToChannel);
     }
 
     // extrapolation
     if (connInput->interExtrapolationType.defined) {
-        interExtrapolationType = connInput->interExtrapolationType.value;
+        info->interExtrapolationType = connInput->interExtrapolationType.value;
     }
 
-    if (INTEREXTRAPOLATION_POLYNOMIAL == interExtrapolationType) {
+    if (INTEREXTRAPOLATION_POLYNOMIAL == info->interExtrapolationType) {
         // read the parameters of poly inter-/extrapolation
-        InterExtrapolationParams * params = interExtrapolationParams;
+        InterExtrapolationParams * params = &info->interExtrapolationParams;
         InterExtrapolationInput * paramsInput = connInput->interExtrapolation;
 
         params->extrapolationInterval = paramsInput->extrapolationType;
@@ -236,59 +213,49 @@ static ConnectionInfo * ConnectionInfoFactoryCreateConnectionInfo(ObjectContaine
 
     // decouple
     if (connInput->decoupleType.defined) {
-        decoupleType = connInput->decoupleType.value;
+        info->decoupleType = connInput->decoupleType.value;
 
         // decouple priority
-        if (DECOUPLE_IFNEEDED == decoupleType) {
+        if (DECOUPLE_IFNEEDED == info->decoupleType) {
             DecoupleIfNeededInput * decoupleInput = (DecoupleIfNeededInput*)connInput->decoupleSettings;
             if (decoupleInput->priority.defined) {
-                decouplePriority = decoupleInput->priority.value;
+                info->decouplePriority = decoupleInput->priority.value;
             }
 
-            if (decouplePriority < 0) {
+            if (info->decouplePriority < 0) {
                 retVal = input_element_error((InputElement*)decoupleInput, "Invalid decouple priority");
                 goto cleanup;
             }
         }
     }
 
-    info->Set(
-        info,
-        sourceComp,
-        targetComp,
-        sourceChannel,
-        targetChannel,
-        isDecoupled,
-        isInterExtrapolating,
-        interExtrapolationType,
-        interExtrapolationParams,
-        decoupleType,
-        decouplePriority
-    );
-
 cleanup:
-    if (RETURN_ERROR == retVal) { object_destroy(info); }
     if (NULL != strFromChannel) { mcx_free(strFromChannel); }
     if (NULL != strToChannel) { mcx_free(strToChannel); }
 
-    return info;
+    return retVal;
 }
 
-ObjectContainer * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * components,
-                                                             ConnectionInput * connInput,
-                                                             Component * sourceCompOverride,
-                                                             Component * targetCompOverride) {
-    ConnectionInfo * info  = NULL;
-    ObjectContainer * list = NULL;
+Vector * ConnectionInfoFactoryCreateConnectionInfos(
+    ObjectContainer * components,
+    ConnectionInput * connInput,
+    Component * sourceCompOverride,
+    Component * targetCompOverride)
+{
+    McxStatus retVal = RETURN_OK;
 
-    list = (ObjectContainer *) object_create(ObjectContainer);
+    ConnectionInfo info = { 0 };
+    Vector * list = NULL;
+
+    list = (Vector *) object_create(Vector);
     if (!list) {
         goto cleanup;
     }
 
-    info = ConnectionInfoFactoryCreateConnectionInfo(components, connInput,
-                                                     sourceCompOverride, targetCompOverride);
-    if (!info) {
+    list->Setup(list, sizeof(ConnectionInfo), ConnectionInfoInit, NULL, NULL);
+
+    retVal = ConnectionInfoFactoryInitConnectionInfo(&info, components, connInput, sourceCompOverride, targetCompOverride);
+    if (RETURN_ERROR == retVal) {
         goto cleanup;
     }
 
@@ -301,8 +268,8 @@ ObjectContainer * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * c
         int toEndIndex = connInput->toType == ENDPOINT_VECTOR ? connInput->to.vectorEndpoint->endIndex : 0;
 
         int i = 0;
-        int fromStart = info->GetSourceChannelID(info);
-        int toStart = info->GetTargetChannelID(info);
+        int fromStart = info.sourceChannel;
+        int toStart = info.targetChannel;
 
         if (fromEndIndex - fromStartIndex != toEndIndex - toStartIndex) {
             /* the lenghts of both sides do not match */
@@ -311,27 +278,25 @@ ObjectContainer * ConnectionInfoFactoryCreateConnectionInfos(ObjectContainer * c
         }
 
         for (i = 0; fromStartIndex + i <= fromEndIndex; i++) {
-            ConnectionInfo * copy = info->Copy(info, fromStart + i, toStart + i);
-            if (!copy) {
-                goto cleanup;
-            }
-            list->PushBack(list, (Object *) copy);
-        }
+            ConnectionInfo * copy = NULL;
 
-        object_destroy(info);
+            list->PushBack(list, &info);
+            copy = (ConnectionInfo *) list->At(list, list->Size(list) - 1);
+            copy->sourceChannel = fromStart + i;
+            copy->targetChannel = toStart + i;
+        }
     } else {
         /* info is the only connection: leave as is */
-        list->PushBack(list, (Object *) info);
+        list->PushBack(list, &info);
     }
 
     return list;
 
 cleanup:
     if (list) {
-        list->DestroyObjects(list);
         object_destroy(list);
     }
-    if (info) { object_destroy(info); }
+
     return NULL;
 }
 

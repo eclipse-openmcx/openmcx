@@ -26,6 +26,7 @@ typedef McxStatus (* fChannelStorageRegisterChannel)(ChannelStorage * channelSto
 typedef McxStatus (* fChannelStorageStore)(ChannelStorage * channelStore, double time);
 typedef size_t (* fChannelStorageGetChannelNum)(ChannelStorage * channelStore);
 typedef ChannelValue (* fChannelStorageGetValueAt)(ChannelStorage * channelStore, size_t row, size_t col);
+typedef ChannelValue * (* fChannelStorageGetValuesAtRow)(ChannelStorage * channelStore, size_t row);
 typedef size_t (* fChannelStorageLength)(ChannelStorage * channelStore);
 typedef struct ChannelInfo * (* fChannelStorageGetChannelInfo)(ChannelStorage * channelStore, size_t idx);
 
@@ -40,6 +41,7 @@ typedef struct ChannelStorage {
 
     fChannelStorageGetChannelNum GetChannelNum;
     fChannelStorageGetValueAt GetValueAt;
+    fChannelStorageGetValuesAtRow GetValuesAtRow;
 
     fChannelStorageLength Length;
 

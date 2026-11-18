@@ -28,6 +28,7 @@ struct ComponentType {
 };
 
 
+extern const char * const compConstantTypeString;
 extern const ObjectClass _ComponentTypeConstant;
 typedef struct ComponentTypeConstant {
     ComponentType _;

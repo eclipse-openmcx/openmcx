@@ -32,6 +32,9 @@ typedef enum StepTypeType {
 } StepTypeType;
 
 
+int IsStepTypeMultiThreading(StepTypeType type);
+
+
 typedef McxStatus (* fStepTypeDoStep)(StepType * stepType, StepTypeParams * params, SubModel * subModel);
 typedef McxStatus (* fStepTypeFinish)(StepType * stepType, StepTypeParams * params, SubModel * subModel, FinishState * finishState);
 typedef McxStatus (* fStepTypeConfigure)(StepType * stepType, StepTypeParams * params, SubModel * subModel);
@@ -56,6 +59,7 @@ struct StepTypeParams {
 /* shared functionality between step types */
 McxStatus ComponentDoCommunicationStep(Component * comp, size_t group, StepTypeParams * params);
 McxStatus CompEnterCouplingStepMode(Component * comp, void * param);
+McxStatus CompCollectModeSwitchData(Component * comp, void * param);
 McxStatus CompEnterCommunicationPoint(CompAndGroup * compGroup, void * param);
 McxStatus CompDoStep(CompAndGroup * compGroup, void * param);
 

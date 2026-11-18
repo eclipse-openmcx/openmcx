@@ -11,6 +11,8 @@
 #ifndef MCX_CORE_DATABUS_IMPL_H
 #define MCX_CORE_DATABUS_IMPL_H
 
+#include "objects/Vector.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -27,7 +29,7 @@ extern const struct ObjectClass _DatabusInfoData;
 typedef struct DatabusInfoData {
     Object _; // base class
 
-    ObjectContainer * infos;
+    Vector * infos;
     ObjectContainer * origInfos;
 } DatabusInfoData;
 
@@ -51,6 +53,8 @@ typedef struct DatabusData {
     Object _; // base class
 
     struct ChannelIn ** in;   /**< input channels */
+    struct ChannelIn ** inConnected;   /**< connected input channels */
+    size_t numInConnected;
     struct ChannelOut ** out; /**< output channels */
     struct ChannelLocal ** local; /**< local (non-connectable) channels */
     struct ChannelLocal ** rtfactor; /**< rtfactor (non-connectable) channels */

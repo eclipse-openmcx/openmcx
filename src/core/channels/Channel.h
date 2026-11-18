@@ -12,6 +12,7 @@
 #define MCX_CORE_CHANNELS_CHANNEL_H
 
 #include "CentralParts.h"
+#include "core/channels/ChannelInfo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,9 +20,7 @@ extern "C" {
 
 struct Config;
 struct Component;
-struct ChannelInfo;
 
-struct ChannelData;
 struct ChannelInData;
 struct ChannelOutData;
 struct Connection;
@@ -42,8 +41,6 @@ typedef int (* fChannelIsDefinedDuringInit)(Channel * channel);
 
 typedef void (* fChannelSetDefinedDuringInit)(Channel * channel);
 
-typedef struct ChannelInfo * (* fChannelGetInfo)(Channel * channel);
-
 typedef McxStatus (* fChannelSetup)(Channel * channel, struct ChannelInfo * info);
 
 typedef McxStatus (* fChannelUpdate)(Channel * channel, TimeInterval * time);
@@ -52,6 +49,18 @@ extern const struct ObjectClass _Channel;
 
 struct Channel {
     Object _; // base class
+
+    ChannelInfo info;
+
+    // ----------------------------------------------------------------------
+    // Value
+
+    // NOTE: This flag gets set if there is a defined value for the
+    // channel during initialization.
+    int isDefinedDuringInit;
+
+    const void * internalValue;
+    ChannelValue value;
 
     /**
      * Virtual method.
@@ -67,11 +76,6 @@ struct Channel {
      * Update the value of the channel to the specified start time in time.
      */
     fChannelUpdate Update;
-
-    /**
-     * Return info struct of channel.
-     */
-    fChannelGetInfo GetInfo;
 
     /**
      * Virtual method.
@@ -98,8 +102,6 @@ struct Channel {
      * Initialize channel with info struct.
      */
     fChannelSetup Setup;
-
-    struct ChannelData * data;
 };
 
 // ----------------------------------------------------------------------
@@ -192,7 +194,7 @@ typedef McxStatus (* fChannelOutRegisterConnection)(struct ChannelOut * out,
 
 typedef const proc * (* fChannelOutGetFunction)(ChannelOut * out);
 
-typedef ObjectContainer * (* fChannelOutGetConnections)(ChannelOut * out);
+typedef ObjectList * (* fChannelOutGetConnections)(ChannelOut * out);
 
 extern const struct ObjectClass _ChannelOut;
 

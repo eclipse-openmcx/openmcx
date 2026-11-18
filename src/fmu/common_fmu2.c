@@ -13,6 +13,8 @@
 
 #include "fmu/Fmu2Value.h"
 
+#include "core/channels/ChannelInfo.h"
+
 #include "reader/model/parameters/ArrayParameterDimensionInput.h"
 #include "reader/model/parameters/ParameterInput.h"
 #include "reader/model/parameters/ParametersInput.h"
@@ -59,6 +61,23 @@ ChannelType Fmi2TypeToChannelType(fmi2_base_type_enu_t type) {
     }
 }
 
+const char * Fmi2TypeToString(fmi2_base_type_enu_t type) {
+    switch (type) {
+    case fmi2_base_type_real:
+        return "fmi2Real";
+    case fmi2_base_type_int:
+        return "fmi2Integer";
+    case fmi2_base_type_bool:
+        return "fmi2Bool";
+    case fmi2_base_type_str:
+        return "fmi2String";
+    case fmi2_base_type_enum:
+        return "fmi2Enum";
+    }
+    return "fmi2Unknown";
+}
+
+
 McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->fmiImport = NULL;
 
@@ -72,6 +91,8 @@ McxStatus Fmu2CommonStructInit(Fmu2CommonStruct * fmu) {
     fmu->localValues = (ObjectContainer *) object_create(ObjectContainer);
     fmu->tunableParams = (ObjectContainer *) object_create(ObjectContainer);
     fmu->initialValues = (ObjectContainer *) object_create(ObjectContainer);
+
+    fmu->connectedIn = (ObjectContainer *) object_create(ObjectContainer);
 
     fmu->numLogCategories = 0;
     fmu->logCategories = NULL;
@@ -232,6 +253,10 @@ void Fmu2CommonStructDestructor(Fmu2CommonStruct * fmu) {
     if (fmu->tunableParams) {
         fmu->tunableParams->DestroyObjects(fmu->tunableParams);
         object_destroy(fmu->tunableParams);
+    }
+
+    if (fmu->connectedIn) {
+        object_destroy(fmu->connectedIn);
     }
 
     if (fmu->fmiImport) {
@@ -1030,8 +1055,8 @@ void Fmu2MarkTunableParamsAsInputAsDiscrete(ObjectContainer * in) {
 
             if (fmi2_causality_enu_input != causality) {
                 ChannelIn * in = (ChannelIn *) val->channel;
-                ChannelInfo * info = ((Channel*)in)->GetInfo((Channel*)in);
-                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", info->GetLogName(info));
+                ChannelInfo * info = &((Channel*)in)->info;
+                mcx_log(LOG_DEBUG, "Setting input \"%s\" as discrete", ChannelInfoGetLogName(info));
                 in->SetDiscrete(in);
             }
         }
